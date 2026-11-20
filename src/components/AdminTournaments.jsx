@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import toast from 'react-hot-toast';
 import TopNav from './TopNav';
+import { TournamentDetail } from './Tournaments';
 import { fetchProfile } from '../lib/profile';
 import {
   fetchTournaments,
@@ -8,6 +9,8 @@ import {
   updateTournament,
   deleteTournament,
   isDemoCreated,
+  joinTournament,
+  leaveTournament,
   subscribeTournaments,
   formatCountdown,
   formatDateTime,
@@ -28,7 +31,7 @@ import { maxRounds } from '../../supabase/functions/_shared/swiss.js';
 const inputCls =
   'w-full bg-obsidian border rounded-lg px-3 py-2 text-white placeholder-gray-600 focus:outline-none focus:border-gold';
 
-export default function AdminTournaments({ user, onNavigate, onEditProfile, onLogout, onOpenTournament }) {
+export default function AdminTournaments({ user, onNavigate, onEditProfile, onLogout }) {
   const [profile, setProfile] = useState(null);
   const [profileLoaded, setProfileLoaded] = useState(false);
   const [form, setForm] = useState(() => emptyForm());
@@ -41,6 +44,10 @@ export default function AdminTournaments({ user, onNavigate, onEditProfile, onLo
   const [lastCreated, setLastCreated] = useState(null);
   const [statusFilter, setStatusFilter] = useState('all');
   const [now, setNow] = useState(() => Date.now());
+  // Tournament detail opened on top of the admin page: { id, view: 'pairings' | 'standings' }
+  const [detail, setDetail] = useState(null);
+  const [refreshKey, setRefreshKey] = useState(0);
+  const [joinBusy, setJoinBusy] = useState(false);
   const topRef = useRef(null);
 
   useEffect(() => {
@@ -54,7 +61,7 @@ export default function AdminTournaments({ user, onNavigate, onEditProfile, onLo
 
   const reload = useCallback(
     () =>
-      fetchTournaments(user)
+      (setRefreshKey((k) => k + 1), fetchTournaments(user))
         .then((all) => setList(all.filter((t) => t.format === 'swiss')))
         .catch((e) => toast.error(`Gagal memuat turnamen: ${e.message}`)),
     [user],
@@ -68,9 +75,28 @@ export default function AdminTournaments({ user, onNavigate, onEditProfile, onLo
   }, [isAdmin, user, reload]);
 
   useEffect(() => {
-    const id = setInterval(() => setNow(Date.now()), 30_000);
+    // Tick every second while a detail is open (live countdown), otherwise every 30 s.
+    const id = setInterval(() => setNow(Date.now()), detail ? 1000 : 30_000);
     return () => clearInterval(id);
-  }, []);
+  }, [detail]);
+
+  const detailT = detail ? (list || []).find((t) => t.id === detail.id) : null;
+  const openDetail = (id, view) => setDetail({ id, view });
+  const closeDetail = useCallback(() => setDetail(null), []);
+
+  async function toggleJoin(t) {
+    setJoinBusy(true);
+    try {
+      if (t.joined) await leaveTournament(user, t);
+      else await joinTournament(user, t);
+      toast.success(t.joined ? `Batal ikut ${t.name}` : `Terdaftar di ${t.name}`);
+      await reload();
+    } catch (e) {
+      toast.error(e.message);
+    } finally {
+      setJoinBusy(false);
+    }
+  }
 
   const statusCounts = useMemo(() => {
     const c = { all: 0, upcoming: 0, running: 0, finished: 0 };
@@ -204,7 +230,7 @@ export default function AdminTournaments({ user, onNavigate, onEditProfile, onLo
               {formatDateTime(lastCreated.starts_at)}. Pendaftaran sudah dibuka.
             </div>
             <button
-              onClick={() => onOpenTournament(lastCreated.id)}
+              onClick={() => openDetail(lastCreated.id, 'standings')}
               className="px-4 py-2 bg-emerald text-obsidian font-bold rounded whitespace-nowrap"
             >
               Lihat Turnamen →
@@ -487,7 +513,8 @@ export default function AdminTournaments({ user, onNavigate, onEditProfile, onLo
                   builtIn={user.isGuest && !isDemoCreated(t) && t.status === 'upcoming'}
                   isEditing={editing?.id === t.id}
                   onEdit={() => startEdit(t)}
-                  onOpen={() => onOpenTournament(t.id)}
+                  onOpen={() => openDetail(t.id, 'standings')}
+                  onOpenPairings={() => openDetail(t.id, 'pairings')}
                   onDelete={async () => {
                     try {
                       await deleteTournament(user, t);
@@ -505,6 +532,22 @@ export default function AdminTournaments({ user, onNavigate, onEditProfile, onLo
           )}
         </section>
       </div>
+
+      {detailT && (
+        <TournamentDetail
+          key={`${detailT.id}-${detail.view}`}
+          user={user}
+          t={detailT}
+          now={now}
+          isAdmin={isAdmin}
+          initialView={detail.view}
+          refreshKey={refreshKey}
+          onChanged={reload}
+          busy={joinBusy}
+          onToggleJoin={() => toggleJoin(detailT)}
+          onClose={closeDetail}
+        />
+      )}
     </Shell>
   );
 }
@@ -643,7 +686,7 @@ function statusDetail(t, now) {
   return `Selesai ${formatDateTime(t.ends_at || t.starts_at)}`;
 }
 
-function ManageRow({ t, now, editable, builtIn, isEditing, onEdit, onOpen, onDelete }) {
+function ManageRow({ t, now, editable, builtIn, isEditing, onEdit, onOpen, onOpenPairings, onDelete }) {
   const [confirming, setConfirming] = useState(false);
   const [busy, setBusy] = useState(false);
   const count = t.player_count || 0;
@@ -694,8 +737,16 @@ function ManageRow({ t, now, editable, builtIn, isEditing, onEdit, onOpen, onDel
         {builtIn ? (
           <span className="text-xs text-gray-600">Contoh bawaan</span>
         ) : !editable ? (
-          <button onClick={onOpen} className="px-3 py-1 rounded border border-gray-700 text-gray-300 text-sm hover:text-white">
-            {t.status === 'running' ? 'Pantau' : 'Lihat hasil'}
+          <button
+            onClick={onOpenPairings}
+            title="Buka papan pairing turnamen"
+            className={`px-3 py-1 rounded border text-sm whitespace-nowrap ${
+              t.status === 'running'
+                ? 'border-emerald/50 text-emerald hover:bg-emerald/10'
+                : 'border-gray-600 text-gray-300 hover:text-white hover:bg-white/5'
+            }`}
+          >
+            {t.status === 'running' ? '♟ Pantau' : '♟ Lihat hasil'}
           </button>
         ) : confirming ? (
           <div className="flex flex-wrap items-center gap-2 text-sm">

@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import toast from 'react-hot-toast';
 import TopNav from './TopNav';
 import Avatar from './Avatar';
@@ -328,13 +328,22 @@ function TournamentCard({ t, now, busy, onOpen, onToggleJoin }) {
   );
 }
 
-function TournamentDetail({ user, t, now, busy, onToggleJoin, onClose, isAdmin, onChanged, refreshKey }) {
+export function TournamentDetail({ user, t, now, busy, onToggleJoin, onClose, isAdmin, onChanged, refreshKey, initialView }) {
   const [standings, setStandings] = useState(null);
   const [error, setError] = useState(null);
   const isSwiss = t.format === 'swiss';
   const started = t.status !== 'upcoming';
-  const [view, setView] = useState(isSwiss && t.status === 'running' ? 'pairings' : 'standings');
+  const [view, setView] = useState(initialView ?? (isSwiss && t.status === 'running' ? 'pairings' : 'standings'));
   const [starting, setStarting] = useState(false);
+  const boardRef = useRef(null);
+  const jumped = useRef(false);
+
+  // Opened via "Pantau" / "Lihat hasil": jump to the pairing board once it has loaded (matters on small screens).
+  const handleBoardReady = useCallback(() => {
+    if (initialView !== 'pairings' || jumped.current) return;
+    jumped.current = true;
+    requestAnimationFrame(() => boardRef.current?.scrollIntoView({ block: 'start' }));
+  }, [initialView]);
 
   useEffect(() => {
     fetchStandings(user, t.id)
@@ -443,7 +452,7 @@ function TournamentDetail({ user, t, now, busy, onToggleJoin, onClose, isAdmin, 
         )}
 
         {isSwiss && started ? (
-          <div className="flex gap-2 mb-3" role="tablist">
+          <div ref={boardRef} className="flex gap-2 mb-3 scroll-mt-4" role="tablist">
             {[
               { key: 'pairings', label: '♟ Pairing' },
               { key: 'standings', label: '📊 Klasemen' },
@@ -466,7 +475,15 @@ function TournamentDetail({ user, t, now, busy, onToggleJoin, onClose, isAdmin, 
         )}
 
         {isSwiss && started && view === 'pairings' ? (
-          <SwissPanel user={user} t={t} isAdmin={isAdmin} scores={scores} onChanged={onChanged} refreshKey={refreshKey} />
+          <SwissPanel
+            user={user}
+            t={t}
+            isAdmin={isAdmin}
+            scores={scores}
+            onChanged={onChanged}
+            refreshKey={refreshKey}
+            onReady={handleBoardReady}
+          />
         ) : error ? (
           <div className="text-red-400 text-sm">{error}</div>
         ) : standings === null ? (

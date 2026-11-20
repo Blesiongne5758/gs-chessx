@@ -16,7 +16,7 @@ function resultLabel(r) {
 }
 
 /** Pairings per round for Swiss tournaments, with result entry for admins. */
-export default function SwissPanel({ user, t, isAdmin, scores, onChanged, refreshKey }) {
+export default function SwissPanel({ user, t, isAdmin, scores, onChanged, refreshKey, onReady }) {
   const [pairings, setPairings] = useState(null);
   const [error, setError] = useState(null);
   const [round, setRound] = useState(t.current_round || 1);
@@ -32,6 +32,11 @@ export default function SwissPanel({ user, t, isAdmin, scores, onChanged, refres
   useEffect(() => {
     if (t.current_round) setRound(t.current_round);
   }, [t.current_round]);
+
+  const loaded = pairings !== null;
+  useEffect(() => {
+    if (loaded) onReady?.();
+  }, [loaded, onReady]);
 
   const rounds = useMemo(() => {
     const max = Math.max(0, ...(pairings || []).map((p) => p.round));

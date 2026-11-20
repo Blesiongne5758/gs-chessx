@@ -15,7 +15,6 @@ function App() {
   const [user, setUser] = useState(null);
   const [page, setPage] = useState('landing');
   const [authMode, setAuthMode] = useState(null); // 'login' | 'signup' | null
-  const [focusTournamentId, setFocusTournamentId] = useState(null);
   const [timeControl, setTimeControl] = useState({ label: 'Rapid (10+0)', base: 600, inc: 0 });
 
   useEffect(() => {
@@ -82,11 +81,7 @@ function App() {
       {page === 'tournaments' && user && (
         <Tournaments
           user={user}
-          initialSelectedId={focusTournamentId}
-          onNavigate={(p) => {
-            setFocusTournamentId(null);
-            setPage(p);
-          }}
+          onNavigate={setPage}
           onEditProfile={() => setPage('profile')}
           onLogout={handleLogout}
         />
@@ -98,10 +93,6 @@ function App() {
           onNavigate={setPage}
           onEditProfile={() => setPage('profile')}
           onLogout={handleLogout}
-          onOpenTournament={(id) => {
-            setFocusTournamentId(id);
-            setPage('tournaments');
-          }}
         />
       )}
 
