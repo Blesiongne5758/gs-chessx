@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import toast from 'react-hot-toast';
 import TopNav from './TopNav';
 import Avatar from './Avatar';
+import SwissPanel from './SwissPanel';
 import { fetchProfile } from '../lib/profile';
 import {
   FORMAT_LABEL,
@@ -11,6 +12,8 @@ import {
   joinTournament,
   leaveTournament,
   subscribeTournaments,
+  startSwiss,
+  demoResetSwiss,
   formatCountdown,
   formatDateTime,
 } from '../lib/tournaments';
@@ -49,13 +52,13 @@ export default function Tournaments({ user, onNavigate, onEditProfile, onLogout 
   const now = useNow();
 
   const reload = useCallback(() => {
-    fetchTournaments(user)
+    setStandingsKey((k) => k + 1);
+    return fetchTournaments(user)
       .then((list) => {
         setTournaments(list);
         setError(null);
       })
       .catch((e) => setError(e.message));
-    setStandingsKey((k) => k + 1);
   }, [user]);
 
   useEffect(() => {
@@ -78,6 +81,8 @@ export default function Tournaments({ user, onNavigate, onEditProfile, onLogout 
 
   const featured = useMemo(() => (tournaments || []).find((t) => t.status === 'upcoming'), [tournaments]);
   const selected = tournaments?.find((t) => t.id === selectedId) || null;
+  // Guests run the demo as tournament director; real accounts need profiles.is_admin.
+  const isAdmin = user.isGuest || !!profile?.is_admin;
 
   async function toggleJoin(t) {
     setBusyId(t.id);
@@ -204,8 +209,11 @@ export default function Tournaments({ user, onNavigate, onEditProfile, onLogout 
 
       {selected && (
         <TournamentDetail
-          key={`${selected.id}-${standingsKey}`}
+          key={selected.id}
+          refreshKey={standingsKey}
           user={user}
+          isAdmin={isAdmin}
+          onChanged={reload}
           t={selected}
           now={now}
           busy={busyId === selected.id}
@@ -282,7 +290,11 @@ function TournamentCard({ t, now, busy, onOpen, onToggleJoin }) {
       <div className="flex flex-wrap items-center gap-3 text-sm text-gray-300 mb-3">
         <FormatBadge format={t.format} />
         <span>⏱ {t.time_control}</span>
-        {t.rounds && <span>{t.rounds} ronde</span>}
+        {t.rounds && (
+          <span>
+            {t.status === 'running' && t.current_round ? `Ronde ${t.current_round}/${t.rounds}` : `${t.rounds} ronde`}
+          </span>
+        )}
       </div>
 
       <div className="text-sm text-gray-400 mb-1">📅 {formatDateTime(t.starts_at)}</div>
@@ -307,15 +319,41 @@ function TournamentCard({ t, now, busy, onOpen, onToggleJoin }) {
   );
 }
 
-function TournamentDetail({ user, t, now, busy, onToggleJoin, onClose }) {
+function TournamentDetail({ user, t, now, busy, onToggleJoin, onClose, isAdmin, onChanged, refreshKey }) {
   const [standings, setStandings] = useState(null);
   const [error, setError] = useState(null);
+  const isSwiss = t.format === 'swiss';
+  const started = t.status !== 'upcoming';
+  const [view, setView] = useState(isSwiss && t.status === 'running' ? 'pairings' : 'standings');
+  const [starting, setStarting] = useState(false);
 
   useEffect(() => {
     fetchStandings(user, t.id)
       .then(setStandings)
       .catch((e) => setError(e.message));
-  }, [user, t.id]);
+  }, [user, t.id, refreshKey]);
+
+  const scores = useMemo(() => new Map((standings || []).map((r) => [r.player?.id, r.score])), [standings]);
+
+  async function handleStart() {
+    setStarting(true);
+    try {
+      const res = await startSwiss(user, t);
+      toast.success(`Turnamen dimulai. Ronde 1: ${res?.boards ?? ''} papan dipasangkan.`);
+      setView('pairings');
+      await onChanged();
+    } catch (e) {
+      toast.error(e.message);
+    } finally {
+      setStarting(false);
+    }
+  }
+
+  async function handleReset() {
+    demoResetSwiss(t);
+    setView('standings');
+    await onChanged();
+  }
 
   useEffect(() => {
     const onKey = (e) => e.key === 'Escape' && onClose();
@@ -354,7 +392,10 @@ function TournamentDetail({ user, t, now, busy, onToggleJoin, onClose }) {
         <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 mb-4 text-sm">
           <Info label="Format" value={<FormatBadge format={t.format} />} hint={FORMAT_DESC[t.format]} />
           <Info label="Waktu" value={t.time_control} />
-          <Info label="Ronde" value={t.rounds ?? '—'} />
+          <Info
+            label="Ronde"
+            value={t.status === 'running' && t.current_round ? `${t.current_round} dari ${t.rounds}` : (t.rounds ?? '—')}
+          />
           <Info label="Mulai" value={formatDateTime(t.starts_at)} />
           <Info label="Selesai" value={formatDateTime(t.ends_at)} />
           <Info label="Pemain" value={`${t.player_count}/${t.max_players}`} />
@@ -375,8 +416,49 @@ function TournamentDetail({ user, t, now, busy, onToggleJoin, onClose }) {
           </div>
         )}
 
-        <h3 className="text-lg font-bold text-gold mb-2">{showScores ? '📊 Klasemen' : '👥 Peserta Terdaftar'}</h3>
-        {error ? (
+        {isSwiss && isAdmin && t.status === 'upcoming' && (
+          <div className="bg-azure/10 border border-azure/40 rounded-lg p-4 mb-4 flex flex-col sm:flex-row sm:items-center gap-3">
+            <div className="flex-1 text-sm text-gray-300">
+              <div className="font-bold text-azure">Admin turnamen</div>
+              Menutup pendaftaran dan membuat pairing Ronde 1 otomatis. Ronde berikutnya dipasangkan otomatis begitu semua
+              hasil masuk.
+            </div>
+            <button
+              onClick={handleStart}
+              disabled={starting || t.player_count < 2}
+              className="px-4 py-2 bg-azure text-white font-bold rounded hover:brightness-110 disabled:opacity-50 whitespace-nowrap"
+            >
+              {starting ? 'Memulai...' : '▶ Mulai & Pairing R1'}
+            </button>
+          </div>
+        )}
+
+        {isSwiss && started ? (
+          <div className="flex gap-2 mb-3" role="tablist">
+            {[
+              { key: 'pairings', label: '♟ Pairing' },
+              { key: 'standings', label: '📊 Klasemen' },
+            ].map((v) => (
+              <button
+                key={v.key}
+                role="tab"
+                aria-selected={view === v.key}
+                onClick={() => setView(v.key)}
+                className={`px-4 py-2 rounded-md text-sm font-bold transition ${
+                  view === v.key ? 'bg-gold text-obsidian' : 'bg-obsidian text-gray-300 hover:text-white'
+                }`}
+              >
+                {v.label}
+              </button>
+            ))}
+          </div>
+        ) : (
+          <h3 className="text-lg font-bold text-gold mb-2">{showScores ? '📊 Klasemen' : '👥 Peserta Terdaftar'}</h3>
+        )}
+
+        {isSwiss && started && view === 'pairings' ? (
+          <SwissPanel user={user} t={t} isAdmin={isAdmin} scores={scores} onChanged={onChanged} refreshKey={refreshKey} />
+        ) : error ? (
           <div className="text-red-400 text-sm">{error}</div>
         ) : standings === null ? (
           <div className="text-gray-400 py-6 text-center">Memuat...</div>
@@ -393,6 +475,11 @@ function TournamentDetail({ user, t, now, busy, onToggleJoin, onClose }) {
                   {showScores && (
                     <>
                       <th className="py-2 text-right">M/S/K</th>
+                      {isSwiss && (
+                        <th className="py-2 text-right" title="Buchholz: jumlah poin semua lawan">
+                          BH
+                        </th>
+                      )}
                       <th className="py-2 text-right">Poin</th>
                     </>
                   )}
@@ -419,6 +506,9 @@ function TournamentDetail({ user, t, now, busy, onToggleJoin, onClose }) {
                           <td className="py-2 text-right text-gray-400 font-mono">
                             {row.wins}/{row.draws}/{row.losses}
                           </td>
+                          {isSwiss && (
+                            <td className="py-2 text-right text-gray-400 font-mono">{Number(row.buchholz ?? 0).toFixed(1)}</td>
+                          )}
                           <td className="py-2 text-right text-gold font-bold font-mono">{Number(row.score).toFixed(1)}</td>
                         </>
                       )}
@@ -431,6 +521,11 @@ function TournamentDetail({ user, t, now, busy, onToggleJoin, onClose }) {
         )}
 
         <div className="flex justify-end gap-3 mt-6">
+          {user.isGuest && isSwiss && started && t.id !== 'demo-5' && (
+            <button onClick={handleReset} className="px-4 py-2 text-gray-400 hover:text-white text-sm mr-auto">
+              ↺ Reset demo
+            </button>
+          )}
           <button onClick={onClose} className="px-4 py-2 bg-slate text-gray-300 rounded hover:bg-gray-700">
             Tutup
           </button>

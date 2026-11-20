@@ -1,5 +1,12 @@
 import { supabase } from './supabaseClient';
 import { loadGuestProfile } from './profile';
+import {
+  computeStandings,
+  planStart,
+  planAdvance,
+  validateReport,
+  isRoundComplete,
+} from '../../supabase/functions/_shared/swiss.js';
 
 export const FORMAT_LABEL = { swiss: 'Swiss', knockout: 'Knockout', arena: 'Arena' };
 export const FORMAT_DESC = {
@@ -46,7 +53,7 @@ const DEMO = [
   {
     id: 'demo-2', name: 'Anarchy Rebellion Swiss', format: 'swiss', status: 'upcoming', time_control: '10+0',
     max_players: 64, rounds: 7, prize_pool: 'Skin Eksklusif + 3.000 Gems', is_pro_only: false,
-    description: 'Swiss 7 ronde untuk semua level. Pasangan ditentukan berdasarkan skor.',
+    description: 'Swiss untuk semua level. Lawan tiap ronde dipasangkan otomatis berdasarkan skor.',
     starts_at: new Date(t0 + 24 * H).toISOString(), ends_at: new Date(t0 + 28 * H).toISOString(),
     _players: demoPlayers(8, 3, false),
   },
@@ -73,6 +80,76 @@ const DEMO = [
   },
 ];
 
+// Pre-simulate the finished demo Swiss with the real engine so its pairings and standings agree.
+function seededRandom(seed) {
+  return () => {
+    seed = (seed * 1103515245 + 12345) % 2147483648;
+    return seed / 2147483648;
+  };
+}
+
+function simulateDemoSwiss(t, seed) {
+  const rand = seededRandom(seed);
+  const participants = t._players.map((r) => ({ player_id: r.player.id, rating: r.player.rating }));
+  const start = planStart({ ...t, status: 'upcoming' }, participants);
+  let state = { ...t, ...start.tournamentPatch };
+  let pairings = start.newPairings.map((p, i) => ({ ...p, id: `${t.id}-g${i}` }));
+  while (state.status === 'running') {
+    for (const g of pairings) {
+      if (g.result === null) {
+        const r = rand();
+        g.result = r < 0.42 ? '1-0' : r < 0.67 ? '1/2-1/2' : '0-1';
+      }
+    }
+    const plan = planAdvance(state, participants, pairings);
+    if (plan.tournamentPatch) state = { ...state, ...plan.tournamentPatch };
+    pairings = [...pairings, ...plan.newPairings.map((p, i) => ({ ...p, id: `${t.id}-g${pairings.length + i}` }))];
+  }
+  t.status = 'finished';
+  t.current_round = state.current_round;
+  t.rounds = state.rounds;
+  t.winner_id = state.winner_id;
+  t._pairings = pairings;
+}
+simulateDemoSwiss(DEMO.find((d) => d.id === 'demo-5'), 47);
+
+// ---- Demo Swiss state (guest acts as tournament director) ----
+const SWISS_KEY = 'gs-chessx-demo-swiss';
+
+function loadSwissState() {
+  try {
+    return JSON.parse(localStorage.getItem(SWISS_KEY) || '{}');
+  } catch {
+    return {};
+  }
+}
+
+function saveSwissState(all) {
+  localStorage.setItem(SWISS_KEY, JSON.stringify(all));
+}
+
+function demoMerged(t) {
+  const st = loadSwissState()[t.id];
+  return st ? { ...t, ...st.patch } : t;
+}
+
+function demoPairings(t) {
+  return loadSwissState()[t.id]?.pairings || t._pairings || [];
+}
+
+function demoPlayerMap(t) {
+  const map = new Map(t._players.map((r) => [r.player.id, r.player]));
+  if (demoJoined().has(t.id)) {
+    const g = loadGuestProfile();
+    map.set('guest', { id: 'guest', username: g.username, avatar_url: g.avatar_url, rating: g.rating });
+  }
+  return map;
+}
+
+function demoParticipants(t) {
+  return [...demoPlayerMap(t).values()].map((p) => ({ player_id: p.id, rating: p.rating }));
+}
+
 function demoJoined() {
   try {
     return new Set(JSON.parse(localStorage.getItem(DEMO_KEY) || '[]'));
@@ -86,7 +163,10 @@ function saveDemoJoined(set) {
 }
 
 function sortStandings(rows) {
-  return [...rows].sort((a, b) => b.score - a.score || (b.player?.rating ?? 0) - (a.player?.rating ?? 0));
+  return [...rows].sort(
+    (a, b) =>
+      b.score - a.score || (b.buchholz ?? 0) - (a.buchholz ?? 0) || (b.player?.rating ?? 0) - (a.player?.rating ?? 0),
+  );
 }
 
 // ---------------- Public API ----------------
@@ -95,11 +175,11 @@ function sortStandings(rows) {
 export async function fetchTournaments(user) {
   if (user.isGuest) {
     const joined = demoJoined();
-    return DEMO.map(({ _players, ...t }) => ({
-      ...t,
-      player_count: _players.length + (joined.has(t.id) ? 1 : 0),
-      joined: joined.has(t.id),
-    }));
+    return DEMO.map((d) => {
+      // eslint-disable-next-line no-unused-vars
+      const { _players, _pairings, ...t } = demoMerged(d);
+      return { ...t, player_count: _players.length + (joined.has(t.id) ? 1 : 0), joined: joined.has(t.id) };
+    });
   }
 
   const [{ data, error }, { data: mine, error: mineErr }] = await Promise.all([
@@ -121,6 +201,19 @@ export async function fetchStandings(user, tournamentId) {
   if (user.isGuest) {
     const t = DEMO.find((d) => d.id === tournamentId);
     if (!t) return [];
+    const pairings = demoPairings(t);
+    if (t.format === 'swiss' && pairings.length > 0) {
+      const players = demoPlayerMap(t);
+      return computeStandings(demoParticipants(t), pairings).map((p) => ({
+        player: players.get(p.id),
+        score: p.score,
+        wins: p.wins,
+        draws: p.draws,
+        losses: p.losses,
+        buchholz: p.buchholz,
+        joined_at: null,
+      }));
+    }
     const rows = [...t._players];
     if (demoJoined().has(tournamentId)) {
       const g = loadGuestProfile();
@@ -134,7 +227,7 @@ export async function fetchStandings(user, tournamentId) {
 
   const { data, error } = await supabase
     .from('tournament_participants')
-    .select('score, wins, draws, losses, joined_at, player:profiles(id, username, avatar_url, rating)')
+    .select('score, wins, draws, losses, buchholz, joined_at, player:profiles(id, username, avatar_url, rating)')
     .eq('tournament_id', tournamentId);
   if (error) throw error;
   return sortStandings(data || []);
@@ -186,9 +279,117 @@ export function subscribeTournaments(user, onChange) {
     .channel('tournaments-page')
     .on('postgres_changes', { event: '*', schema: 'public', table: 'tournament_participants' }, onChange)
     .on('postgres_changes', { event: '*', schema: 'public', table: 'tournaments' }, onChange)
+    .on('postgres_changes', { event: '*', schema: 'public', table: 'tournament_pairings' }, onChange)
     .subscribe();
   return () => supabase.removeChannel(channel);
 }
+
+// ---------------- Swiss pairing ----------------
+
+const PROFILE_COLS = 'id, username, avatar_url, rating';
+
+/** Pairings for a tournament with `white` / `black` profile objects attached. */
+export async function fetchPairings(user, tournamentId) {
+  if (user.isGuest) {
+    const t = DEMO.find((d) => d.id === tournamentId);
+    if (!t) return [];
+    const players = demoPlayerMap(t);
+    return demoPairings(t)
+      .map((p) => ({ ...p, white: players.get(p.white_id), black: p.black_id ? players.get(p.black_id) : null }))
+      .sort((a, b) => a.round - b.round || a.board - b.board);
+  }
+  const { data, error } = await supabase
+    .from('tournament_pairings')
+    .select(`*, white:profiles!white_id(${PROFILE_COLS}), black:profiles!black_id(${PROFILE_COLS})`)
+    .eq('tournament_id', tournamentId)
+    .order('round', { ascending: true })
+    .order('board', { ascending: true });
+  if (error) throw error;
+  return data || [];
+}
+
+async function invokeSwiss(body) {
+  const { data, error } = await supabase.functions.invoke('swiss', { body });
+  if (error) {
+    let message = error.message;
+    try {
+      const payload = await error.context.json();
+      if (payload?.error) message = payload.error;
+    } catch {
+      /* non-JSON error body */
+    }
+    throw new Error(message);
+  }
+  return data;
+}
+
+function demoUpdate(t, mutate) {
+  const all = loadSwissState();
+  const cur = all[t.id] || { patch: {}, pairings: [] };
+  const next = mutate(cur);
+  all[t.id] = next;
+  saveSwissState(all);
+  return next;
+}
+
+function withIds(t, rows, offset) {
+  return rows.map((p, i) => ({ ...p, id: `${t.id}-g${offset + i}` }));
+}
+
+/** Close registration and pair round 1. Admin only (guest acts as admin in demo mode). */
+export async function startSwiss(user, tournament) {
+  if (!user.isGuest) return invokeSwiss({ action: 'start', tournament_id: tournament.id });
+
+  const base = DEMO.find((d) => d.id === tournament.id);
+  const merged = demoMerged(base);
+  const plan = planStart(merged, demoParticipants(base));
+  demoUpdate(base, () => ({ patch: plan.tournamentPatch, pairings: withIds(base, plan.newPairings, 0) }));
+  return { round: 1, boards: plan.newPairings.length };
+}
+
+function demoApplyResult(base, pairingId, result) {
+  const merged = demoMerged(base);
+  const pairings = demoPairings(base).map((p) => ({ ...p }));
+  const target = pairings.find((p) => p.id === pairingId);
+  validateReport(merged, target, result);
+  target.result = result;
+  const plan = planAdvance(merged, demoParticipants(base), pairings);
+  const nextPairings = [...pairings, ...withIds(base, plan.newPairings, pairings.length)];
+  demoUpdate(base, (cur) => ({ patch: { ...cur.patch, ...(plan.tournamentPatch || {}) }, pairings: nextPairings }));
+  return {
+    newRound: plan.newPairings.length > 0,
+    finished: plan.tournamentPatch?.status === 'finished',
+    round: plan.tournamentPatch?.current_round ?? merged.current_round,
+  };
+}
+
+/** Record or correct a result; the next round is paired automatically when the round completes. */
+export async function reportResult(user, tournament, pairing, result) {
+  if (!user.isGuest) return invokeSwiss({ action: 'report', pairing_id: pairing.id, result });
+  return demoApplyResult(DEMO.find((d) => d.id === tournament.id), pairing.id, result);
+}
+
+/** Demo helper: fill every pending board of the current round with a random result. */
+export function demoFillRandomRound(tournament) {
+  const base = DEMO.find((d) => d.id === tournament.id);
+  const merged = demoMerged(base);
+  const pending = demoPairings(base).filter((p) => p.round === merged.current_round && p.result === null);
+  let last = null;
+  for (const p of pending) {
+    const r = Math.random();
+    last = demoApplyResult(base, p.id, r < 0.42 ? '1-0' : r < 0.67 ? '1/2-1/2' : '0-1');
+  }
+  return last;
+}
+
+/** Demo helper: undo everything done to a demo Swiss tournament. */
+export function demoResetSwiss(tournament) {
+  const all = loadSwissState();
+  delete all[tournament.id];
+  saveSwissState(all);
+}
+
+export { isRoundComplete };
 
 // ---------------- Formatting helpers ----------------
 export function formatCountdown(ms) {

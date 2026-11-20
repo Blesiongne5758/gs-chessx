@@ -101,7 +101,7 @@ end $$;
 insert into public.tournaments (name, description, format, status, time_control, max_players, rounds, prize_pool, starts_at, ends_at, is_pro_only)
 select * from (values
   ('Holy Kingdom Blitz Arena', 'Arena 60 menit — main sebanyak mungkin, setiap kemenangan beruntun dapat bonus poin.', 'arena', 'upcoming', '3+2', 128, null::int, '5.000 Gems', now() + interval '2 hours 15 minutes', now() + interval '3 hours 15 minutes', false),
-  ('Anarchy Rebellion Swiss', 'Swiss 7 ronde untuk semua level. Pasangan ditentukan berdasarkan skor.', 'swiss', 'upcoming', '10+0', 64, 7, 'Skin Eksklusif + 3.000 Gems', now() + interval '1 day', now() + interval '1 day 4 hours', false),
+  ('Anarchy Rebellion Swiss', 'Swiss untuk semua level. Lawan tiap ronde dipasangkan otomatis berdasarkan skor.', 'swiss', 'upcoming', '10+0', 64, 7, 'Skin Eksklusif + 3.000 Gems', now() + interval '1 day', now() + interval '1 day 4 hours', false),
   ('Grandmaster Knockout', 'Sistem gugur 32 pemain. Kalah sekali langsung tersingkir.', 'knockout', 'upcoming', '5+3', 32, 5, 'Pro 1 Tahun', now() + interval '3 days', now() + interval '3 days 5 hours', true),
   ('Bullet Mayhem', 'Arena bullet 30 menit. Cepat, brutal, menyenangkan.', 'arena', 'running', '1+0', 256, null::int, '1.000 Gems', now() - interval '10 minutes', now() + interval '20 minutes', false),
   ('Weekly Rapid Swiss #47', 'Swiss mingguan 5 ronde.', 'swiss', 'finished', '10+5', 64, 5, '2.000 Gems', now() - interval '3 days', now() - interval '3 days' + interval '3 hours', false)

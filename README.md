@@ -21,7 +21,8 @@ GS-ChessX adalah platform catur online modern dengan tema epik "Holy Kingdom vs 
 | 3D Voxel board (Three.js) | 🔜 |
 | AI opponent (Stockfish.js) | 🔜 |
 | Voice call WebRTC, chat | 🔜 |
-| Pairing & skor turnamen otomatis, ELO Glicko-2 | 🔜 |
+| Pairing Swiss otomatis + Buchholz | ✅ Selesai |
+| ELO Glicko-2, pairing Arena/Knockout | 🔜 |
 
 ## 🛠️ Tech Stack
 
@@ -70,6 +71,7 @@ gs-chessx/
 │   │   ├── AuthModal.jsx
 │   │   ├── EditProfile.jsx
 │   │   ├── Tournaments.jsx
+│   │   ├── SwissPanel.jsx
 │   │   ├── TopNav.jsx
 │   │   └── Avatar.jsx
 │   ├── lib/
@@ -81,9 +83,14 @@ gs-chessx/
 │   └── index.css
 ├── supabase/
 │   ├── schema.sql
+│   ├── functions/
+│   │   ├── _shared/swiss.js   # engine pairing (murni, dipakai server & client)
+│   │   └── swiss/index.ts     # Edge Function: start / report / tick
 │   └── migrations/
 │       ├── 002_edit_profile.sql
-│       └── 003_tournaments.sql
+│       ├── 003_tournaments.sql
+│       └── 004_swiss_pairing.sql
+├── tests/swiss.test.js
 ├── .env.example
 ├── tailwind.config.js
 └── package.json
@@ -106,7 +113,35 @@ gs-chessx/
 - Jumlah peserta diperbarui realtime via Supabase Realtime.
 - Mode tamu memakai 5 turnamen contoh; pendaftaran disimpan di `localStorage`.
 
-Membuat turnamen baru dan mengisi skor dilakukan oleh admin (SQL Editor / service role).
+Membuat turnamen baru dilakukan oleh admin (SQL Editor / service role).
+
+## ♟ Pairing Swiss Otomatis
+
+Setelah ronde 1 dimulai, setiap kali semua hasil ronde masuk, ronde berikutnya langsung dipasangkan otomatis sampai turnamen selesai dan juara ditetapkan.
+
+**Aturan pairing** (gaya Dutch system FIDE):
+- Pemain dikelompokkan per skor; separuh atas melawan separuh bawah (urut skor → rating).
+- **Tidak ada rematch** — dua pemain tidak bertemu dua kali.
+- **Warna**: tidak boleh 3× warna sama berturut-turut dan selisih putih/hitam maks. 2; warna diselang-seling bila memungkinkan.
+- **Bye** (jumlah pemain ganjil) diberikan ke pemain skor terendah yang belum pernah bye, bernilai **1 poin**.
+- **Lookahead**: untuk ≤24 pemain engine memastikan ronde-ronde sisa tetap bisa dipasangkan tanpa rematch.
+- Bila tidak ada solusi sempurna, aturan dilonggarkan bertahap (warna → lookahead → rematch) agar pairing tidak pernah macet.
+- **Batas ronde**: ≤7 pemain → n−1; 8–24 → n−3; >24 → ⌈log₂ n⌉+4. Jumlah ronde turnamen otomatis dipotong ke batas ini.
+- Klasemen: poin → **Buchholz** (jumlah poin lawan) → rating.
+
+**Alur admin**: buka detail turnamen Swiss → **▶ Mulai & Pairing R1** → isi hasil tiap papan (1-0, ½-½, 0-1). Pemain melihat papan dan lawannya sendiri secara realtime.
+
+**Setup**:
+1. Jalankan `supabase/migrations/004_swiss_pairing.sql` di SQL Editor.
+2. Deploy Edge Function: `supabase functions deploy swiss`
+3. Jadikan akun Anda admin: `update profiles set is_admin = true where username = 'nama_anda';`
+4. (Opsional) Aktifkan blok pg_cron di akhir 004 agar turnamen yang sudah lewat jam mulai otomatis dimulai (`action: tick`).
+
+Keamanan: tabel `tournament_pairings` hanya bisa dibaca dari browser; semua penulisan lewat Edge Function (cek `is_admin`), dengan proteksi double-pairing (unique `tournament_id, round, board`).
+
+**Mode tamu**: Anda otomatis admin di turnamen contoh, ada tombol "isi hasil acak" dan "Reset demo".
+
+**Test**: `npm test` — mensimulasikan ribuan turnamen (3–256 pemain) dan memeriksa tidak ada rematch, aturan warna, bye, serta skor.
 
 ## 🎨 Design System
 
