@@ -5,6 +5,7 @@ import LandingPage from './components/LandingPage';
 import Lobby from './components/Lobby';
 import GameRoom from './components/GameRoom';
 import AuthModal from './components/AuthModal';
+import EditProfile from './components/EditProfile';
 
 const GUEST = { id: 'guest', email: 'guest@local', isGuest: true };
 
@@ -66,8 +67,10 @@ function App() {
       )}
 
       {page === 'lobby' && user && (
-        <Lobby user={user} onPlay={startGame} onLogout={handleLogout} />
+        <Lobby user={user} onPlay={startGame} onLogout={handleLogout} onEditProfile={() => setPage('profile')} />
       )}
+
+      {page === 'profile' && user && <EditProfile user={user} onBack={() => setPage('lobby')} />}
 
       {page === 'game' && user && (
         <GameRoom user={user} timeControl={timeControl} onBack={() => setPage('lobby')} />

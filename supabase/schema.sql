@@ -1,5 +1,6 @@
 -- GS-ChessX — Supabase schema
--- Jalankan di Supabase Dashboard → SQL Editor.
+-- Jalankan di Supabase Dashboard → SQL Editor, lalu jalankan
+-- supabase/migrations/002_edit_profile.sql.
 
 -- ============ PROFILES ============
 create table if not exists public.profiles (
@@ -23,28 +24,9 @@ create policy "Profiles are viewable by everyone"
 create policy "Users can update own profile"
   on public.profiles for update using (auth.uid() = id);
 
--- Auto-create a profile row when a user signs up (works with email confirmation on).
-create or replace function public.handle_new_user()
-returns trigger
-language plpgsql
-security definer set search_path = public
-as $$
-begin
-  insert into public.profiles (id, username, email, avatar_url)
-  values (
-    new.id,
-    coalesce(new.raw_user_meta_data->>'username', split_part(new.email, '@', 1)) || '_' || substr(new.id::text, 1, 4),
-    new.email,
-    new.raw_user_meta_data->>'avatar_url'
-  );
-  return new;
-end;
-$$;
-
-drop trigger if exists on_auth_user_created on auth.users;
-create trigger on_auth_user_created
-  after insert on auth.users
-  for each row execute function public.handle_new_user();
+-- Auto-create a profile row on signup, column-level update grants,
+-- username format rule and the "avatars" storage bucket:
+-- see supabase/migrations/002_edit_profile.sql (run it right after this file).
 
 -- ============ FRIENDSHIPS ============
 create table if not exists public.friendships (

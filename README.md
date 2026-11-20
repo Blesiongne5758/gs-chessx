@@ -15,6 +15,7 @@ GS-ChessX adalah platform catur online modern dengan tema epik "Holy Kingdom vs 
 | Deteksi skakmat, stalemate, remis | ✅ Selesai |
 | Highlight langkah terakhir, skak, bidak tertangkap | ✅ Selesai |
 | Mode tamu (tanpa Supabase) | ✅ Selesai |
+| Edit profil: username + avatar (Supabase Storage) | ✅ Selesai |
 | Multiplayer realtime | 🔜 Skema DB siap |
 | 3D Voxel board (Three.js) | 🔜 |
 | AI opponent (Stockfish.js) | 🔜 |
@@ -45,7 +46,7 @@ Tanpa `.env`, aplikasi tetap jalan dalam **mode tamu** — klik Play Now untuk l
 ### Setup Supabase
 
 1. Buat proyek di [supabase.com](https://supabase.com).
-2. Buka **SQL Editor**, jalankan isi `supabase/schema.sql` (tabel, RLS, trigger profil otomatis, realtime).
+2. Buka **SQL Editor**, jalankan `supabase/schema.sql` (tabel, RLS, realtime), lalu `supabase/migrations/002_edit_profile.sql` (trigger profil otomatis, bucket `avatars`, aturan username, proteksi kolom rating/Pro).
 3. Salin **Project URL** dan **anon key** dari *Settings → API* ke `.env`.
 4. (Opsional) Aktifkan Google di *Authentication → Providers*.
 
@@ -65,16 +66,29 @@ gs-chessx/
 │   │   ├── LandingPage.jsx
 │   │   ├── Lobby.jsx
 │   │   ├── GameRoom.jsx
-│   │   └── AuthModal.jsx
-│   ├── lib/supabaseClient.js
+│   │   ├── AuthModal.jsx
+│   │   ├── EditProfile.jsx
+│   │   └── Avatar.jsx
+│   ├── lib/
+│   │   ├── supabaseClient.js
+│   │   └── profile.js
 │   ├── App.jsx
 │   ├── main.jsx
 │   └── index.css
-├── supabase/schema.sql
+├── supabase/
+│   ├── schema.sql
+│   └── migrations/002_edit_profile.sql
 ├── .env.example
 ├── tailwind.config.js
 └── package.json
 ```
+
+## 👤 Edit Profil
+
+- **Username**: 3–20 karakter (huruf, angka, `_`), unik — divalidasi di client dan di database.
+- **Avatar**: PNG/JPG/WEBP/GIF maks. 2 MB, otomatis dipotong persegi dan diperkecil ke 256×256 WebP sebelum diunggah ke bucket `avatars/<user_id>/`. File lama dihapus otomatis.
+- **Keamanan**: pengguna hanya bisa mengubah `username`, `avatar_url`, `country` miliknya sendiri; `rating`, `wins`, `is_pro` tidak bisa diubah dari browser.
+- **Mode tamu**: profil disimpan di `localStorage` browser.
 
 ## 🎨 Design System
 
@@ -99,7 +113,7 @@ Lihat `supabase/schema.sql`: `profiles`, `friendships`, `games`, `moves` (realti
 
 ## 📊 Roadmap
 
-- **Phase 1 – Foundation**: ✅ setup, ✅ auth, ✅ papan 2D, ⬜ edit profil
+- **Phase 1 – Foundation**: ✅ setup, ✅ auth, ✅ papan 2D, ✅ edit profil
 - **Phase 2 – Core Chess**: ⬜ papan 3D, ⬜ Stockfish AI, ✅ timer, ✅ validasi langkah
 - **Phase 3 – Multiplayer**: ⬜ sinkronisasi realtime, ⬜ matchmaking, ⬜ spectator, ⬜ PGN replay
 - **Phase 4 – Social**: ⬜ friend system, ⬜ chat, ⬜ voice call WebRTC, ⬜ notifikasi

@@ -1,5 +1,7 @@
 import { useState, useEffect } from 'react';
 import { supabase } from '../lib/supabaseClient';
+import Avatar from './Avatar';
+import { loadGuestProfile } from '../lib/profile';
 
 const TIME_CONTROLS = [
   { label: '⚡ Bullet (1+0)', desc: 'Fast & furious', base: 60, inc: 0 },
@@ -9,14 +11,14 @@ const TIME_CONTROLS = [
   { label: '🤖 vs AI (10 levels)', desc: 'Practice mode — segera hadir', base: 600, inc: 0 },
 ];
 
-export default function Lobby({ user, onPlay, onLogout }) {
+export default function Lobby({ user, onPlay, onLogout, onEditProfile }) {
   const [profile, setProfile] = useState(null);
   const [friends, setFriends] = useState([]);
   const [leaders, setLeaders] = useState([]);
 
   useEffect(() => {
     if (user.isGuest) {
-      setProfile({ username: 'Guest', rating: 1200, games_played: 0, wins: 0 });
+      setProfile(loadGuestProfile());
       return;
     }
 
@@ -32,7 +34,7 @@ export default function Lobby({ user, onPlay, onLogout }) {
           `)
           .or(`requester_id.eq.${user.id},addressee_id.eq.${user.id}`)
           .eq('status', 'accepted'),
-        supabase.from('profiles').select('id, username, rating').order('rating', { ascending: false }).limit(10),
+        supabase.from('profiles').select('id, username, rating, avatar_url').order('rating', { ascending: false }).limit(10),
       ]);
 
       setProfile(prof);
@@ -65,7 +67,9 @@ export default function Lobby({ user, onPlay, onLogout }) {
             </button>
           ))}
           <div className="flex items-center gap-2">
-            <Avatar name={username} size="w-10 h-10" />
+            <button onClick={onEditProfile} title="Edit Profile" className="rounded-full">
+              <Avatar name={username} url={profile?.avatar_url} size="w-10 h-10" />
+            </button>
             <button onClick={onLogout} className="px-4 py-2 bg-red-600 text-white rounded hover:bg-red-700">
               Logout
             </button>
@@ -77,7 +81,7 @@ export default function Lobby({ user, onPlay, onLogout }) {
         {/* Profile Card */}
         <div className="bg-graphite border border-gold/30 rounded-xl p-6">
           <div className="text-center mb-4">
-            <Avatar name={username} size="w-24 h-24 mx-auto mb-3 text-3xl" />
+            <Avatar name={username} url={profile?.avatar_url} size="w-24 h-24 text-3xl" className="mx-auto mb-3" />
             <h2 className="text-2xl font-bold text-gold font-cinzel">{username}</h2>
             <div className="text-gray-400 text-sm">🇮🇩 Indonesia</div>
           </div>
@@ -88,7 +92,9 @@ export default function Lobby({ user, onPlay, onLogout }) {
             <Row label="Games:" value={<span className="text-white">{games}</span>} />
           </div>
 
-          <button className="w-full mt-4 py-2 bg-slate text-gray-300 rounded hover:bg-gray-700">Edit Profile</button>
+          <button onClick={onEditProfile} className="w-full mt-4 py-2 bg-slate text-gray-300 rounded hover:bg-gray-700">
+            Edit Profile
+          </button>
         </div>
 
         {/* Quick Match */}
@@ -117,7 +123,7 @@ export default function Lobby({ user, onPlay, onLogout }) {
             ) : (
               friends.map((friend) => (
                 <div key={friend.friendshipId} className="flex items-center gap-3 p-3 bg-slate rounded-lg">
-                  <div className="w-2 h-2 bg-emerald rounded-full" />
+                  <Avatar name={friend.username} url={friend.avatar_url} size="w-8 h-8 text-sm" />
                   <div className="flex-1">
                     <div className="text-white font-medium">{friend.username}</div>
                     <div className="text-xs text-gray-400">Rating: {friend.rating}</div>
@@ -139,19 +145,11 @@ export default function Lobby({ user, onPlay, onLogout }) {
             <div className="text-gray-400 text-center py-4">Leaderboard akan muncul setelah ada pemain terdaftar.</div>
           ) : (
             leaders.map((p, i) => (
-              <LeaderboardRow key={p.id} rank={i + 1} name={p.username} rating={p.rating} isYou={p.id === user.id} />
+              <LeaderboardRow key={p.id} rank={i + 1} name={p.username} avatarUrl={p.avatar_url} rating={p.rating} isYou={p.id === user.id} />
             ))
           )}
         </div>
       </div>
-    </div>
-  );
-}
-
-function Avatar({ name, size }) {
-  return (
-    <div className={`${size} bg-gold rounded-full flex items-center justify-center text-obsidian font-bold`}>
-      {name?.[0]?.toUpperCase() || 'U'}
     </div>
   );
 }
@@ -165,11 +163,12 @@ function Row({ label, value }) {
   );
 }
 
-function LeaderboardRow({ rank, name, rating, isYou }) {
+function LeaderboardRow({ rank, name, avatarUrl, rating, isYou }) {
   const medal = { 1: '🥇', 2: '🥈', 3: '🥉' }[rank] || rank;
   return (
     <div className={`flex items-center gap-4 p-3 rounded-lg ${isYou ? 'bg-gold/10 border border-gold/30' : 'bg-slate'}`}>
       <div className="w-8 text-center font-bold text-gold">{medal}</div>
+      <Avatar name={name} url={avatarUrl} size="w-8 h-8 text-sm" />
       <div className="flex-1 text-white font-medium">
         {name} {isYou && <span className="text-xs text-gold">(You)</span>}
       </div>
