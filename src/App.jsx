@@ -6,6 +6,7 @@ import Lobby from './components/Lobby';
 import GameRoom from './components/GameRoom';
 import AuthModal from './components/AuthModal';
 import EditProfile from './components/EditProfile';
+import Tournaments from './components/Tournaments';
 
 const GUEST = { id: 'guest', email: 'guest@local', isGuest: true };
 
@@ -67,7 +68,22 @@ function App() {
       )}
 
       {page === 'lobby' && user && (
-        <Lobby user={user} onPlay={startGame} onLogout={handleLogout} onEditProfile={() => setPage('profile')} />
+        <Lobby
+          user={user}
+          onPlay={startGame}
+          onLogout={handleLogout}
+          onEditProfile={() => setPage('profile')}
+          onNavigate={setPage}
+        />
+      )}
+
+      {page === 'tournaments' && user && (
+        <Tournaments
+          user={user}
+          onNavigate={setPage}
+          onEditProfile={() => setPage('profile')}
+          onLogout={handleLogout}
+        />
       )}
 
       {page === 'profile' && user && <EditProfile user={user} onBack={() => setPage('lobby')} />}

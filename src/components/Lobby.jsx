@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { supabase } from '../lib/supabaseClient';
 import Avatar from './Avatar';
+import TopNav from './TopNav';
 import { loadGuestProfile } from '../lib/profile';
 
 const TIME_CONTROLS = [
@@ -11,7 +12,7 @@ const TIME_CONTROLS = [
   { label: '🤖 vs AI (10 levels)', desc: 'Practice mode — segera hadir', base: 600, inc: 0 },
 ];
 
-export default function Lobby({ user, onPlay, onLogout, onEditProfile }) {
+export default function Lobby({ user, onPlay, onLogout, onEditProfile, onNavigate }) {
   const [profile, setProfile] = useState(null);
   const [friends, setFriends] = useState([]);
   const [leaders, setLeaders] = useState([]);
@@ -57,25 +58,13 @@ export default function Lobby({ user, onPlay, onLogout, onEditProfile }) {
 
   return (
     <div className="min-h-screen bg-obsidian p-6">
-      {/* Header */}
-      <nav className="flex flex-wrap justify-between items-center gap-4 mb-8">
-        <div className="text-3xl font-cinzel font-bold text-gold">♟️ GS-ChessX</div>
-        <div className="flex flex-wrap gap-2 items-center">
-          {['Lobby', 'Tournaments', 'Social', 'Shop'].map((item) => (
-            <button key={item} className="px-4 py-2 text-gray-300 hover:text-white">
-              {item}
-            </button>
-          ))}
-          <div className="flex items-center gap-2">
-            <button onClick={onEditProfile} title="Edit Profile" className="rounded-full">
-              <Avatar name={username} url={profile?.avatar_url} size="w-10 h-10" />
-            </button>
-            <button onClick={onLogout} className="px-4 py-2 bg-red-600 text-white rounded hover:bg-red-700">
-              Logout
-            </button>
-          </div>
-        </div>
-      </nav>
+      <TopNav
+        active="lobby"
+        onNavigate={onNavigate}
+        profile={{ username, avatar_url: profile?.avatar_url }}
+        onEditProfile={onEditProfile}
+        onLogout={onLogout}
+      />
 
       <div className="max-w-7xl mx-auto grid grid-cols-1 lg:grid-cols-3 gap-6">
         {/* Profile Card */}

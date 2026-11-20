@@ -26,7 +26,11 @@ begin
     coalesce(new.raw_user_meta_data->>'username', split_part(new.email, '@', 1)),
     '[^A-Za-z0-9_]', '_', 'g'
   );
-  base := left(rpad(base, 3, '_'), 15);
+  -- note: rpad() truncates longer strings, so only pad when too short
+  if length(base) < 3 then
+    base := rpad(base, 3, '_');
+  end if;
+  base := left(base, 15);
   insert into public.profiles (id, username, email, avatar_url)
   values (new.id, base || '_' || substr(replace(new.id::text, '-', ''), 1, 4), new.email,
           new.raw_user_meta_data->>'avatar_url');

@@ -1,6 +1,6 @@
 -- GS-ChessX — Supabase schema
 -- Jalankan di Supabase Dashboard → SQL Editor, lalu jalankan
--- supabase/migrations/002_edit_profile.sql.
+-- supabase/migrations/002_edit_profile.sql dan 003_tournaments.sql (berurutan).
 
 -- ============ PROFILES ============
 create table if not exists public.profiles (
