@@ -64,6 +64,7 @@ export default function Lobby({ user, onPlay, onLogout, onEditProfile, onNavigat
         profile={{ username, avatar_url: profile?.avatar_url }}
         onEditProfile={onEditProfile}
         onLogout={onLogout}
+        isAdmin={user.isGuest || !!profile?.is_admin}
       />
 
       <div className="max-w-7xl mx-auto grid grid-cols-1 lg:grid-cols-3 gap-6">

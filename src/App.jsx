@@ -7,6 +7,7 @@ import GameRoom from './components/GameRoom';
 import AuthModal from './components/AuthModal';
 import EditProfile from './components/EditProfile';
 import Tournaments from './components/Tournaments';
+import AdminTournaments from './components/AdminTournaments';
 
 const GUEST = { id: 'guest', email: 'guest@local', isGuest: true };
 
@@ -14,6 +15,7 @@ function App() {
   const [user, setUser] = useState(null);
   const [page, setPage] = useState('landing');
   const [authMode, setAuthMode] = useState(null); // 'login' | 'signup' | null
+  const [focusTournamentId, setFocusTournamentId] = useState(null);
   const [timeControl, setTimeControl] = useState({ label: 'Rapid (10+0)', base: 600, inc: 0 });
 
   useEffect(() => {
@@ -80,9 +82,26 @@ function App() {
       {page === 'tournaments' && user && (
         <Tournaments
           user={user}
+          initialSelectedId={focusTournamentId}
+          onNavigate={(p) => {
+            setFocusTournamentId(null);
+            setPage(p);
+          }}
+          onEditProfile={() => setPage('profile')}
+          onLogout={handleLogout}
+        />
+      )}
+
+      {page === 'admin' && user && (
+        <AdminTournaments
+          user={user}
           onNavigate={setPage}
           onEditProfile={() => setPage('profile')}
           onLogout={handleLogout}
+          onOpenTournament={(id) => {
+            setFocusTournamentId(id);
+            setPage('tournaments');
+          }}
         />
       )}
 

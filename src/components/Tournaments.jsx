@@ -40,13 +40,13 @@ function useNow(intervalMs = 1000) {
   return now;
 }
 
-export default function Tournaments({ user, onNavigate, onEditProfile, onLogout }) {
+export default function Tournaments({ user, onNavigate, onEditProfile, onLogout, initialSelectedId = null }) {
   const [profile, setProfile] = useState(null);
   const [tournaments, setTournaments] = useState(null);
   const [error, setError] = useState(null);
   const [tab, setTab] = useState('upcoming');
   const [format, setFormat] = useState('all');
-  const [selectedId, setSelectedId] = useState(null);
+  const [selectedId, setSelectedId] = useState(initialSelectedId);
   const [busyId, setBusyId] = useState(null);
   const [standingsKey, setStandingsKey] = useState(0);
   const now = useNow();
@@ -110,6 +110,7 @@ export default function Tournaments({ user, onNavigate, onEditProfile, onLogout 
         profile={profile}
         onEditProfile={onEditProfile}
         onLogout={onLogout}
+        isAdmin={isAdmin}
       />
 
       <div className="max-w-7xl mx-auto space-y-6">
@@ -122,6 +123,14 @@ export default function Tournaments({ user, onNavigate, onEditProfile, onLogout 
             </p>
             {user.isGuest && (
               <p className="mt-3 text-xs text-amber">Mode tamu — data turnamen adalah contoh dan pendaftaran disimpan di browser ini.</p>
+            )}
+            {isAdmin && (
+              <button
+                onClick={() => onNavigate('admin')}
+                className="mt-4 px-4 py-2 border border-gold/60 text-gold rounded font-bold hover:bg-gold/10"
+              >
+                ＋ Buat Turnamen Swiss
+              </button>
             )}
           </div>
 

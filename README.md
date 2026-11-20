@@ -22,6 +22,7 @@ GS-ChessX adalah platform catur online modern dengan tema epik "Holy Kingdom vs 
 | AI opponent (Stockfish.js) | 🔜 |
 | Voice call WebRTC, chat | 🔜 |
 | Pairing Swiss otomatis + Buchholz | ✅ Selesai |
+| Halaman Admin: buat / ubah / hapus turnamen Swiss | ✅ Selesai |
 | ELO Glicko-2, pairing Arena/Knockout | 🔜 |
 
 ## 🛠️ Tech Stack
@@ -72,12 +73,14 @@ gs-chessx/
 │   │   ├── EditProfile.jsx
 │   │   ├── Tournaments.jsx
 │   │   ├── SwissPanel.jsx
+│   │   ├── AdminTournaments.jsx
 │   │   ├── TopNav.jsx
 │   │   └── Avatar.jsx
 │   ├── lib/
 │   │   ├── supabaseClient.js
 │   │   ├── profile.js
-│   │   └── tournaments.js
+│   │   ├── tournaments.js
+│   │   └── tournamentForm.js   # validasi & estimasi form admin
 │   ├── App.jsx
 │   ├── main.jsx
 │   └── index.css
@@ -89,8 +92,11 @@ gs-chessx/
 │   └── migrations/
 │       ├── 002_edit_profile.sql
 │       ├── 003_tournaments.sql
-│       └── 004_swiss_pairing.sql
-├── tests/swiss.test.js
+│       ├── 004_swiss_pairing.sql
+│       └── 005_admin_tournaments.sql
+├── tests/
+│   ├── swiss.test.js
+│   └── tournamentForm.test.js
 ├── .env.example
 ├── tailwind.config.js
 └── package.json
@@ -141,7 +147,22 @@ Keamanan: tabel `tournament_pairings` hanya bisa dibaca dari browser; semua penu
 
 **Mode tamu**: Anda otomatis admin di turnamen contoh, ada tombol "isi hasil acak" dan "Reset demo".
 
-**Test**: `npm test` — mensimulasikan ribuan turnamen (3–256 pemain) dan memeriksa tidak ada rematch, aturan warna, bye, serta skor.
+**Test**: `npm test` — validasi form admin, dan mensimulasikan ribuan turnamen (3–256 pemain) dan memeriksa tidak ada rematch, aturan warna, bye, serta skor.
+
+## 🛠 Admin Turnamen
+
+Menu **🛠 Admin** (dan tombol **＋ Buat Turnamen Swiss** di halaman Tournaments) hanya muncul untuk akun dengan `profiles.is_admin = true`.
+
+- **Form turnamen Swiss baru**: nama, deskripsi, kontrol waktu (preset atau kustom `menit+detik`), kuota pemain, jumlah ronde (**Otomatis** = ⌈log₂ pemain⌉ atau ditentukan), waktu mulai, perkiraan selesai (dihitung otomatis dari kontrol waktu × ronde), hadiah, khusus Pro.
+- **Pratinjau kartu** live dan validasi per kolom (mis. ronde tidak boleh melebihi batas tanpa pertemuan ulang untuk kuota tersebut).
+- **Kelola**: daftar turnamen Swiss yang belum dimulai dengan tombol **Ubah** dan **Hapus** (dengan konfirmasi). Kuota tidak bisa diturunkan di bawah jumlah pemain yang sudah terdaftar.
+- Setelah dibuat, tombol **Lihat Turnamen** langsung membuka detailnya untuk dimulai.
+
+**Keamanan** (`005_admin_tournaments.sql`): RLS hanya mengizinkan admin insert/update/delete, dan update/delete hanya untuk status `upcoming`. Kolom `status`, `current_round`, `winner_id`, `created_by` tidak bisa diisi dari browser. Trigger memastikan waktu mulai di masa depan, dan check constraint menjaga format data.
+
+**Setup**: jalankan `supabase/migrations/005_admin_tournaments.sql` setelah 004.
+
+**Mode tamu**: Anda otomatis admin; turnamen buatan disimpan di browser dan bisa diisi pemain contoh (slider) agar langsung bisa dicoba sampai selesai.
 
 ## 🎨 Design System
 

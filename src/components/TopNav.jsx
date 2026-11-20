@@ -8,14 +8,15 @@ const ITEMS = [
   { key: 'shop', label: 'Shop', soon: true },
 ];
 
-export default function TopNav({ active, onNavigate, profile, onEditProfile, onLogout }) {
+export default function TopNav({ active, onNavigate, profile, onEditProfile, onLogout, isAdmin }) {
+  const items = isAdmin ? [...ITEMS, { key: 'admin', label: '🛠 Admin' }] : ITEMS;
   return (
     <nav className="flex flex-wrap justify-between items-center gap-4 mb-8">
       <button onClick={() => onNavigate('lobby')} className="text-3xl font-cinzel font-bold text-gold">
         ♟️ GS-ChessX
       </button>
       <div className="flex flex-wrap gap-2 items-center">
-        {ITEMS.map((item) => (
+        {items.map((item) => (
           <button
             key={item.key}
             onClick={() => (item.soon ? toast(`${item.label} segera hadir`) : onNavigate(item.key))}

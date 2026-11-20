@@ -7,6 +7,7 @@ import {
   validateReport,
   isRoundComplete,
 } from '../../supabase/functions/_shared/swiss.js';
+import { toTournamentRow } from './tournamentForm';
 
 export const FORMAT_LABEL = { swiss: 'Swiss', knockout: 'Knockout', arena: 'Arena' };
 export const FORMAT_DESC = {
@@ -113,6 +114,37 @@ function simulateDemoSwiss(t, seed) {
 }
 simulateDemoSwiss(DEMO.find((d) => d.id === 'demo-5'), 47);
 
+// ---- Demo tournaments created on the admin page (guest mode) ----
+const CREATED_KEY = 'gs-chessx-demo-created';
+
+function loadCreated() {
+  try {
+    return JSON.parse(localStorage.getItem(CREATED_KEY) || '[]');
+  } catch {
+    return [];
+  }
+}
+
+function saveCreated(list) {
+  localStorage.setItem(CREATED_KEY, JSON.stringify(list));
+}
+
+/** Built-in demos + admin-created demos, each with `_players` (bots fill created ones). */
+function allDemo() {
+  const created = loadCreated().map((c) => ({
+    ...c,
+    _players: demoPlayers(Math.min(c._bots ?? 0, c.max_players), c._seed ?? 7, false).map((r) => ({
+      ...r,
+      player: { ...r.player, id: `${c.id}-bot-${r.player.id}` },
+    })),
+  }));
+  return [...DEMO, ...created];
+}
+
+function findDemo(id) {
+  return allDemo().find((d) => d.id === id);
+}
+
 // ---- Demo Swiss state (guest acts as tournament director) ----
 const SWISS_KEY = 'gs-chessx-demo-swiss';
 
@@ -175,9 +207,9 @@ function sortStandings(rows) {
 export async function fetchTournaments(user) {
   if (user.isGuest) {
     const joined = demoJoined();
-    return DEMO.map((d) => {
+    return allDemo().map((d) => {
       // eslint-disable-next-line no-unused-vars
-      const { _players, _pairings, ...t } = demoMerged(d);
+      const { _players, _pairings, _bots, _seed, ...t } = demoMerged(d);
       return { ...t, player_count: _players.length + (joined.has(t.id) ? 1 : 0), joined: joined.has(t.id) };
     });
   }
@@ -199,7 +231,7 @@ export async function fetchTournaments(user) {
 
 export async function fetchStandings(user, tournamentId) {
   if (user.isGuest) {
-    const t = DEMO.find((d) => d.id === tournamentId);
+    const t = findDemo(tournamentId);
     if (!t) return [];
     const pairings = demoPairings(t);
     if (t.format === 'swiss' && pairings.length > 0) {
@@ -291,7 +323,7 @@ const PROFILE_COLS = 'id, username, avatar_url, rating';
 /** Pairings for a tournament with `white` / `black` profile objects attached. */
 export async function fetchPairings(user, tournamentId) {
   if (user.isGuest) {
-    const t = DEMO.find((d) => d.id === tournamentId);
+    const t = findDemo(tournamentId);
     if (!t) return [];
     const players = demoPlayerMap(t);
     return demoPairings(t)
@@ -340,7 +372,7 @@ function withIds(t, rows, offset) {
 export async function startSwiss(user, tournament) {
   if (!user.isGuest) return invokeSwiss({ action: 'start', tournament_id: tournament.id });
 
-  const base = DEMO.find((d) => d.id === tournament.id);
+  const base = findDemo(tournament.id);
   const merged = demoMerged(base);
   const plan = planStart(merged, demoParticipants(base));
   demoUpdate(base, () => ({ patch: plan.tournamentPatch, pairings: withIds(base, plan.newPairings, 0) }));
@@ -366,12 +398,12 @@ function demoApplyResult(base, pairingId, result) {
 /** Record or correct a result; the next round is paired automatically when the round completes. */
 export async function reportResult(user, tournament, pairing, result) {
   if (!user.isGuest) return invokeSwiss({ action: 'report', pairing_id: pairing.id, result });
-  return demoApplyResult(DEMO.find((d) => d.id === tournament.id), pairing.id, result);
+  return demoApplyResult(findDemo(tournament.id), pairing.id, result);
 }
 
 /** Demo helper: fill every pending board of the current round with a random result. */
 export function demoFillRandomRound(tournament) {
-  const base = DEMO.find((d) => d.id === tournament.id);
+  const base = findDemo(tournament.id);
   const merged = demoMerged(base);
   const pending = demoPairings(base).filter((p) => p.round === merged.current_round && p.result === null);
   let last = null;
@@ -390,6 +422,98 @@ export function demoResetSwiss(tournament) {
 }
 
 export { isRoundComplete };
+
+// ---------------- Admin: create / edit / delete ----------------
+
+function friendlyDbError(error) {
+  const msg = error?.message || 'Gagal menyimpan turnamen.';
+  if (error?.code === '42501' || /row-level security|permission denied/i.test(msg))
+    return new Error('Hanya admin yang boleh mengelola turnamen, dan hanya sebelum turnamen dimulai.');
+  if (/tournaments_name_len/.test(msg)) return new Error('Nama turnamen harus 3–80 karakter.');
+  if (/tournaments_time_control_fmt/.test(msg)) return new Error('Format waktu harus menit+detik, mis. 10+5.');
+  if (/tournaments_rounds_range/.test(msg)) return new Error('Jumlah ronde harus 1–30.');
+  if (/tournaments_ends_after_start/.test(msg)) return new Error('Waktu selesai harus setelah waktu mulai.');
+  return new Error(msg);
+}
+
+/**
+ * Create a Swiss tournament. `demo.bots` = sample players added in guest mode so it can be tried.
+ * @returns the created tournament row
+ */
+export async function createTournament(user, form, { bots = 0 } = {}) {
+  const row = toTournamentRow(form);
+  if (user.isGuest) {
+    const list = loadCreated();
+    const t = {
+      ...row,
+      id: `demo-new-${Date.now().toString(36)}`,
+      status: 'upcoming',
+      current_round: 0,
+      winner_id: null,
+      created_at: new Date().toISOString(),
+      _bots: Math.max(0, Math.min(Number(bots) || 0, row.max_players - 1)),
+      _seed: list.length + 4,
+    };
+    saveCreated([...list, t]);
+    return t;
+  }
+  const { data, error } = await supabase.from('tournaments').insert(row).select().single();
+  if (error) throw friendlyDbError(error);
+  return data;
+}
+
+export async function updateTournament(user, tournament, form) {
+  if (tournament.status !== 'upcoming') throw new Error('Turnamen yang sudah dimulai tidak bisa diubah.');
+  // Keep the auto-estimated end aligned with the current field size.
+  const row = toTournamentRow(form, Math.max(2, tournament.player_count || form.max_players));
+  // eslint-disable-next-line no-unused-vars
+  const { format, ...patch } = row;
+  if (user.isGuest) {
+    const list = loadCreated();
+    const i = list.findIndex((c) => c.id === tournament.id);
+    if (i < 0) throw new Error('Turnamen contoh bawaan tidak bisa diubah.');
+    list[i] = { ...list[i], ...patch };
+    saveCreated(list);
+    return list[i];
+  }
+  const { data, error } = await supabase
+    .from('tournaments')
+    .update(patch)
+    .eq('id', tournament.id)
+    .eq('status', 'upcoming')
+    .select()
+    .maybeSingle();
+  if (error) throw friendlyDbError(error);
+  if (!data) throw new Error('Turnamen sudah dimulai atau Anda bukan admin.');
+  return data;
+}
+
+export async function deleteTournament(user, tournament) {
+  if (tournament.status !== 'upcoming') throw new Error('Turnamen yang sudah dimulai tidak bisa dihapus.');
+  if (user.isGuest) {
+    const list = loadCreated();
+    if (!list.some((c) => c.id === tournament.id)) throw new Error('Turnamen contoh bawaan tidak bisa dihapus.');
+    saveCreated(list.filter((c) => c.id !== tournament.id));
+    demoResetSwiss(tournament);
+    const joined = demoJoined();
+    joined.delete(tournament.id);
+    saveDemoJoined(joined);
+    return;
+  }
+  const { data, error } = await supabase
+    .from('tournaments')
+    .delete()
+    .eq('id', tournament.id)
+    .eq('status', 'upcoming')
+    .select('id');
+  if (error) throw friendlyDbError(error);
+  if (!data?.length) throw new Error('Turnamen sudah dimulai atau Anda bukan admin.');
+}
+
+/** Whether a demo tournament was created on the admin page (and so is editable). */
+export function isDemoCreated(t) {
+  return typeof t.id === 'string' && t.id.startsWith('demo-new-');
+}
 
 // ---------------- Formatting helpers ----------------
 export function formatCountdown(ms) {
