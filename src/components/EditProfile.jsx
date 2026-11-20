@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import toast from 'react-hot-toast';
+import { supabase } from '../lib/supabaseClient';
 import Avatar from './Avatar';
 import { fetchProfile, updateProfile, validateUsername, validateAvatarFile, resizeImage } from '../lib/profile';
 
@@ -11,6 +12,9 @@ export default function EditProfile({ user, onBack }) {
   const [removeAvatar, setRemoveAvatar] = useState(false);
   const [error, setError] = useState(null);
   const [saving, setSaving] = useState(false);
+  const [newPassword, setNewPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
+  const [passwordSaving, setPasswordSaving] = useState(false);
   const fileInput = useRef(null);
 
   useEffect(() => {
@@ -28,6 +32,8 @@ export default function EditProfile({ user, onBack }) {
   const usernameError = username ? validateUsername(username) : null;
   const shownAvatar = removeAvatar ? null : previewUrl || profile?.avatar_url;
   const dirty = profile && (username !== profile.username || avatarBlob || (removeAvatar && profile.avatar_url));
+  const rating = profile?.rating ?? 1200;
+  const rank = rating >= 2400 ? 'Grandmaster' : rating >= 2200 ? 'Master' : rating >= 2000 ? 'Expert' : rating >= 1800 ? 'Advanced' : rating >= 1500 ? 'Club Player' : 'Apprentice';
 
   async function handleFile(e) {
     const file = e.target.files?.[0];
@@ -91,6 +97,24 @@ export default function EditProfile({ user, onBack }) {
     }
   }
 
+  async function handlePasswordSubmit(e) {
+    e.preventDefault();
+    if (newPassword.length < 8) return toast.error('Password minimal 8 karakter.');
+    if (newPassword !== confirmPassword) return toast.error('Konfirmasi password tidak cocok.');
+    setPasswordSaving(true);
+    try {
+      const { error: passwordError } = await supabase.auth.updateUser({ password: newPassword });
+      if (passwordError) throw passwordError;
+      setNewPassword('');
+      setConfirmPassword('');
+      toast.success('Password berhasil diperbarui.');
+    } catch (ex) {
+      toast.error(ex.message || 'Gagal memperbarui password.');
+    } finally {
+      setPasswordSaving(false);
+    }
+  }
+
   return (
     <div className="min-h-screen bg-obsidian p-6">
       <nav className="flex justify-between items-center mb-8 max-w-3xl mx-auto">
@@ -105,6 +129,7 @@ export default function EditProfile({ user, onBack }) {
         <p className="text-sm text-gray-400 mb-6">
           {user.isGuest ? 'Mode tamu — perubahan disimpan di browser ini saja.' : 'Ubah username dan foto profil Anda.'}
         </p>
+        {profile && <div className="mb-6 flex items-center justify-between rounded-xl border border-gold/25 bg-obsidian p-4"><div><div className="text-xs uppercase tracking-widest text-gray-500">Peringkat pemain</div><div className="mt-1 font-cinzel text-lg font-bold text-gold">{rank}</div></div><div className="text-right"><div className="text-xs text-gray-500">Rating</div><div className="text-2xl font-bold text-white">{rating}</div></div></div>}
 
         {!profile && !error ? (
           <div className="text-gray-400 text-center py-12">Memuat profil...</div>
@@ -189,6 +214,7 @@ export default function EditProfile({ user, onBack }) {
             </div>
           </form>
         )}
+        {!user.isGuest && <section className="mt-8 border-t border-white/10 pt-6"><h2 className="font-cinzel text-lg font-bold text-gold">Keamanan akun</h2><p className="mb-4 mt-1 text-sm text-gray-400">Atur password baru untuk akun ini.</p><form onSubmit={handlePasswordSubmit} className="space-y-3"><label className="block text-sm text-gray-300">Password baru<input type="password" minLength={8} autoComplete="new-password" required value={newPassword} onChange={(e) => setNewPassword(e.target.value)} className="mt-1 w-full rounded border border-gray-700 bg-obsidian px-4 py-2 text-white outline-none focus:border-gold" placeholder="Minimal 8 karakter" /></label><label className="block text-sm text-gray-300">Ulangi password baru<input type="password" minLength={8} autoComplete="new-password" required value={confirmPassword} onChange={(e) => setConfirmPassword(e.target.value)} className="mt-1 w-full rounded border border-gray-700 bg-obsidian px-4 py-2 text-white outline-none focus:border-gold" placeholder="Konfirmasi password" /></label><button disabled={passwordSaving || !newPassword || !confirmPassword} className="w-full rounded bg-slate py-3 font-semibold text-white hover:bg-gray-700 disabled:opacity-40">{passwordSaving ? 'Memperbarui…' : 'Perbarui password'}</button></form></section>}
       </div>
     </div>
   );

@@ -8,6 +8,7 @@ import AuthModal from './components/AuthModal';
 import EditProfile from './components/EditProfile';
 import Tournaments from './components/Tournaments';
 import AdminTournaments from './components/AdminTournaments';
+import Social from './components/Social';
 
 const GUEST = { id: 'guest', email: 'guest@local', isGuest: true };
 
@@ -98,8 +99,12 @@ function App() {
 
       {page === 'profile' && user && <EditProfile user={user} onBack={() => setPage('lobby')} />}
 
+      {page === 'social' && user && (
+        <Social user={user} onNavigate={setPage} onEditProfile={() => setPage('profile')} onLogout={handleLogout} />
+      )}
+
       {page === 'game' && user && (
-        <GameRoom user={user} timeControl={timeControl} onBack={() => setPage('lobby')} />
+        <GameRoom user={user} timeControl={timeControl} onBack={() => setPage('lobby')} onSocial={() => setPage('social')} />
       )}
 
       {authMode && (

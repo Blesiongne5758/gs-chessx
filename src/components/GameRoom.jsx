@@ -1,13 +1,14 @@
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo, lazy, Suspense } from 'react';
 import { Chess } from 'chess.js';
 import toast from 'react-hot-toast';
+const ChessBoard3D = lazy(() => import('./ChessBoard3D'));
 
 const PIECES = {
   w: { k: '♔', q: '♕', r: '♖', b: '♗', n: '♘', p: '♙' },
   b: { k: '♚', q: '♛', r: '♜', b: '♝', n: '♞', p: '♟' },
 };
 
-export default function GameRoom({ user, timeControl, onBack }) {
+export default function GameRoom({ user, timeControl, onBack, onSocial }) {
   const base = timeControl?.base ?? 600;
   const inc = timeControl?.inc ?? 0;
 
@@ -16,6 +17,7 @@ export default function GameRoom({ user, timeControl, onBack }) {
   const [whiteTime, setWhiteTime] = useState(base);
   const [blackTime, setBlackTime] = useState(base);
   const [result, setResult] = useState(null); // string when the game is finished
+  const [skinMode, setSkinMode] = useState('3d');
 
   const turn = game.turn();
   const history = game.history({ verbose: true });
@@ -114,6 +116,9 @@ export default function GameRoom({ user, timeControl, onBack }) {
     const kingInCheck = game.inCheck()
       ? board.flat().find((p) => p && p.type === 'k' && p.color === turn)?.square
       : null;
+    if (skinMode === '3d') {
+      return <Suspense fallback={<div className="grid h-full place-items-center rounded-xl border border-gold/30 bg-graphite text-sm text-gold">Memuat papan 3D…</div>}><ChessBoard3D board={board} selectedSquare={selectedSquare} validTargets={validTargets} lastMove={lastMove} kingInCheck={kingInCheck} onSquareClick={handleSquareClick} /></Suspense>;
+    }
     const squares = [];
 
     for (let row = 0; row < 8; row++) {
@@ -199,10 +204,9 @@ export default function GameRoom({ user, timeControl, onBack }) {
 
           {/* Center — Board */}
           <div className="space-y-3">
+            <div className="flex items-center justify-between"><div className="text-xs uppercase tracking-widest text-gray-500">Skin papan</div><div className="flex rounded-lg border border-gold/25 bg-graphite p-1"><button onClick={() => setSkinMode('3d')} aria-pressed={skinMode === '3d'} className={`rounded-md px-3 py-1.5 text-xs font-semibold ${skinMode === '3d' ? 'bg-gold text-obsidian' : 'text-gray-300'}`}>3D Voxel</button><button onClick={() => setSkinMode('2d')} aria-pressed={skinMode === '2d'} className={`rounded-md px-3 py-1.5 text-xs font-semibold ${skinMode === '2d' ? 'bg-gold text-obsidian' : 'text-gray-300'}`}>2D Classic</button></div></div>
             <div className="aspect-square">
-              <div className="w-full h-full grid grid-cols-8 grid-rows-8 border-4 border-[#6B4423] rounded-lg overflow-hidden shadow-2xl">
-                {renderBoard()}
-              </div>
+              {skinMode === '3d' ? renderBoard() : <div className="w-full h-full grid grid-cols-8 grid-rows-8 border-4 border-[#6B4423] rounded-lg overflow-hidden shadow-2xl">{renderBoard()}</div>}
             </div>
             {result && (
               <div className="bg-gold/10 border border-gold rounded-lg p-4 text-center">
@@ -247,10 +251,10 @@ export default function GameRoom({ user, timeControl, onBack }) {
       {/* Bottom Controls */}
       <div className="bg-graphite border-t border-gold/30 p-4">
         <div className="max-w-6xl mx-auto flex flex-wrap justify-center gap-4">
-          <button onClick={() => toast('Voice call (WebRTC) segera hadir')} className="px-6 py-2 bg-slate text-gray-300 rounded hover:bg-gray-700">
-            🎙️ Voice Call
+          <button onClick={onSocial} className="px-6 py-2 bg-slate text-gray-300 rounded hover:bg-gray-700">
+            🎙️ Voice / Video
           </button>
-          <button onClick={() => toast('Chat segera hadir')} className="px-6 py-2 bg-slate text-gray-300 rounded hover:bg-gray-700">
+          <button onClick={onSocial} className="px-6 py-2 bg-slate text-gray-300 rounded hover:bg-gray-700">
             💬 Chat
           </button>
           <button

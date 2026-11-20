@@ -2,7 +2,7 @@
 
 **Holy vs Anarchy: The Voxel Chess Revolution**
 
-GS-ChessX adalah platform catur online modern dengan tema epik "Holy Kingdom vs Anarchy Rebellion". Saat ini tersedia papan 2D yang bisa dimainkan penuh (hot-seat lokal); multiplayer realtime, mode 3D, voice call, dan AI ada di roadmap.
+GS-ChessX adalah platform catur online modern dengan tema epik "Holy Kingdom vs Anarchy Rebellion". Papan 3D Voxel kini menjadi skin awal, dengan 2D Classic sebagai alternatif; game room saat ini masih lokal hot-seat dan multiplayer pertandingan tetap ada di roadmap.
 
 ## 🎮 Status Fitur
 
@@ -15,12 +15,15 @@ GS-ChessX adalah platform catur online modern dengan tema epik "Holy Kingdom vs 
 | Deteksi skakmat, stalemate, remis | ✅ Selesai |
 | Highlight langkah terakhir, skak, bidak tertangkap | ✅ Selesai |
 | Mode tamu (tanpa Supabase) | ✅ Selesai |
-| Edit profil: username + avatar (Supabase Storage) | ✅ Selesai |
+| Edit profil: username + avatar + ganti password + rank | ✅ Selesai |
+| Teman: cari pemain, permintaan, kontak | ✅ Selesai |
+| Chat privat teman (Supabase Realtime + RLS) | ✅ Selesai |
+| Panggilan voice/video peer-to-peer WebRTC | ✅ Selesai (HTTPS + izin media diperlukan) |
 | Halaman Tournaments: daftar, detail, klasemen, daftar/batal ikut | ✅ Selesai |
 | Multiplayer realtime | 🔜 Skema DB siap |
-| 3D Voxel board (Three.js) | 🔜 |
+| Papan 3D Voxel default + 2D Classic alternatif | ✅ Selesai |
 | AI opponent (Stockfish.js) | 🔜 |
-| Voice call WebRTC, chat | 🔜 |
+| Chat dan voice/video call antar teman | ✅ Selesai |
 | Pairing Swiss otomatis + Buchholz | ✅ Selesai |
 | Halaman Admin: buat / ubah / hapus turnamen Swiss | ✅ Selesai |
 | ELO Glicko-2, pairing Arena/Knockout | 🔜 |
@@ -49,7 +52,7 @@ Tanpa `.env`, aplikasi tetap jalan dalam **mode tamu** — klik Play Now untuk l
 ### Setup Supabase
 
 1. Buat proyek di [supabase.com](https://supabase.com).
-2. Buka **SQL Editor**, jalankan `supabase/schema.sql` (tabel, RLS, realtime), lalu berurutan `supabase/migrations/002_edit_profile.sql` (trigger profil otomatis, bucket `avatars`, aturan username, proteksi kolom rating/Pro) dan `003_tournaments.sql` (detail turnamen, tabel peserta, aturan pendaftaran, 5 turnamen contoh).
+2. Buka **SQL Editor**, jalankan `supabase/schema.sql`, lalu migrasi menurut urutan: `002_edit_profile.sql`, `003_tournaments.sql`, `004_swiss_pairing.sql`, `005_admin_tournaments.sql`, dan `20261120145726_social_chat_realtime.sql`. Migrasi terakhir membuat chat privat dan signaling WebRTC dengan RLS.
 3. Salin **Project URL** dan **anon key** dari *Settings → API* ke `.env`.
 4. (Opsional) Aktifkan Google di *Authentication → Providers*.
 
@@ -108,6 +111,15 @@ gs-chessx/
 - **Avatar**: PNG/JPG/WEBP/GIF maks. 2 MB, otomatis dipotong persegi dan diperkecil ke 256×256 WebP sebelum diunggah ke bucket `avatars/<user_id>/`. File lama dihapus otomatis.
 - **Keamanan**: pengguna hanya bisa mengubah `username`, `avatar_url`, `country` miliknya sendiri; `rating`, `wins`, `is_pro` tidak bisa diubah dari browser.
 - **Mode tamu**: profil disimpan di `localStorage` browser.
+- **Rank** dihitung dari rating untuk ditampilkan di Lobby dan Profil; rating tetap tidak dapat diubah dari form profil.
+- **Ubah password** memakai Supabase Auth pada sesi aktif, dengan validasi minimum 8 karakter dan konfirmasi.
+
+## 👥 Friends, Chat & Calls
+
+- Cari pemain berdasarkan username; kirim, terima, dan tolak permintaan pertemanan.
+- Chat langsung tersimpan dan diperbarui melalui Supabase Realtime. Row Level Security membatasi akses ke dua akun teman yang sudah menerima pertemanan.
+- Voice/video menggunakan WebRTC peer-to-peer. Database hanya meneruskan sinyal SDP/ICE, bukan audio/video. Browser meminta izin kamera dan mikrofon; jalankan situs lewat HTTPS (atau localhost). STUN publik digunakan, namun sebagian jaringan memerlukan server TURN agar koneksi dapat terbentuk.
+- Jalankan migrasi `20261120145726_social_chat_realtime.sql` sebelum memakai fitur sosial.
 
 ## 🏆 Tournaments
 
@@ -183,15 +195,15 @@ Lihat `supabase/schema.sql`: `profiles`, `friendships`, `games`, `moves` (realti
 
 ## 💰 Monetization
 
-- **Free (2D Classic)**: papan 2D, matchmaking global, chat dasar
-- **Pro ($4.99/bulan)**: 3D Voxel board, cinematic lighting, voice call, skin eksklusif, tanpa iklan
+- **Free**: 3D Voxel dan 2D Classic, kontak teman, chat, serta panggilan voice/video.
+- **Pro ($4.99/bulan)**: ide skin eksklusif dan tanpa iklan belum diimplementasikan.
 
 ## 📊 Roadmap
 
 - **Phase 1 – Foundation**: ✅ setup, ✅ auth, ✅ papan 2D, ✅ edit profil
-- **Phase 2 – Core Chess**: ⬜ papan 3D, ⬜ Stockfish AI, ✅ timer, ✅ validasi langkah
+- **Phase 2 – Core Chess**: ✅ papan 3D + 2D Classic, ⬜ Stockfish AI, ✅ timer, ✅ validasi langkah
 - **Phase 3 – Multiplayer**: ⬜ sinkronisasi realtime, ⬜ matchmaking, ⬜ spectator, ⬜ PGN replay
-- **Phase 4 – Social**: ⬜ friend system, ⬜ chat, ⬜ voice call WebRTC, ⬜ notifikasi
+- **Phase 4 – Social**: ✅ friend system, ✅ chat, ✅ voice/video WebRTC, ⬜ notifikasi
 - **Phase 5 – Competitive**: ⬜ ELO Glicko-2, ⬜ leaderboard live, ✅ halaman turnamen, ⬜ pairing otomatis, ⬜ riwayat match
 
 ## 📝 License

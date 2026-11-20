@@ -4,7 +4,7 @@ import Avatar from './Avatar';
 const ITEMS = [
   { key: 'lobby', label: 'Lobby' },
   { key: 'tournaments', label: 'Tournaments' },
-  { key: 'social', label: 'Social', soon: true },
+  { key: 'social', label: 'Friends & Chat' },
   { key: 'shop', label: 'Shop', soon: true },
 ];
 

@@ -55,6 +55,8 @@ export default function Lobby({ user, onPlay, onLogout, onEditProfile, onNavigat
   const username = profile?.username || user.email?.split('@')[0] || 'Player';
   const games = profile?.games_played ?? 0;
   const winRate = games > 0 ? ((profile.wins / games) * 100).toFixed(1) : '0.0';
+  const rating = profile?.rating ?? 1200;
+  const rank = rating >= 2400 ? 'Grandmaster' : rating >= 2200 ? 'Master' : rating >= 2000 ? 'Expert' : rating >= 1800 ? 'Advanced' : rating >= 1500 ? 'Club Player' : 'Apprentice';
 
   return (
     <div className="min-h-screen bg-obsidian p-6">
@@ -78,6 +80,7 @@ export default function Lobby({ user, onPlay, onLogout, onEditProfile, onNavigat
 
           <div className="space-y-2 text-sm">
             <Row label="ELO Rating:" value={<span className="text-gold font-bold">{profile?.rating ?? 1200}</span>} />
+            <Row label="Rank:" value={<span className="text-champagne font-semibold">{rank}</span>} />
             <Row label="Win Rate:" value={<span className="text-emerald font-bold">{winRate}%</span>} />
             <Row label="Games:" value={<span className="text-white">{games}</span>} />
           </div>
@@ -118,12 +121,12 @@ export default function Lobby({ user, onPlay, onLogout, onEditProfile, onNavigat
                     <div className="text-white font-medium">{friend.username}</div>
                     <div className="text-xs text-gray-400">Rating: {friend.rating}</div>
                   </div>
-                  <button className="px-3 py-1 bg-gold text-obsidian rounded text-sm font-bold">Challenge</button>
+                  <button onClick={() => onNavigate('social')} className="px-3 py-1 bg-gold text-obsidian rounded text-sm font-bold">Chat</button>
                 </div>
               ))
             )}
           </div>
-          <button className="w-full mt-4 py-2 bg-slate text-gray-300 rounded hover:bg-gray-700">View All Friends</button>
+          <button onClick={() => onNavigate('social')} className="w-full mt-4 py-2 bg-slate text-gray-300 rounded hover:bg-gray-700">View all friends & chat</button>
         </div>
       </div>
 
