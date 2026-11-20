@@ -8,6 +8,8 @@ import {
   updateTournament,
   deleteTournament,
   isDemoCreated,
+  subscribeTournaments,
+  formatCountdown,
   formatDateTime,
 } from '../lib/tournaments';
 import {
@@ -37,6 +39,8 @@ export default function AdminTournaments({ user, onNavigate, onEditProfile, onLo
   const [bots, setBots] = useState(8);
   const [list, setList] = useState(null);
   const [lastCreated, setLastCreated] = useState(null);
+  const [statusFilter, setStatusFilter] = useState('all');
+  const [now, setNow] = useState(() => Date.now());
   const topRef = useRef(null);
 
   useEffect(() => {
@@ -51,14 +55,49 @@ export default function AdminTournaments({ user, onNavigate, onEditProfile, onLo
   const reload = useCallback(
     () =>
       fetchTournaments(user)
-        .then((all) => setList(all.filter((t) => t.format === 'swiss' && t.status === 'upcoming')))
+        .then((all) => setList(all.filter((t) => t.format === 'swiss')))
         .catch((e) => toast.error(`Gagal memuat turnamen: ${e.message}`)),
     [user],
   );
 
   useEffect(() => {
-    if (isAdmin) reload();
-  }, [isAdmin, reload]);
+    if (!isAdmin) return undefined;
+    reload();
+    // Live registration counts / status changes
+    return subscribeTournaments(user, reload);
+  }, [isAdmin, user, reload]);
+
+  useEffect(() => {
+    const id = setInterval(() => setNow(Date.now()), 30_000);
+    return () => clearInterval(id);
+  }, []);
+
+  const statusCounts = useMemo(() => {
+    const c = { all: 0, upcoming: 0, running: 0, finished: 0 };
+    for (const t of list || []) {
+      c.all += 1;
+      c[t.status] = (c[t.status] || 0) + 1;
+    }
+    return c;
+  }, [list]);
+
+  const manageList = useMemo(() => {
+    const order = { running: 0, upcoming: 1, finished: 2 };
+    return (list || [])
+      .filter((t) => statusFilter === 'all' || t.status === statusFilter)
+      .sort(
+        (a, b) =>
+          order[a.status] - order[b.status] ||
+          (a.status === 'finished'
+            ? new Date(b.starts_at) - new Date(a.starts_at)
+            : new Date(a.starts_at) - new Date(b.starts_at)),
+      );
+  }, [list, statusFilter]);
+
+  const totalRegistered = useMemo(
+    () => (list || []).filter((t) => t.status !== 'finished').reduce((n, t) => n + (t.player_count || 0), 0),
+    [list],
+  );
 
   const registered = editing?.player_count ?? 0;
   const errors = useMemo(() => validateTournament(form, { minPlayers: registered }), [form, registered]);
@@ -405,19 +444,47 @@ export default function AdminTournaments({ user, onNavigate, onEditProfile, onLo
 
         {/* ---------------- Manage list ---------------- */}
         <section className="bg-graphite border border-gold/20 rounded-xl p-6">
-          <h2 className="text-xl font-bold text-white mb-1">Turnamen Swiss yang belum dimulai</h2>
-          <p className="text-sm text-gray-500 mb-4">Ubah atau hapus sebelum waktu mulai.</p>
+          <div className="flex flex-col md:flex-row md:items-end md:justify-between gap-3 mb-4">
+            <div>
+              <h2 className="text-xl font-bold text-white mb-1">Kelola Turnamen Swiss</h2>
+              <p className="text-sm text-gray-500">
+                Jumlah pendaftar diperbarui otomatis. Ubah atau hapus hanya bisa sebelum turnamen dimulai.
+                {list && (
+                  <span className="text-gray-400" data-testid="total-registered">
+                    {' '}
+                    Total {totalRegistered} pendaftar di turnamen aktif.
+                  </span>
+                )}
+              </p>
+            </div>
+            <div className="flex flex-wrap gap-2" role="tablist" aria-label="Filter status">
+              {[
+                { key: 'all', label: 'Semua' },
+                { key: 'upcoming', label: 'Akan Datang' },
+                { key: 'running', label: 'Berlangsung' },
+                { key: 'finished', label: 'Selesai' },
+              ].map((f) => (
+                <Chip key={f.key} active={statusFilter === f.key} onClick={() => setStatusFilter(f.key)}>
+                  {f.label} <span className="opacity-60">({statusCounts[f.key] || 0})</span>
+                </Chip>
+              ))}
+            </div>
+          </div>
           {list === null ? (
             <div className="text-gray-400 py-6 text-center">Memuat...</div>
-          ) : list.length === 0 ? (
-            <div className="text-gray-500 py-6 text-center">Belum ada. Buat yang pertama di atas.</div>
+          ) : manageList.length === 0 ? (
+            <div className="text-gray-500 py-6 text-center">
+              {list.length === 0 ? 'Belum ada. Buat yang pertama di atas.' : 'Tidak ada turnamen dengan status ini.'}
+            </div>
           ) : (
-            <ul className="divide-y divide-gray-800">
-              {list.map((t) => (
+            <ul className="divide-y divide-gray-800" data-testid="manage-list">
+              {manageList.map((t) => (
                 <ManageRow
                   key={t.id}
                   t={t}
-                  editable={!user.isGuest || isDemoCreated(t)}
+                  now={now}
+                  editable={t.status === 'upcoming' && (!user.isGuest || isDemoCreated(t))}
+                  builtIn={user.isGuest && !isDemoCreated(t) && t.status === 'upcoming'}
                   isEditing={editing?.id === t.id}
                   onEdit={() => startEdit(t)}
                   onOpen={() => onOpenTournament(t.id)}
@@ -551,56 +618,118 @@ function Preview({ form, fieldSize, endEstimate }) {
   );
 }
 
-function ManageRow({ t, editable, isEditing, onEdit, onOpen, onDelete }) {
+const STATUS_BADGE = {
+  upcoming: { label: 'Akan Datang', cls: 'bg-gold/15 text-gold border-gold/40' },
+  running: { label: 'Berlangsung', cls: 'bg-emerald/15 text-emerald border-emerald/40' },
+  finished: { label: 'Selesai', cls: 'bg-gray-700/40 text-gray-400 border-gray-600' },
+};
+
+function StatusBadge({ t }) {
+  const b = STATUS_BADGE[t.status] || STATUS_BADGE.upcoming;
+  return (
+    <span className={`inline-flex items-center gap-1.5 px-2 py-0.5 rounded border text-xs font-bold ${b.cls}`} data-testid="status-badge">
+      {t.status === 'running' && <span className="w-1.5 h-1.5 rounded-full bg-emerald animate-pulse" />}
+      {b.label}
+    </span>
+  );
+}
+
+function statusDetail(t, now) {
+  if (t.status === 'upcoming') {
+    const ms = new Date(t.starts_at).getTime() - now;
+    return ms > 0 ? `Mulai dalam ${formatCountdown(ms)}` : 'Menunggu dimulai admin';
+  }
+  if (t.status === 'running') return t.rounds ? `Ronde ${t.current_round || 1} dari ${t.rounds}` : 'Sedang berjalan';
+  return `Selesai ${formatDateTime(t.ends_at || t.starts_at)}`;
+}
+
+function ManageRow({ t, now, editable, builtIn, isEditing, onEdit, onOpen, onDelete }) {
   const [confirming, setConfirming] = useState(false);
   const [busy, setBusy] = useState(false);
+  const count = t.player_count || 0;
+  const pct = Math.min(100, Math.round((count / Math.max(1, t.max_players)) * 100));
+  const full = count >= t.max_players;
+  const barCls = t.status === 'finished' ? 'bg-gray-500' : full ? 'bg-crimson' : pct >= 75 ? 'bg-amber' : 'bg-gold';
+  const tooFew = t.status === 'upcoming' && count < 2;
+
   return (
-    <li className={`py-3 flex flex-col md:flex-row md:items-center gap-3 ${isEditing ? 'bg-gold/5 -mx-2 px-2 rounded' : ''}`}>
-      <button onClick={onOpen} className="flex-1 text-left min-w-0">
-        <div className="text-white font-medium truncate">
-          {t.name} {t.is_pro_only && <span className="ml-1 px-1.5 py-0.5 rounded bg-gold text-obsidian text-[10px] font-bold">PRO</span>}
+    <li
+      className={`py-4 grid grid-cols-1 md:grid-cols-[minmax(0,1fr)_14rem_auto] md:items-center gap-3 ${
+        isEditing ? 'bg-gold/5 -mx-2 px-2 rounded' : ''
+      }`}
+      data-testid="manage-row"
+    >
+      <button onClick={onOpen} className="text-left min-w-0">
+        <div className="flex flex-wrap items-center gap-2 mb-1">
+          <span className="text-white font-medium truncate max-w-full">{t.name}</span>
+          <StatusBadge t={t} />
+          {t.is_pro_only && <span className="px-1.5 py-0.5 rounded bg-gold text-obsidian text-[10px] font-bold">PRO</span>}
         </div>
         <div className="text-xs text-gray-500">
-          📅 {formatDateTime(t.starts_at)} · ⏱ {t.time_control} · {t.rounds ? `${t.rounds} ronde` : 'ronde otomatis'} · 👥{' '}
-          {t.player_count}/{t.max_players}
+          {statusDetail(t, now)} · 📅 {formatDateTime(t.starts_at)} · ⏱ {t.time_control} ·{' '}
+          {t.rounds ? `${t.rounds} ronde` : 'ronde otomatis'}
         </div>
       </button>
-      {!editable ? (
-        <span className="text-xs text-gray-600">Contoh bawaan</span>
-      ) : confirming ? (
-        <div className="flex items-center gap-2 text-sm">
-          <span className="text-gray-300">
-            Hapus{t.player_count > 0 ? ` (${t.player_count} pemain terdaftar)` : ''}?
+
+      <div data-testid="registrations">
+        <div className="flex justify-between items-baseline text-xs mb-1">
+          <span className="text-gray-400">{t.status === 'upcoming' ? 'Pendaftar' : 'Peserta'}</span>
+          <span className="font-mono">
+            <b className={full && t.status !== 'finished' ? 'text-crimson' : 'text-white'}>{count}</b>
+            <span className="text-gray-500">/{t.max_players}</span>
+            {t.status === 'upcoming' && (
+              <span className={`ml-2 ${full ? 'text-crimson font-bold' : 'text-gray-500'}`}>
+                {full ? 'Penuh' : `sisa ${t.max_players - count}`}
+              </span>
+            )}
           </span>
-          <button
-            onClick={async () => {
-              setBusy(true);
-              await onDelete();
-              setBusy(false);
-              setConfirming(false);
-            }}
-            disabled={busy}
-            className="px-3 py-1 bg-crimson text-white rounded font-bold disabled:opacity-50"
-          >
-            {busy ? '...' : 'Ya, hapus'}
-          </button>
-          <button onClick={() => setConfirming(false)} className="px-3 py-1 text-gray-400 hover:text-white">
-            Batal
-          </button>
         </div>
-      ) : (
-        <div className="flex gap-2">
-          <button onClick={onEdit} className="px-3 py-1 rounded border border-gold/40 text-gold text-sm hover:bg-gold/10">
-            Ubah
-          </button>
-          <button
-            onClick={() => setConfirming(true)}
-            className="px-3 py-1 rounded border border-crimson/40 text-crimson text-sm hover:bg-crimson/10"
-          >
-            Hapus
-          </button>
+        <div className="h-2 bg-obsidian rounded-full overflow-hidden">
+          <div className={`h-full ${barCls} transition-all`} style={{ width: `${pct}%` }} />
         </div>
-      )}
+        {tooFew && <div className="text-[11px] text-amber mt-1">Butuh minimal 2 pemain untuk dimulai</div>}
+      </div>
+
+      <div className="flex md:justify-end">
+        {builtIn ? (
+          <span className="text-xs text-gray-600">Contoh bawaan</span>
+        ) : !editable ? (
+          <button onClick={onOpen} className="px-3 py-1 rounded border border-gray-700 text-gray-300 text-sm hover:text-white">
+            {t.status === 'running' ? 'Pantau' : 'Lihat hasil'}
+          </button>
+        ) : confirming ? (
+          <div className="flex flex-wrap items-center gap-2 text-sm">
+            <span className="text-gray-300">Hapus{count > 0 ? ` (${count} pendaftar)` : ''}?</span>
+            <button
+              onClick={async () => {
+                setBusy(true);
+                await onDelete();
+                setBusy(false);
+                setConfirming(false);
+              }}
+              disabled={busy}
+              className="px-3 py-1 bg-crimson text-white rounded font-bold disabled:opacity-50"
+            >
+              {busy ? '...' : 'Ya, hapus'}
+            </button>
+            <button onClick={() => setConfirming(false)} className="px-3 py-1 text-gray-400 hover:text-white">
+              Batal
+            </button>
+          </div>
+        ) : (
+          <div className="flex gap-2">
+            <button onClick={onEdit} className="px-3 py-1 rounded border border-gold/40 text-gold text-sm hover:bg-gold/10">
+              Ubah
+            </button>
+            <button
+              onClick={() => setConfirming(true)}
+              className="px-3 py-1 rounded border border-crimson/40 text-crimson text-sm hover:bg-crimson/10"
+            >
+              Hapus
+            </button>
+          </div>
+        )}
+      </div>
     </li>
   );
 }
