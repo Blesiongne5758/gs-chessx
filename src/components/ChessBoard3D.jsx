@@ -87,6 +87,25 @@ function makePiece(type, color, skin = 'holy') {
     default:
       return null;
   }
+  if (skin === 'anime' && (type === 'k' || type === 'q')) {
+    const fx = new THREE.Group();
+    const ringMaterial = new THREE.MeshBasicMaterial({ color: palette.accent, transparent: true, opacity: 0.72 });
+    const ring = new THREE.Mesh(new THREE.TorusGeometry(type === 'k' ? 0.27 : 0.23, 0.018, 6, 16), ringMaterial);
+    ring.rotation.x = Math.PI / 2;
+    ring.position.y = type === 'k' ? 1.12 : 1.02;
+    fx.add(ring);
+    for (let i = 0; i < 12; i++) {
+      const angle = (i / 12) * Math.PI * 2;
+      const particle = new THREE.Mesh(
+        new THREE.BoxGeometry(0.035, 0.035, 0.035),
+        new THREE.MeshBasicMaterial({ color: i % 2 ? palette.accent : palette.accentDark, transparent: true, opacity: 0.88 }),
+      );
+      particle.userData.orbit = { angle, radius: 0.24 + (i % 3) * 0.04, speed: 0.65 + (i % 4) * 0.14, y: 0.76 + (i % 4) * 0.1 };
+      fx.add(particle);
+    }
+    fx.userData.cyberFx = true;
+    group.add(fx);
+  }
   return group;
 }
 
@@ -136,6 +155,26 @@ export default function ChessBoard3D({ board, selectedSquare, validTargets = [],
     fillLight.position.set(8, 7, -6);
     scene.add(fillLight);
 
+    let animationFrame;
+    const animate = () => {
+      scene.traverse((object) => {
+        if (object.userData?.cyberFx) {
+          object.rotation.y += 0.008;
+          object.children.forEach((child) => {
+            const orbit = child.userData?.orbit;
+            if (!orbit) return;
+            orbit.angle += orbit.speed * 0.01;
+            child.position.set(Math.cos(orbit.angle) * orbit.radius, orbit.y + Math.sin(orbit.angle * 1.7) * 0.06, Math.sin(orbit.angle) * orbit.radius);
+            child.rotation.x += 0.025;
+            child.rotation.z += 0.03;
+          });
+        }
+      });
+      renderer.render(scene, camera);
+      animationFrame = requestAnimationFrame(animate);
+    };
+    animationFrame = requestAnimationFrame(animate);
+
     const wood = new THREE.MeshStandardMaterial({ color: 0x563820, roughness: 0.42, metalness: 0.12 });
     const frame = new THREE.Mesh(new THREE.BoxGeometry(8.55, 0.38, 8.55), wood);
     frame.position.y = -0.22;
@@ -174,6 +213,7 @@ export default function ChessBoard3D({ board, selectedSquare, validTargets = [],
     resize();
     return () => {
       observer.disconnect();
+      cancelAnimationFrame(animationFrame);
       scene.traverse((object) => {
         if (object.geometry) object.geometry.dispose();
         if (object.material) {

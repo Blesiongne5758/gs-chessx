@@ -31,6 +31,14 @@ export const CHESS_SKINS = {
     white: { body: 0xdbeafe, light: 0xffffff, shade: 0x637da5, edge: 0x13223a, accent: 0x22d3ee, accentDark: 0x0e7490 },
     black: { body: 0x24243b, light: 0x4b4b78, shade: 0x0e0e1d, edge: 0x080812, accent: 0xf472b6, accentDark: 0xbe185d },
   },
+  anime: {
+    id: 'anime',
+    label: 'Anime Cyberpunk',
+    shortLabel: 'Anime Cyberpunk',
+    description: 'Electric cyan, violet, and pink with an energy aura for king and queen',
+    white: { body: 0xe9f7ff, light: 0xffffff, shade: 0x6f83b8, edge: 0x172042, accent: 0x67e8f9, accentDark: 0x2563eb },
+    black: { body: 0x25213d, light: 0x514878, shade: 0x0d0a1e, edge: 0x090718, accent: 0xf0abfc, accentDark: 0xa21caf },
+  },
 };
 
 export const CHESS_SKIN_LIST = Object.values(CHESS_SKINS);

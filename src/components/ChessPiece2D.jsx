@@ -65,6 +65,9 @@ function SkinDetail({ skin, fill, dark }) {
   if (skin === 'neon') {
     return <g fill="none" stroke={fill} strokeWidth="3"><path d="M31 70h38" /><path d="M36 76h28" /></g>;
   }
+  if (skin === 'anime') {
+    return <g fill="none" stroke={fill} strokeWidth="2"><path d="M29 61h14l5-5h8l5 5h10" /><path d="M35 73h8l5-5h8l8 5" /><circle cx="50" cy="67" r="3" fill={fill} stroke="none" /></g>;
+  }
   return null;
 }
 
@@ -76,7 +79,7 @@ export default function ChessPiece2D({ type, color, skin = 'holy' }) {
   return (
     <svg
       viewBox="0 0 100 120"
-      className="h-[82%] w-[82%] drop-shadow-[0_3px_2px_rgba(0,0,0,.55)] sm:h-[86%] sm:w-[86%]"
+      className={`h-[82%] w-[82%] drop-shadow-[0_3px_2px_rgba(0,0,0,.55)] sm:h-[86%] sm:w-[86%] ${skin === 'anime' && (type === 'k' || type === 'q') ? 'drop-shadow-[0_0_7px_rgba(103,232,249,.9)]' : ''}`}
       role="img"
       aria-label={label}
       shapeRendering="crispEdges"
