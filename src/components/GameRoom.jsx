@@ -2,6 +2,7 @@ import { useState, useEffect, useMemo, lazy, Suspense } from 'react';
 import { Chess } from 'chess.js';
 import toast from 'react-hot-toast';
 const ChessBoard3D = lazy(() => import('./ChessBoard3D'));
+import ChessPiece2D from './ChessPiece2D';
 
 const PIECES = {
   w: { k: '♔', q: '♕', r: '♖', b: '♗', n: '♘', p: '♙' },
@@ -142,15 +143,7 @@ export default function GameRoom({ user, timeControl, onBack, onSocial }) {
               isSelected ? 'ring-4 ring-gold ring-inset' : ''
             } hover:brightness-110 transition`}
           >
-            {piece && (
-              <span
-                className={`text-3xl sm:text-5xl leading-none ${
-                  piece.color === 'w' ? 'text-white [text-shadow:0_0_2px_#000,0_2px_4px_#000]' : 'text-black [text-shadow:0_1px_2px_#fff8]'
-                }`}
-              >
-                {PIECES[piece.color][piece.type]}
-              </span>
-            )}
+            {piece && <ChessPiece2D type={piece.type} color={piece.color} />}
             {isValidMove && (
               <div
                 className={`absolute rounded-full ${
@@ -204,7 +197,7 @@ export default function GameRoom({ user, timeControl, onBack, onSocial }) {
 
           {/* Center — Board */}
           <div className="space-y-3">
-            <div className="flex items-center justify-between"><div className="text-xs uppercase tracking-widest text-gray-500">Skin papan</div><div className="flex rounded-lg border border-gold/25 bg-graphite p-1"><button onClick={() => setSkinMode('3d')} aria-pressed={skinMode === '3d'} className={`rounded-md px-3 py-1.5 text-xs font-semibold ${skinMode === '3d' ? 'bg-gold text-obsidian' : 'text-gray-300'}`}>3D Voxel</button><button onClick={() => setSkinMode('2d')} aria-pressed={skinMode === '2d'} className={`rounded-md px-3 py-1.5 text-xs font-semibold ${skinMode === '2d' ? 'bg-gold text-obsidian' : 'text-gray-300'}`}>2D Classic</button></div></div>
+            <div className="flex items-center justify-between gap-3"><div><div className="text-xs uppercase tracking-widest text-gray-500">Skin papan</div><div className="mt-1 text-[11px] text-gray-500">Holy Kingdom <span className="text-gold">vs</span> Anarchy Rebellion</div></div><div className="flex shrink-0 rounded-lg border border-gold/25 bg-graphite p-1"><button onClick={() => setSkinMode('3d')} aria-pressed={skinMode === '3d'} className={`rounded-md px-3 py-1.5 text-xs font-semibold ${skinMode === '3d' ? 'bg-gold text-obsidian' : 'text-gray-300'}`}>3D Voxel</button><button onClick={() => setSkinMode('2d')} aria-pressed={skinMode === '2d'} className={`rounded-md px-3 py-1.5 text-xs font-semibold ${skinMode === '2d' ? 'bg-gold text-obsidian' : 'text-gray-300'}`}>2D Pixel</button></div></div>
             <div className="aspect-square">
               {skinMode === '3d' ? renderBoard() : <div className="w-full h-full grid grid-cols-8 grid-rows-8 border-4 border-[#6B4423] rounded-lg overflow-hidden shadow-2xl">{renderBoard()}</div>}
             </div>

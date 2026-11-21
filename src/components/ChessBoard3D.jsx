@@ -2,14 +2,13 @@ import { useEffect, useRef } from 'react';
 import * as THREE from 'three';
 
 const FILES = 'abcdefgh';
-const BOARD_SPAN = 8;
 
 function makePiece(type, color) {
   const group = new THREE.Group();
   const white = color === 'w';
   const materials = white
-    ? { body: new THREE.MeshStandardMaterial({ color: 0xf3e6c8, roughness: 0.32, metalness: 0.18 }), trim: new THREE.MeshStandardMaterial({ color: 0xc99a3d, roughness: 0.28, metalness: 0.68 }) }
-    : { body: new THREE.MeshStandardMaterial({ color: 0x34343a, roughness: 0.5, metalness: 0.16 }), trim: new THREE.MeshStandardMaterial({ color: 0x982f35, roughness: 0.38, metalness: 0.22 }) };
+    ? { body: new THREE.MeshStandardMaterial({ color: 0xf4e7c4, roughness: 0.34, metalness: 0.22 }), trim: new THREE.MeshStandardMaterial({ color: 0xf2bf2f, roughness: 0.28, metalness: 0.72 }) }
+    : { body: new THREE.MeshStandardMaterial({ color: 0x2d2d33, roughness: 0.48, metalness: 0.2 }), trim: new THREE.MeshStandardMaterial({ color: 0xd52f43, roughness: 0.35, metalness: 0.28 }) };
   const add = (geometry, material, y, x = 0, z = 0) => {
     const mesh = new THREE.Mesh(geometry, material);
     mesh.position.set(x, y, z);
@@ -23,8 +22,20 @@ function makePiece(type, color) {
   const box = (w, h, d, x, y, z, material = materials.body) =>
     add(new THREE.BoxGeometry(w, h, d), material, y, x, z);
 
-  cyl(0.29, 0.34, 0.12, 0.09, materials.trim);
-  cyl(0.24, 0.29, 0.16, 0.22);
+  cyl(0.29, 0.34, 0.12, 0.09, materials.trim, 8);
+  cyl(0.24, 0.29, 0.16, 0.22, materials.body, 8);
+  // A faction mark makes the skin readable even at board scale: cross for Holy,
+  // diagonal X for Anarchy. It sits on the front face like the reference sprites.
+  const markY = 0.40;
+  if (white) {
+    box(0.055, 0.20, 0.028, 0, markY, 0.20, materials.trim);
+    box(0.16, 0.055, 0.028, 0, markY, 0.20, materials.trim);
+  } else {
+    const markA = box(0.045, 0.25, 0.028, 0, markY, 0.20, materials.trim);
+    markA.rotation.z = Math.PI / 4;
+    const markB = box(0.045, 0.25, 0.028, 0, markY, 0.20, materials.trim);
+    markB.rotation.z = -Math.PI / 4;
+  }
   switch (type) {
     case 'p':
       cyl(0.15, 0.21, 0.22, 0.40);
