@@ -4,7 +4,7 @@ import { resolveChessSkin } from '../lib/chessSkins';
 
 const FILES = 'abcdefgh';
 
-function makePiece(type, color, skin = 'holy', customization) {
+function makePiece(type, color, skin = 'holy', customization, performance = {}) {
   const group = new THREE.Group();
   const white = color === 'w';
   const skinSet = resolveChessSkin(skin, customization);
@@ -88,7 +88,8 @@ function makePiece(type, color, skin = 'holy', customization) {
       return null;
   }
   if ((skin === 'anime' || skin === 'custom') && (type === 'k' || type === 'q') && customization?.aura !== false) {
-    const particleCount = customization?.particleCount ?? 12;
+    const requestedParticleCount = customization?.particleCount ?? 12;
+    const particleCount = Math.min(requestedParticleCount, performance.maxParticles ?? requestedParticleCount);
     const particleSize = customization?.particleSize ?? 0.035;
     const particleSpeed = customization?.particleSpeed ?? 1;
     const fx = new THREE.Group();
@@ -97,12 +98,12 @@ function makePiece(type, color, skin = 'holy', customization) {
     ring.rotation.x = Math.PI / 2;
     ring.position.y = type === 'k' ? 1.12 : 1.02;
     fx.add(ring);
+    const particleGeometry = new THREE.BoxGeometry(particleSize, particleSize, particleSize);
+    const primaryParticleMaterial = new THREE.MeshBasicMaterial({ color: palette.accent, transparent: true, opacity: 0.88, depthWrite: false });
+    const secondaryParticleMaterial = new THREE.MeshBasicMaterial({ color: palette.accentDark, transparent: true, opacity: 0.88, depthWrite: false });
     for (let i = 0; i < particleCount; i++) {
       const angle = (i / particleCount) * Math.PI * 2;
-      const particle = new THREE.Mesh(
-        new THREE.BoxGeometry(particleSize, particleSize, particleSize),
-        new THREE.MeshBasicMaterial({ color: i % 2 ? palette.accent : palette.accentDark, transparent: true, opacity: 0.88 }),
-      );
+      const particle = new THREE.Mesh(particleGeometry, i % 2 ? primaryParticleMaterial : secondaryParticleMaterial);
       particle.userData.orbit = { angle, radius: 0.24 + (i % 3) * 0.04, speed: (0.65 + (i % 4) * 0.14) * particleSpeed, y: 0.76 + (i % 4) * 0.1 };
       fx.add(particle);
     }
@@ -120,6 +121,7 @@ export default function ChessBoard3D({ board, selectedSquare, validTargets = [],
   const hostRef = useRef(null);
   const sceneRef = useRef(null);
   const objectsRef = useRef([]);
+  const animatedEffectsRef = useRef([]);
   const rendererRef = useRef(null);
   const cameraRef = useRef(null);
 
@@ -127,14 +129,17 @@ export default function ChessBoard3D({ board, selectedSquare, validTargets = [],
     const host = hostRef.current;
     if (!host) return undefined;
     const skinSet = resolveChessSkin(skin);
+    const isMobile = window.matchMedia('(max-width: 768px), (pointer: coarse)').matches;
+    const reducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+    const frameInterval = isMobile ? 1000 / 30 : 0;
     const scene = new THREE.Scene();
     scene.background = new THREE.Color(0x171411);
     const camera = new THREE.PerspectiveCamera(36, 1, 0.1, 100);
     camera.position.set(10.8, 12.6, 14.2);
     camera.lookAt(0, 0, 0);
-    const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: false });
-    renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
-    renderer.shadowMap.enabled = true;
+    const renderer = new THREE.WebGLRenderer({ antialias: !isMobile, alpha: false, powerPreference: 'high-performance' });
+    renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, isMobile ? 1.25 : 1.75));
+    renderer.shadowMap.enabled = !isMobile;
     renderer.shadowMap.type = THREE.PCFSoftShadowMap;
     renderer.outputColorSpace = THREE.SRGBColorSpace;
     renderer.toneMapping = THREE.ACESFilmicToneMapping;
@@ -148,8 +153,8 @@ export default function ChessBoard3D({ board, selectedSquare, validTargets = [],
     scene.add(new THREE.HemisphereLight(0xf5e9d2, 0x31221a, 2.0));
     const keyLight = new THREE.DirectionalLight(0xffe2a8, 3.1);
     keyLight.position.set(-5, 12, 7);
-    keyLight.castShadow = true;
-    keyLight.shadow.mapSize.set(1024, 1024);
+    keyLight.castShadow = !isMobile;
+    keyLight.shadow.mapSize.set(isMobile ? 512 : 1024, isMobile ? 512 : 1024);
     keyLight.shadow.camera.left = -8;
     keyLight.shadow.camera.right = 8;
     keyLight.shadow.camera.top = 8;
@@ -160,24 +165,26 @@ export default function ChessBoard3D({ board, selectedSquare, validTargets = [],
     scene.add(fillLight);
 
     let animationFrame;
-    const animate = () => {
-      scene.traverse((object) => {
-        if (object.userData?.cyberFx) {
-          object.rotation.y += 0.008;
-          object.children.forEach((child) => {
-            const orbit = child.userData?.orbit;
-            if (!orbit) return;
-            orbit.angle += orbit.speed * 0.01;
-            child.position.set(Math.cos(orbit.angle) * orbit.radius, orbit.y + Math.sin(orbit.angle * 1.7) * 0.06, Math.sin(orbit.angle) * orbit.radius);
-            child.rotation.x += 0.025;
-            child.rotation.z += 0.03;
-          });
-        }
+    let lastFrame = 0;
+    const animate = (time) => {
+      animationFrame = requestAnimationFrame(animate);
+      if (frameInterval && time - lastFrame < frameInterval) return;
+      const delta = lastFrame ? Math.min((time - lastFrame) / 16.67, 2) : 1;
+      lastFrame = time;
+      animatedEffectsRef.current.forEach((effect) => {
+        effect.rotation.y += 0.008 * delta;
+        effect.children.forEach((child) => {
+          const orbit = child.userData?.orbit;
+          if (!orbit) return;
+          orbit.angle += orbit.speed * 0.01 * delta;
+          child.position.set(Math.cos(orbit.angle) * orbit.radius, orbit.y + Math.sin(orbit.angle * 1.7) * 0.06, Math.sin(orbit.angle) * orbit.radius);
+          child.rotation.x += 0.025 * delta;
+          child.rotation.z += 0.03 * delta;
+        });
       });
       renderer.render(scene, camera);
-      animationFrame = requestAnimationFrame(animate);
     };
-    animationFrame = requestAnimationFrame(animate);
+    if (!reducedMotion) animationFrame = requestAnimationFrame(animate);
 
     const wood = new THREE.MeshStandardMaterial({ color: skinSet.board.frame, roughness: 0.42, metalness: skin === 'fancy' ? 0.3 : 0.12 });
     const frame = new THREE.Mesh(new THREE.BoxGeometry(8.55, 0.38, 8.55), wood);
@@ -218,6 +225,7 @@ export default function ChessBoard3D({ board, selectedSquare, validTargets = [],
     return () => {
       observer.disconnect();
       cancelAnimationFrame(animationFrame);
+      animatedEffectsRef.current = [];
       scene.traverse((object) => {
         if (object.geometry) object.geometry.dispose();
         if (object.material) {
@@ -245,6 +253,8 @@ export default function ChessBoard3D({ board, selectedSquare, validTargets = [],
       });
     }
     objectsRef.current = [];
+    animatedEffectsRef.current = [];
+    const isMobile = window.matchMedia('(max-width: 768px), (pointer: coarse)').matches;
     for (let row = 0; row < 8; row++) for (let col = 0; col < 8; col++) {
       const square = squareName(row, col);
       const isSelected = selectedSquare === square;
@@ -262,11 +272,14 @@ export default function ChessBoard3D({ board, selectedSquare, validTargets = [],
       }
       const piece = board?.[row]?.[col];
       if (piece) {
-        const model = makePiece(piece.type, piece.color, skin, customization);
+        const model = makePiece(piece.type, piece.color, skin, customization, { maxParticles: isMobile ? 6 : undefined });
         if (model) {
           model.position.set(col - 3.5, 0.085, row - 3.5);
           scene.add(model);
           objectsRef.current.push(model);
+          model.traverse((child) => {
+            if (child.userData?.cyberFx) animatedEffectsRef.current.push(child);
+          });
         }
       }
     }
