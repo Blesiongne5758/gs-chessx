@@ -126,6 +126,7 @@ export default function ChessBoard3D({ board, selectedSquare, validTargets = [],
   useEffect(() => {
     const host = hostRef.current;
     if (!host) return undefined;
+    const skinSet = resolveChessSkin(skin);
     const scene = new THREE.Scene();
     scene.background = new THREE.Color(0x171411);
     const camera = new THREE.PerspectiveCamera(36, 1, 0.1, 100);
@@ -178,20 +179,20 @@ export default function ChessBoard3D({ board, selectedSquare, validTargets = [],
     };
     animationFrame = requestAnimationFrame(animate);
 
-    const wood = new THREE.MeshStandardMaterial({ color: 0x563820, roughness: 0.42, metalness: 0.12 });
+    const wood = new THREE.MeshStandardMaterial({ color: skinSet.board.frame, roughness: 0.42, metalness: skin === 'fancy' ? 0.3 : 0.12 });
     const frame = new THREE.Mesh(new THREE.BoxGeometry(8.55, 0.38, 8.55), wood);
     frame.position.y = -0.22;
     frame.receiveShadow = true;
     frame.castShadow = true;
     scene.add(frame);
-    const darkWood = new THREE.MeshStandardMaterial({ color: 0x302014, roughness: 0.35, metalness: 0.2 });
+    const darkWood = new THREE.MeshStandardMaterial({ color: skinSet.board.rim, roughness: 0.35, metalness: skin === 'fancy' ? 0.34 : 0.2 });
     const rim = new THREE.Mesh(new THREE.BoxGeometry(8.68, 0.12, 8.68), darkWood);
     rim.position.y = -0.45;
     scene.add(rim);
 
     for (let row = 0; row < 8; row++) for (let col = 0; col < 8; col++) {
       const light = (row + col) % 2 === 0;
-      const color = light ? 0xd9bf8b : 0x59402e;
+      const color = light ? skinSet.board.light : skinSet.board.dark;
       const mat = new THREE.MeshStandardMaterial({ color, roughness: 0.52, metalness: light ? 0.08 : 0.12 });
       const tile = new THREE.Mesh(new THREE.BoxGeometry(0.995, 0.12, 0.995), mat);
       tile.position.set(col - 3.5, 0.015, row - 3.5);
@@ -229,7 +230,7 @@ export default function ChessBoard3D({ board, selectedSquare, validTargets = [],
       rendererRef.current = null;
       cameraRef.current = null;
     };
-  }, []);
+  }, [skin]);
 
   useEffect(() => {
     const scene = sceneRef.current;

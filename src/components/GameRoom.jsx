@@ -3,7 +3,7 @@ import { Chess } from 'chess.js';
 import toast from 'react-hot-toast';
 const ChessBoard3D = lazy(() => import('./ChessBoard3D'));
 import ChessPiece2D from './ChessPiece2D';
-import { CHESS_SKIN_LIST } from '../lib/chessSkins';
+import { CHESS_SKIN_LIST, resolveChessSkin } from '../lib/chessSkins';
 
 const PIECES = {
   w: { k: '♔', q: '♕', r: '♖', b: '♗', n: '♘', p: '♙' },
@@ -128,6 +128,7 @@ export default function GameRoom({ user, timeControl, onBack, onSocial }) {
 
   function renderBoard() {
     const board = game.board();
+    const skinSet = resolveChessSkin(skinId, customization);
     const kingInCheck = game.inCheck()
       ? board.flat().find((p) => p && p.type === 'k' && p.color === turn)?.square
       : null;
@@ -145,7 +146,8 @@ export default function GameRoom({ user, timeControl, onBack, onSocial }) {
         const isValidMove = validTargets.includes(square);
         const isLastMove = lastMove && (square === lastMove.from || square === lastMove.to);
 
-        let bg = isLight ? 'bg-[#E8C39E]' : 'bg-[#A67B5B]';
+        const tileColor = isLight ? toCssColor(skinSet.board.light) : toCssColor(skinSet.board.dark);
+        let bg = '';
         if (isLastMove) bg = isLight ? 'bg-[#E6D27A]' : 'bg-[#BFA34A]';
         if (kingInCheck === square) bg = 'bg-crimson';
 
@@ -153,9 +155,10 @@ export default function GameRoom({ user, timeControl, onBack, onSocial }) {
           <div
             key={square}
             onClick={() => handleSquareClick(square)}
-            className={`relative flex items-center justify-center cursor-pointer select-none ${bg} ${
+            className={`relative flex items-center justify-center cursor-pointer select-none ${bg || 'bg-transparent'} ${
               isSelected ? 'ring-4 ring-gold ring-inset' : ''
             } hover:brightness-110 transition`}
+            style={bg ? undefined : { backgroundColor: tileColor }}
           >
             {piece && <ChessPiece2D type={piece.type} color={piece.color} skin={skinId} customization={customization} />}
             {isValidMove && (
@@ -178,6 +181,7 @@ export default function GameRoom({ user, timeControl, onBack, onSocial }) {
 
   const sans = history.map((m) => m.san);
   const youName = user?.isGuest ? 'You (Guest)' : user?.email?.split('@')[0] || 'You';
+  const activeSkin = resolveChessSkin(skinId, customization);
 
   return (
     <div className="min-h-screen bg-obsidian flex flex-col">
@@ -213,7 +217,7 @@ export default function GameRoom({ user, timeControl, onBack, onSocial }) {
           <div className="space-y-3">
             <div className="space-y-2"><div className="flex items-center justify-between gap-3"><div><div className="text-xs uppercase tracking-widest text-gray-500">Skin bidak</div><div className="mt-1 text-[11px] text-gray-500">{CHESS_SKIN_LIST.find((skin) => skin.id === skinId)?.description}</div></div><div className="flex shrink-0 rounded-lg border border-gold/25 bg-graphite p-1"><button onClick={() => setSkinMode('3d')} aria-pressed={skinMode === '3d'} className={`rounded-md px-3 py-1.5 text-xs font-semibold ${skinMode === '3d' ? 'bg-gold text-obsidian' : 'text-gray-300'}`}>3D</button><button onClick={() => setSkinMode('2d')} aria-pressed={skinMode === '2d'} className={`rounded-md px-3 py-1.5 text-xs font-semibold ${skinMode === '2d' ? 'bg-gold text-obsidian' : 'text-gray-300'}`}>2D</button></div></div><div className="grid grid-cols-2 gap-1.5 sm:grid-cols-3">{CHESS_SKIN_LIST.map((skin) => <button key={skin.id} onClick={() => setSkinId(skin.id)} aria-pressed={skinId === skin.id} className={`rounded-md border px-2 py-1.5 text-[11px] font-semibold transition ${skinId === skin.id ? 'border-gold bg-gold text-obsidian shadow-[0_0_14px_rgba(212,175,55,.24)]' : 'border-white/10 bg-graphite text-gray-300 hover:border-gold/50'}`}>{skin.shortLabel}</button>)}</div>{skinId === 'custom' && <CustomNeonControls value={customization} onChange={setCustomization} />}</div>
             <div className="aspect-square">
-              {skinMode === '3d' ? renderBoard() : <div className="w-full h-full grid grid-cols-8 grid-rows-8 border-4 border-[#6B4423] rounded-lg overflow-hidden shadow-2xl">{renderBoard()}</div>}
+              {skinMode === '3d' ? renderBoard() : <div className="w-full h-full grid grid-cols-8 grid-rows-8 rounded-lg overflow-hidden border-4 shadow-2xl" style={{ borderColor: toCssColor(activeSkin.board.frame) }}>{renderBoard()}</div>}
             </div>
             {result && (
               <div className="bg-gold/10 border border-gold rounded-lg p-4 text-center">
@@ -314,4 +318,8 @@ function formatTime(seconds) {
   const m = Math.floor(seconds / 60);
   const s = seconds % 60;
   return `${m}:${s.toString().padStart(2, '0')}`;
+}
+
+function toCssColor(value) {
+  return `#${value.toString(16).padStart(6, '0')}`;
 }
