@@ -1,21 +1,8 @@
-const SKIN = {
-  w: {
-    body: '#fff4d6',
-    light: '#fffdf2',
-    shade: '#d9c39a',
-    edge: '#3a2a17',
-    accent: '#f2c53d',
-    accentDark: '#a96d12',
-  },
-  b: {
-    body: '#2b2b31',
-    light: '#45454d',
-    shade: '#141419',
-    edge: '#09090b',
-    accent: '#d52f43',
-    accentDark: '#781827',
-  },
-};
+import { CHESS_SKINS } from '../lib/chessSkins';
+
+function toHex(value) {
+  return `#${value.toString(16).padStart(6, '0')}`;
+}
 
 function Cross({ fill }) {
   return (
@@ -68,9 +55,24 @@ function PieceMark({ type, fill, dark }) {
   return <circle cx="50" cy="27" r="13" fill={fill} stroke={dark} strokeWidth="3" />;
 }
 
-export default function ChessPiece2D({ type, color }) {
-  const palette = SKIN[color] || SKIN.w;
-  const label = `${color === 'w' ? 'Holy' : 'Anarchy'} ${type}`;
+function SkinDetail({ skin, fill, dark }) {
+  if (skin === 'block') {
+    return <g fill={fill}><rect x="32" y="66" width="8" height="8" /><rect x="60" y="66" width="8" height="8" /></g>;
+  }
+  if (skin === 'voxel') {
+    return <path d="m42 70 8-7 8 7-8 7Z" fill={fill} stroke={dark} strokeWidth="2" />;
+  }
+  if (skin === 'neon') {
+    return <g fill="none" stroke={fill} strokeWidth="3"><path d="M31 70h38" /><path d="M36 76h28" /></g>;
+  }
+  return null;
+}
+
+export default function ChessPiece2D({ type, color, skin = 'holy' }) {
+  const skinSet = CHESS_SKINS[skin] || CHESS_SKINS.holy;
+  const rawPalette = color === 'w' ? skinSet.white : skinSet.black;
+  const palette = Object.fromEntries(Object.entries(rawPalette).map(([key, value]) => [key, toHex(value)]));
+  const label = `${skinSet.label} ${color === 'w' ? 'light' : 'dark'} ${type}`;
   return (
     <svg
       viewBox="0 0 100 120"
@@ -85,6 +87,7 @@ export default function ChessPiece2D({ type, color }) {
       <path d="M33 43h34l8 43H25l8-43Z" fill={palette.body} stroke={palette.edge} strokeWidth="3" />
       <path d="M37 47h10v32H37z" fill={palette.light} opacity=".55" />
       <rect x="27" y="81" width="46" height="9" fill={palette.accent} stroke={palette.accentDark} strokeWidth="3" />
+      <SkinDetail skin={skin} fill={palette.accent} dark={palette.accentDark} />
       <PieceMark type={type} fill={palette.accent} dark={palette.accentDark} />
       <path d="M22 91h56v5H22z" fill={palette.shade} opacity=".75" />
     </svg>

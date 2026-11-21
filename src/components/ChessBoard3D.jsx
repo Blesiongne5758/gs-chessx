@@ -1,14 +1,18 @@
 import { useEffect, useRef } from 'react';
 import * as THREE from 'three';
+import { CHESS_SKINS } from '../lib/chessSkins';
 
 const FILES = 'abcdefgh';
 
-function makePiece(type, color) {
+function makePiece(type, color, skin = 'holy') {
   const group = new THREE.Group();
   const white = color === 'w';
-  const materials = white
-    ? { body: new THREE.MeshStandardMaterial({ color: 0xf4e7c4, roughness: 0.34, metalness: 0.22 }), trim: new THREE.MeshStandardMaterial({ color: 0xf2bf2f, roughness: 0.28, metalness: 0.72 }) }
-    : { body: new THREE.MeshStandardMaterial({ color: 0x2d2d33, roughness: 0.48, metalness: 0.2 }), trim: new THREE.MeshStandardMaterial({ color: 0xd52f43, roughness: 0.35, metalness: 0.28 }) };
+  const skinSet = CHESS_SKINS[skin] || CHESS_SKINS.holy;
+  const palette = white ? skinSet.white : skinSet.black;
+  const materials = {
+    body: new THREE.MeshStandardMaterial({ color: palette.body, roughness: skin === 'neon' ? 0.22 : 0.42, metalness: skin === 'neon' ? 0.42 : 0.2 }),
+    trim: new THREE.MeshStandardMaterial({ color: palette.accent, roughness: skin === 'neon' ? 0.18 : 0.3, metalness: skin === 'neon' ? 0.82 : 0.58 }),
+  };
   const add = (geometry, material, y, x = 0, z = 0) => {
     const mesh = new THREE.Mesh(geometry, material);
     mesh.position.set(x, y, z);
@@ -90,7 +94,7 @@ function squareName(row, col) {
   return `${FILES[col]}${8 - row}`;
 }
 
-export default function ChessBoard3D({ board, selectedSquare, validTargets = [], lastMove, kingInCheck, onSquareClick }) {
+export default function ChessBoard3D({ board, selectedSquare, validTargets = [], lastMove, kingInCheck, onSquareClick, skin = 'holy' }) {
   const hostRef = useRef(null);
   const sceneRef = useRef(null);
   const objectsRef = useRef([]);
@@ -214,7 +218,7 @@ export default function ChessBoard3D({ board, selectedSquare, validTargets = [],
       }
       const piece = board?.[row]?.[col];
       if (piece) {
-        const model = makePiece(piece.type, piece.color);
+        const model = makePiece(piece.type, piece.color, skin);
         if (model) {
           model.position.set(col - 3.5, 0.085, row - 3.5);
           scene.add(model);
@@ -223,7 +227,7 @@ export default function ChessBoard3D({ board, selectedSquare, validTargets = [],
       }
     }
     rendererRef.current?.render(scene, cameraRef.current);
-  }, [board, selectedSquare, validTargets, lastMove, kingInCheck]);
+  }, [board, selectedSquare, validTargets, lastMove, kingInCheck, skin]);
 
   return (
     <div className="relative isolate aspect-square w-full overflow-hidden rounded-xl border-4 border-[#6b4423] bg-[#171411] shadow-2xl" aria-label="Three-dimensional chessboard">

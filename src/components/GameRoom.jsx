@@ -3,6 +3,7 @@ import { Chess } from 'chess.js';
 import toast from 'react-hot-toast';
 const ChessBoard3D = lazy(() => import('./ChessBoard3D'));
 import ChessPiece2D from './ChessPiece2D';
+import { CHESS_SKIN_LIST } from '../lib/chessSkins';
 
 const PIECES = {
   w: { k: '♔', q: '♕', r: '♖', b: '♗', n: '♘', p: '♙' },
@@ -19,6 +20,7 @@ export default function GameRoom({ user, timeControl, onBack, onSocial }) {
   const [blackTime, setBlackTime] = useState(base);
   const [result, setResult] = useState(null); // string when the game is finished
   const [skinMode, setSkinMode] = useState('3d');
+  const [skinId, setSkinId] = useState('holy');
 
   const turn = game.turn();
   const history = game.history({ verbose: true });
@@ -118,7 +120,7 @@ export default function GameRoom({ user, timeControl, onBack, onSocial }) {
       ? board.flat().find((p) => p && p.type === 'k' && p.color === turn)?.square
       : null;
     if (skinMode === '3d') {
-      return <Suspense fallback={<div className="grid h-full place-items-center rounded-xl border border-gold/30 bg-graphite text-sm text-gold">Memuat papan 3D…</div>}><ChessBoard3D board={board} selectedSquare={selectedSquare} validTargets={validTargets} lastMove={lastMove} kingInCheck={kingInCheck} onSquareClick={handleSquareClick} /></Suspense>;
+      return <Suspense fallback={<div className="grid h-full place-items-center rounded-xl border border-gold/30 bg-graphite text-sm text-gold">Memuat papan 3D…</div>}><ChessBoard3D board={board} selectedSquare={selectedSquare} validTargets={validTargets} lastMove={lastMove} kingInCheck={kingInCheck} onSquareClick={handleSquareClick} skin={skinId} /></Suspense>;
     }
     const squares = [];
 
@@ -143,7 +145,7 @@ export default function GameRoom({ user, timeControl, onBack, onSocial }) {
               isSelected ? 'ring-4 ring-gold ring-inset' : ''
             } hover:brightness-110 transition`}
           >
-            {piece && <ChessPiece2D type={piece.type} color={piece.color} />}
+            {piece && <ChessPiece2D type={piece.type} color={piece.color} skin={skinId} />}
             {isValidMove && (
               <div
                 className={`absolute rounded-full ${
@@ -197,7 +199,7 @@ export default function GameRoom({ user, timeControl, onBack, onSocial }) {
 
           {/* Center — Board */}
           <div className="space-y-3">
-            <div className="flex items-center justify-between gap-3"><div><div className="text-xs uppercase tracking-widest text-gray-500">Skin papan</div><div className="mt-1 text-[11px] text-gray-500">Holy Kingdom <span className="text-gold">vs</span> Anarchy Rebellion</div></div><div className="flex shrink-0 rounded-lg border border-gold/25 bg-graphite p-1"><button onClick={() => setSkinMode('3d')} aria-pressed={skinMode === '3d'} className={`rounded-md px-3 py-1.5 text-xs font-semibold ${skinMode === '3d' ? 'bg-gold text-obsidian' : 'text-gray-300'}`}>3D Voxel</button><button onClick={() => setSkinMode('2d')} aria-pressed={skinMode === '2d'} className={`rounded-md px-3 py-1.5 text-xs font-semibold ${skinMode === '2d' ? 'bg-gold text-obsidian' : 'text-gray-300'}`}>2D Pixel</button></div></div>
+            <div className="space-y-2"><div className="flex items-center justify-between gap-3"><div><div className="text-xs uppercase tracking-widest text-gray-500">Skin bidak</div><div className="mt-1 text-[11px] text-gray-500">{CHESS_SKIN_LIST.find((skin) => skin.id === skinId)?.description}</div></div><div className="flex shrink-0 rounded-lg border border-gold/25 bg-graphite p-1"><button onClick={() => setSkinMode('3d')} aria-pressed={skinMode === '3d'} className={`rounded-md px-3 py-1.5 text-xs font-semibold ${skinMode === '3d' ? 'bg-gold text-obsidian' : 'text-gray-300'}`}>3D</button><button onClick={() => setSkinMode('2d')} aria-pressed={skinMode === '2d'} className={`rounded-md px-3 py-1.5 text-xs font-semibold ${skinMode === '2d' ? 'bg-gold text-obsidian' : 'text-gray-300'}`}>2D</button></div></div><div className="grid grid-cols-2 gap-1.5 sm:grid-cols-4">{CHESS_SKIN_LIST.map((skin) => <button key={skin.id} onClick={() => setSkinId(skin.id)} aria-pressed={skinId === skin.id} className={`rounded-md border px-2 py-1.5 text-[11px] font-semibold transition ${skinId === skin.id ? 'border-gold bg-gold text-obsidian shadow-[0_0_14px_rgba(212,175,55,.24)]' : 'border-white/10 bg-graphite text-gray-300 hover:border-gold/50'}`}>{skin.shortLabel}</button>)}</div></div>
             <div className="aspect-square">
               {skinMode === '3d' ? renderBoard() : <div className="w-full h-full grid grid-cols-8 grid-rows-8 border-4 border-[#6B4423] rounded-lg overflow-hidden shadow-2xl">{renderBoard()}</div>}
             </div>
