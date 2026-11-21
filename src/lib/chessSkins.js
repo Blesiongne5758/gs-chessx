@@ -39,6 +39,28 @@ export const CHESS_SKINS = {
     white: { body: 0xe9f7ff, light: 0xffffff, shade: 0x6f83b8, edge: 0x172042, accent: 0x67e8f9, accentDark: 0x2563eb },
     black: { body: 0x25213d, light: 0x514878, shade: 0x0d0a1e, edge: 0x090718, accent: 0xf0abfc, accentDark: 0xa21caf },
   },
+  custom: {
+    id: 'custom',
+    label: 'Custom Neon',
+    shortLabel: 'Custom Neon',
+    description: 'Live neon colors and particle controls',
+    white: { body: 0xe9f7ff, light: 0xffffff, shade: 0x6f83b8, edge: 0x172042, accent: 0x67e8f9, accentDark: 0x2563eb },
+    black: { body: 0x25213d, light: 0x514878, shade: 0x0d0a1e, edge: 0x090718, accent: 0xf0abfc, accentDark: 0xa21caf },
+  },
 };
 
 export const CHESS_SKIN_LIST = Object.values(CHESS_SKINS);
+
+function hexToNumber(hex) {
+  return Number.parseInt(hex.replace('#', ''), 16);
+}
+
+export function resolveChessSkin(id, customization) {
+  const source = CHESS_SKINS[id] || CHESS_SKINS.holy;
+  if (id !== 'custom' || !customization) return source;
+  return {
+    ...source,
+    white: { ...source.white, accent: hexToNumber(customization.primary), accentDark: hexToNumber(customization.primaryDark) },
+    black: { ...source.black, accent: hexToNumber(customization.secondary), accentDark: hexToNumber(customization.secondaryDark) },
+  };
+}

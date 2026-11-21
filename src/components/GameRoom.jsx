@@ -10,6 +10,17 @@ const PIECES = {
   b: { k: '♚', q: '♛', r: '♜', b: '♝', n: '♞', p: '♟' },
 };
 
+const DEFAULT_CUSTOMIZATION = {
+  primary: '#67E8F9',
+  primaryDark: '#2563EB',
+  secondary: '#F0ABFC',
+  secondaryDark: '#A21CAF',
+  particleCount: 12,
+  particleSpeed: 1,
+  particleSize: 0.035,
+  aura: true,
+};
+
 export default function GameRoom({ user, timeControl, onBack, onSocial }) {
   const base = timeControl?.base ?? 600;
   const inc = timeControl?.inc ?? 0;
@@ -21,6 +32,7 @@ export default function GameRoom({ user, timeControl, onBack, onSocial }) {
   const [result, setResult] = useState(null); // string when the game is finished
   const [skinMode, setSkinMode] = useState('3d');
   const [skinId, setSkinId] = useState('holy');
+  const [customization, setCustomization] = useState(DEFAULT_CUSTOMIZATION);
 
   const turn = game.turn();
   const history = game.history({ verbose: true });
@@ -120,7 +132,7 @@ export default function GameRoom({ user, timeControl, onBack, onSocial }) {
       ? board.flat().find((p) => p && p.type === 'k' && p.color === turn)?.square
       : null;
     if (skinMode === '3d') {
-      return <Suspense fallback={<div className="grid h-full place-items-center rounded-xl border border-gold/30 bg-graphite text-sm text-gold">Memuat papan 3D…</div>}><ChessBoard3D board={board} selectedSquare={selectedSquare} validTargets={validTargets} lastMove={lastMove} kingInCheck={kingInCheck} onSquareClick={handleSquareClick} skin={skinId} /></Suspense>;
+      return <Suspense fallback={<div className="grid h-full place-items-center rounded-xl border border-gold/30 bg-graphite text-sm text-gold">Memuat papan 3D…</div>}><ChessBoard3D board={board} selectedSquare={selectedSquare} validTargets={validTargets} lastMove={lastMove} kingInCheck={kingInCheck} onSquareClick={handleSquareClick} skin={skinId} customization={customization} /></Suspense>;
     }
     const squares = [];
 
@@ -145,7 +157,7 @@ export default function GameRoom({ user, timeControl, onBack, onSocial }) {
               isSelected ? 'ring-4 ring-gold ring-inset' : ''
             } hover:brightness-110 transition`}
           >
-            {piece && <ChessPiece2D type={piece.type} color={piece.color} skin={skinId} />}
+            {piece && <ChessPiece2D type={piece.type} color={piece.color} skin={skinId} customization={customization} />}
             {isValidMove && (
               <div
                 className={`absolute rounded-full ${
@@ -199,7 +211,7 @@ export default function GameRoom({ user, timeControl, onBack, onSocial }) {
 
           {/* Center — Board */}
           <div className="space-y-3">
-            <div className="space-y-2"><div className="flex items-center justify-between gap-3"><div><div className="text-xs uppercase tracking-widest text-gray-500">Skin bidak</div><div className="mt-1 text-[11px] text-gray-500">{CHESS_SKIN_LIST.find((skin) => skin.id === skinId)?.description}</div></div><div className="flex shrink-0 rounded-lg border border-gold/25 bg-graphite p-1"><button onClick={() => setSkinMode('3d')} aria-pressed={skinMode === '3d'} className={`rounded-md px-3 py-1.5 text-xs font-semibold ${skinMode === '3d' ? 'bg-gold text-obsidian' : 'text-gray-300'}`}>3D</button><button onClick={() => setSkinMode('2d')} aria-pressed={skinMode === '2d'} className={`rounded-md px-3 py-1.5 text-xs font-semibold ${skinMode === '2d' ? 'bg-gold text-obsidian' : 'text-gray-300'}`}>2D</button></div></div><div className="grid grid-cols-2 gap-1.5 sm:grid-cols-4">{CHESS_SKIN_LIST.map((skin) => <button key={skin.id} onClick={() => setSkinId(skin.id)} aria-pressed={skinId === skin.id} className={`rounded-md border px-2 py-1.5 text-[11px] font-semibold transition ${skinId === skin.id ? 'border-gold bg-gold text-obsidian shadow-[0_0_14px_rgba(212,175,55,.24)]' : 'border-white/10 bg-graphite text-gray-300 hover:border-gold/50'}`}>{skin.shortLabel}</button>)}</div></div>
+            <div className="space-y-2"><div className="flex items-center justify-between gap-3"><div><div className="text-xs uppercase tracking-widest text-gray-500">Skin bidak</div><div className="mt-1 text-[11px] text-gray-500">{CHESS_SKIN_LIST.find((skin) => skin.id === skinId)?.description}</div></div><div className="flex shrink-0 rounded-lg border border-gold/25 bg-graphite p-1"><button onClick={() => setSkinMode('3d')} aria-pressed={skinMode === '3d'} className={`rounded-md px-3 py-1.5 text-xs font-semibold ${skinMode === '3d' ? 'bg-gold text-obsidian' : 'text-gray-300'}`}>3D</button><button onClick={() => setSkinMode('2d')} aria-pressed={skinMode === '2d'} className={`rounded-md px-3 py-1.5 text-xs font-semibold ${skinMode === '2d' ? 'bg-gold text-obsidian' : 'text-gray-300'}`}>2D</button></div></div><div className="grid grid-cols-2 gap-1.5 sm:grid-cols-3">{CHESS_SKIN_LIST.map((skin) => <button key={skin.id} onClick={() => setSkinId(skin.id)} aria-pressed={skinId === skin.id} className={`rounded-md border px-2 py-1.5 text-[11px] font-semibold transition ${skinId === skin.id ? 'border-gold bg-gold text-obsidian shadow-[0_0_14px_rgba(212,175,55,.24)]' : 'border-white/10 bg-graphite text-gray-300 hover:border-gold/50'}`}>{skin.shortLabel}</button>)}</div>{skinId === 'custom' && <CustomNeonControls value={customization} onChange={setCustomization} />}</div>
             <div className="aspect-square">
               {skinMode === '3d' ? renderBoard() : <div className="w-full h-full grid grid-cols-8 grid-rows-8 border-4 border-[#6B4423] rounded-lg overflow-hidden shadow-2xl">{renderBoard()}</div>}
             </div>
@@ -280,6 +292,20 @@ function PlayerCard({ icon, iconClass, name, sub, time, active }) {
       <div className={`text-3xl font-mono font-bold ${time <= 30 ? 'text-crimson' : active ? 'text-emerald' : 'text-gray-400'}`}>
         {formatTime(time)}
       </div>
+    </div>
+  );
+}
+
+function CustomNeonControls({ value, onChange }) {
+  const update = (key, next) => onChange((current) => ({ ...current, [key]: next }));
+  return (
+    <div className="grid grid-cols-2 gap-2 rounded-lg border border-cyan-300/20 bg-[#101525] p-3 text-[11px] text-gray-300 sm:grid-cols-4">
+      <label className="flex items-center gap-2"><input type="color" value={value.primary} onChange={(event) => update('primary', event.target.value)} className="h-7 w-8 cursor-pointer rounded border-0 bg-transparent p-0" /><span>Holy neon</span></label>
+      <label className="flex items-center gap-2"><input type="color" value={value.secondary} onChange={(event) => update('secondary', event.target.value)} className="h-7 w-8 cursor-pointer rounded border-0 bg-transparent p-0" /><span>Anarchy neon</span></label>
+      <label className="col-span-2 flex flex-col gap-1">Partikel <input type="range" min="4" max="24" step="1" value={value.particleCount} onChange={(event) => update('particleCount', Number(event.target.value))} /><span className="text-gray-500">{value.particleCount} partikel</span></label>
+      <label className="col-span-2 flex flex-col gap-1">Kecepatan orbit <input type="range" min="0.25" max="2.5" step="0.05" value={value.particleSpeed} onChange={(event) => update('particleSpeed', Number(event.target.value))} /><span className="text-gray-500">{value.particleSpeed.toFixed(2)}×</span></label>
+      <label className="col-span-2 flex flex-col gap-1">Ukuran partikel <input type="range" min="0.02" max="0.07" step="0.005" value={value.particleSize} onChange={(event) => update('particleSize', Number(event.target.value))} /><span className="text-gray-500">{value.particleSize.toFixed(3)}</span></label>
+      <label className="col-span-2 flex items-center gap-2"><input type="checkbox" checked={value.aura} onChange={(event) => update('aura', event.target.checked)} className="accent-cyan-300" /> Aktifkan aura raja &amp; ratu</label>
     </div>
   );
 }

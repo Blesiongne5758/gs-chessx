@@ -1,4 +1,4 @@
-import { CHESS_SKINS } from '../lib/chessSkins';
+import { resolveChessSkin } from '../lib/chessSkins';
 
 function toHex(value) {
   return `#${value.toString(16).padStart(6, '0')}`;
@@ -71,8 +71,8 @@ function SkinDetail({ skin, fill, dark }) {
   return null;
 }
 
-export default function ChessPiece2D({ type, color, skin = 'holy' }) {
-  const skinSet = CHESS_SKINS[skin] || CHESS_SKINS.holy;
+export default function ChessPiece2D({ type, color, skin = 'holy', customization }) {
+  const skinSet = resolveChessSkin(skin, customization);
   const rawPalette = color === 'w' ? skinSet.white : skinSet.black;
   const palette = Object.fromEntries(Object.entries(rawPalette).map(([key, value]) => [key, toHex(value)]));
   const label = `${skinSet.label} ${color === 'w' ? 'light' : 'dark'} ${type}`;

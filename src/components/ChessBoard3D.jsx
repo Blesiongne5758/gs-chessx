@@ -1,13 +1,13 @@
 import { useEffect, useRef } from 'react';
 import * as THREE from 'three';
-import { CHESS_SKINS } from '../lib/chessSkins';
+import { resolveChessSkin } from '../lib/chessSkins';
 
 const FILES = 'abcdefgh';
 
-function makePiece(type, color, skin = 'holy') {
+function makePiece(type, color, skin = 'holy', customization) {
   const group = new THREE.Group();
   const white = color === 'w';
-  const skinSet = CHESS_SKINS[skin] || CHESS_SKINS.holy;
+  const skinSet = resolveChessSkin(skin, customization);
   const palette = white ? skinSet.white : skinSet.black;
   const materials = {
     body: new THREE.MeshStandardMaterial({ color: palette.body, roughness: skin === 'neon' ? 0.22 : 0.42, metalness: skin === 'neon' ? 0.42 : 0.2 }),
@@ -87,20 +87,23 @@ function makePiece(type, color, skin = 'holy') {
     default:
       return null;
   }
-  if (skin === 'anime' && (type === 'k' || type === 'q')) {
+  if ((skin === 'anime' || skin === 'custom') && (type === 'k' || type === 'q') && customization?.aura !== false) {
+    const particleCount = customization?.particleCount ?? 12;
+    const particleSize = customization?.particleSize ?? 0.035;
+    const particleSpeed = customization?.particleSpeed ?? 1;
     const fx = new THREE.Group();
     const ringMaterial = new THREE.MeshBasicMaterial({ color: palette.accent, transparent: true, opacity: 0.72 });
     const ring = new THREE.Mesh(new THREE.TorusGeometry(type === 'k' ? 0.27 : 0.23, 0.018, 6, 16), ringMaterial);
     ring.rotation.x = Math.PI / 2;
     ring.position.y = type === 'k' ? 1.12 : 1.02;
     fx.add(ring);
-    for (let i = 0; i < 12; i++) {
-      const angle = (i / 12) * Math.PI * 2;
+    for (let i = 0; i < particleCount; i++) {
+      const angle = (i / particleCount) * Math.PI * 2;
       const particle = new THREE.Mesh(
-        new THREE.BoxGeometry(0.035, 0.035, 0.035),
+        new THREE.BoxGeometry(particleSize, particleSize, particleSize),
         new THREE.MeshBasicMaterial({ color: i % 2 ? palette.accent : palette.accentDark, transparent: true, opacity: 0.88 }),
       );
-      particle.userData.orbit = { angle, radius: 0.24 + (i % 3) * 0.04, speed: 0.65 + (i % 4) * 0.14, y: 0.76 + (i % 4) * 0.1 };
+      particle.userData.orbit = { angle, radius: 0.24 + (i % 3) * 0.04, speed: (0.65 + (i % 4) * 0.14) * particleSpeed, y: 0.76 + (i % 4) * 0.1 };
       fx.add(particle);
     }
     fx.userData.cyberFx = true;
@@ -113,7 +116,7 @@ function squareName(row, col) {
   return `${FILES[col]}${8 - row}`;
 }
 
-export default function ChessBoard3D({ board, selectedSquare, validTargets = [], lastMove, kingInCheck, onSquareClick, skin = 'holy' }) {
+export default function ChessBoard3D({ board, selectedSquare, validTargets = [], lastMove, kingInCheck, onSquareClick, skin = 'holy', customization }) {
   const hostRef = useRef(null);
   const sceneRef = useRef(null);
   const objectsRef = useRef([]);
@@ -258,7 +261,7 @@ export default function ChessBoard3D({ board, selectedSquare, validTargets = [],
       }
       const piece = board?.[row]?.[col];
       if (piece) {
-        const model = makePiece(piece.type, piece.color, skin);
+        const model = makePiece(piece.type, piece.color, skin, customization);
         if (model) {
           model.position.set(col - 3.5, 0.085, row - 3.5);
           scene.add(model);
@@ -267,7 +270,7 @@ export default function ChessBoard3D({ board, selectedSquare, validTargets = [],
       }
     }
     rendererRef.current?.render(scene, cameraRef.current);
-  }, [board, selectedSquare, validTargets, lastMove, kingInCheck, skin]);
+  }, [board, selectedSquare, validTargets, lastMove, kingInCheck, skin, customization]);
 
   return (
     <div className="relative isolate aspect-square w-full overflow-hidden rounded-xl border-4 border-[#6b4423] bg-[#171411] shadow-2xl" aria-label="Three-dimensional chessboard">
