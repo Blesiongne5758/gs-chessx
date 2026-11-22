@@ -81,7 +81,7 @@ jobs:
           port: ${{ secrets.FTP_PORT || '21' }}
           protocol: ${{ secrets.FTP_PROTOCOL || 'ftp' }}
           local-dir: ./dist/
-          server-dir: /htdocs/
+          server-dir: /chessx.my-board.org/htdocs/
           log-level: standard
           security: loose
           exclude: |

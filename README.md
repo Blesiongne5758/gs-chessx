@@ -76,7 +76,7 @@ npm run preview
 
 ### Deploy ke InfinityFree via GitHub Actions
 
-Workflow `.github/workflows/deploy-infinityfree.yml` akan menjalankan build Vite pada setiap push ke `main` dan menyediakan `workflow_dispatch` untuk deployment manual. Setelah build berhasil, folder `dist/` dikirim ke InfinityFree melalui FTP. Jika secret FTP belum tersedia, build tetap dijalankan tetapi upload dilewati tanpa error.
+Workflow `.github/workflows/deploy-infinityfree.yml` akan menjalankan build Vite pada setiap push ke `main` dan menyediakan `workflow_dispatch` untuk deployment manual. Setelah build berhasil, folder `dist/` dikirim ke `/chessx.my-board.org/htdocs/` melalui FTP. Jika secret FTP belum tersedia, build tetap dijalankan tetapi upload dilewati tanpa error.
 
 Di GitHub buka **Settings → Secrets and variables → Actions → New repository secret**, lalu tambahkan:
 
