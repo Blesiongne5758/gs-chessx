@@ -1,0 +1,90 @@
+name: Deploy GS-ChessX to InfinityFree
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    name: Build production bundle
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Build Vite application
+        env:
+          VITE_SUPABASE_URL: ${{ secrets.VITE_SUPABASE_URL }}
+          VITE_SUPABASE_ANON_KEY: ${{ secrets.VITE_SUPABASE_ANON_KEY }}
+        run: npm run build
+
+      - name: Upload production artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: gs-chessx-dist
+          path: dist/
+          if-no-files-found: error
+
+  check_ftp_config:
+    name: Check InfinityFree secrets
+    runs-on: ubuntu-latest
+    outputs:
+      configured: ${{ steps.check.outputs.configured }}
+    steps:
+      - name: Check required FTP secrets
+        id: check
+        env:
+          FTP_SERVER: ${{ secrets.FTP_SERVER }}
+          FTP_USERNAME: ${{ secrets.FTP_USERNAME }}
+          FTP_PASSWORD: ${{ secrets.FTP_PASSWORD }}
+        run: |
+          if [[ -n "$FTP_SERVER" && -n "$FTP_USERNAME" && -n "$FTP_PASSWORD" ]]; then
+            echo "configured=true" >> "$GITHUB_OUTPUT"
+            echo "InfinityFree FTP secrets are configured."
+          else
+            echo "configured=false" >> "$GITHUB_OUTPUT"
+            echo "FTP secrets are not configured; build completed and deployment was skipped."
+          fi
+
+  deploy:
+    name: Upload to InfinityFree via FTP
+    needs: [build, check_ftp_config]
+    if: needs.check_ftp_config.outputs.configured == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Download production artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: gs-chessx-dist
+          path: dist/
+
+      - name: Sync dist to InfinityFree
+        uses: SamKirkland/FTP-Deploy-Action@v4.4.0
+        with:
+          server: ${{ secrets.FTP_SERVER }}
+          username: ${{ secrets.FTP_USERNAME }}
+          password: ${{ secrets.FTP_PASSWORD }}
+          port: ${{ secrets.FTP_PORT || '21' }}
+          protocol: ${{ secrets.FTP_PROTOCOL || 'ftp' }}
+          local-dir: ./dist/
+          server-dir: ${{ secrets.FTP_SERVER_DIR || '/htdocs/' }}
+          log-level: standard
+          security: loose
+          exclude: |
+            **/.git*
+            **/.git*/**
+            **/node_modules/**

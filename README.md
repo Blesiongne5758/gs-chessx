@@ -36,7 +36,7 @@ GS-ChessX adalah platform catur online modern dengan tema epik "Holy Kingdom vs 
 - **Chess Engine**: chess.js
 - **3D Rendering**: Three.js (untuk mode 3D)
 - **Backend**: Supabase (Auth, Database, Realtime)
-- **Hosting**: Cloudflare Pages
+- **Hosting**: InfinityFree melalui GitHub Actions FTP
 - **Assets**: Cloudflare R2
 
 ## 🚀 Quick Start
@@ -73,6 +73,21 @@ TURN credentials sementara diambil dari Edge Function `turn-credentials`. Setela
 npm run build
 npm run preview
 ```
+
+### Deploy ke InfinityFree via GitHub Actions
+
+Workflow `.github/workflows/deploy-infinityfree.yml` akan menjalankan build Vite pada setiap push ke `main` dan menyediakan `workflow_dispatch` untuk deployment manual. Setelah build berhasil, folder `dist/` dikirim ke InfinityFree melalui FTP. Jika secret FTP belum tersedia, build tetap dijalankan tetapi upload dilewati tanpa error.
+
+Di GitHub buka **Settings → Secrets and variables → Actions → New repository secret**, lalu tambahkan:
+
+- `FTP_SERVER`: hostname FTP dari panel InfinityFree, biasanya `ftpupload.net`.
+- `FTP_USERNAME`: username FTP akun hosting.
+- `FTP_PASSWORD`: password FTP akun hosting, bukan password akun Client Area.
+- `FTP_SERVER_DIR` (opsional): direktori tujuan, misalnya `/htdocs/` atau path domain seperti `/example.com/htdocs/` sesuai panel akun.
+- `FTP_PORT` (opsional): `21` jika tidak diberikan oleh panel.
+- `FTP_PROTOCOL` (opsional): `ftp` untuk koneksi standar InfinityFree.
+
+Untuk build dengan fitur Supabase, tambahkan juga `VITE_SUPABASE_URL` dan `VITE_SUPABASE_ANON_KEY` sebagai repository secrets. Tanpa keduanya aplikasi tetap dapat dibuka dalam mode tamu. Setelah secret disimpan, lakukan push ke `main` atau jalankan workflow dari tab **Actions → Deploy GS-ChessX to InfinityFree → Run workflow**.
 
 ## 📁 Struktur Proyek
 
