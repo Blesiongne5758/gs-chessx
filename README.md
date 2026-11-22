@@ -83,7 +83,6 @@ Di GitHub buka **Settings → Secrets and variables → Actions → New reposito
 - `FTP_SERVER`: hostname FTP dari panel InfinityFree, biasanya `ftpupload.net`.
 - `FTP_USERNAME`: username FTP akun hosting.
 - `FTP_PASSWORD`: password FTP akun hosting, bukan password akun Client Area.
-- `FTP_SERVER_DIR` (opsional): direktori tujuan, misalnya `/htdocs/` atau path domain seperti `/example.com/htdocs/` sesuai panel akun.
 - `FTP_PORT` (opsional): `21` jika tidak diberikan oleh panel.
 - `FTP_PROTOCOL` (opsional): `ftp` untuk koneksi standar InfinityFree.
 
