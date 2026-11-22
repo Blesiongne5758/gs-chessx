@@ -26,7 +26,10 @@ export default function AuthModal({ onClose, initialMode = 'login' }) {
         const { data, error: err } = await supabase.auth.signUp({
           email,
           password,
-          options: { data: { username: username || email.split('@')[0] } },
+          options: {
+            data: { username: username || email.split('@')[0] },
+            emailRedirectTo: `${window.location.origin}/?email-confirmed=1`,
+          },
         });
         if (err) throw err;
         if (!data.session) {

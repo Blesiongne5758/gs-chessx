@@ -1,6 +1,8 @@
-import { useState, useEffect, useMemo, lazy, Suspense } from 'react';
+import { useState, useEffect, useMemo, useRef, useCallback, lazy, Suspense } from 'react';
 import { Chess } from 'chess.js';
 import toast from 'react-hot-toast';
+import { supabase } from '../lib/supabaseClient';
+import { getIceServers } from '../lib/webrtc';
 const ChessBoard3D = lazy(() => import('./ChessBoard3D'));
 import ChessPiece2D from './ChessPiece2D';
 import { CHESS_SKIN_LIST, resolveChessSkin } from '../lib/chessSkins';
@@ -21,7 +23,7 @@ const DEFAULT_CUSTOMIZATION = {
   aura: true,
 };
 
-export default function GameRoom({ user, timeControl, onBack, onSocial }) {
+export default function GameRoom({ user, timeControl, match, onBack, onSocial }) {
   const base = timeControl?.base ?? 600;
   const inc = timeControl?.inc ?? 0;
 
@@ -30,13 +32,55 @@ export default function GameRoom({ user, timeControl, onBack, onSocial }) {
   const [whiteTime, setWhiteTime] = useState(base);
   const [blackTime, setBlackTime] = useState(base);
   const [result, setResult] = useState(null); // string when the game is finished
+  const [incomingDraw, setIncomingDraw] = useState(false);
+  const [drawPending, setDrawPending] = useState(false);
+  const [gameChannelReady, setGameChannelReady] = useState(false);
   const [skinMode, setSkinMode] = useState('3d');
   const [skinId, setSkinId] = useState('holy');
   const [customization, setCustomization] = useState(DEFAULT_CUSTOMIZATION);
+  const gameChannelRef = useRef(null);
+  const myColor = match?.color === 'black' ? 'b' : 'w';
+  const isMultiplayer = Boolean(match?.roomId);
 
   const turn = game.turn();
   const history = game.history({ verbose: true });
   const lastMove = history[history.length - 1];
+  const finishGame = useCallback((message) => {
+    setResult(message);
+    if (isMultiplayer) gameChannelRef.current?.send({ type: 'broadcast', event: 'result', payload: { result: message } });
+  }, [isMultiplayer]);
+
+  useEffect(() => {
+    if (!isMultiplayer) return undefined;
+    const channel = supabase.channel(`chess-game:${match.roomId}`, { config: { private: true, broadcast: { self: false } } });
+    gameChannelRef.current = channel;
+    channel.on('broadcast', { event: 'move' }, ({ payload }) => {
+      if (payload.playerId === user.id) return;
+      try {
+        const next = new Chess();
+        next.loadPgn(payload.pgn);
+        setGame(next);
+        setWhiteTime(payload.whiteTime);
+        setBlackTime(payload.blackTime);
+        if (payload.result) setResult(payload.result);
+      } catch { toast.error('Langkah dari lawan tidak dapat dimuat.'); }
+    });
+    channel.on('broadcast', { event: 'result' }, ({ payload }) => setResult(payload.result));
+    channel.on('broadcast', { event: 'draw-offer' }, ({ payload }) => {
+      if (payload.playerId !== user.id) setIncomingDraw(true);
+    });
+    channel.on('broadcast', { event: 'draw-response' }, ({ payload }) => {
+      if (payload.to !== user.id) return;
+      setDrawPending(false);
+      if (payload.accepted) setResult('Remis — disepakati');
+      else toast('Tawaran remis ditolak.');
+    });
+    channel.subscribe((status) => {
+      if (status === 'SUBSCRIBED') setGameChannelReady(true);
+      else if (['CLOSED', 'CHANNEL_ERROR', 'TIMED_OUT'].includes(status)) setGameChannelReady(false);
+    });
+    return () => { gameChannelRef.current = null; supabase.removeChannel(channel); };
+  }, [isMultiplayer, match?.roomId, user.id]);
 
   // Clock: only the side to move ticks, and only while the game is running and at least one move was made.
   useEffect(() => {
@@ -51,9 +95,9 @@ export default function GameRoom({ user, timeControl, onBack, onSocial }) {
   // Flag fall
   useEffect(() => {
     if (result) return;
-    if (whiteTime === 0) setResult('Waktu Putih habis — Hitam menang');
-    else if (blackTime === 0) setResult('Waktu Hitam habis — Putih menang');
-  }, [whiteTime, blackTime, result]);
+    if (whiteTime === 0) finishGame('Waktu Putih habis — Hitam menang');
+    else if (blackTime === 0) finishGame('Waktu Hitam habis — Putih menang');
+  }, [whiteTime, blackTime, result, finishGame]);
 
   useEffect(() => {
     if (result) toast(result, { icon: '🏁' });
@@ -83,7 +127,8 @@ export default function GameRoom({ user, timeControl, onBack, onSocial }) {
   }
 
   function handleSquareClick(square) {
-    if (result) return;
+    if (isMultiplayer && !gameChannelReady) return;
+    if (result || (isMultiplayer && turn !== myColor)) return;
     const piece = game.get(square);
 
     if (selectedSquare && validTargets.includes(square)) {
@@ -104,6 +149,7 @@ export default function GameRoom({ user, timeControl, onBack, onSocial }) {
       setGame(next);
       setSelectedSquare(null);
       const over = checkGameOver(next);
+      if (isMultiplayer) gameChannelRef.current?.send({ type: 'broadcast', event: 'move', payload: { playerId: user.id, pgn: next.pgn(), whiteTime: turn === 'w' ? whiteTime + inc : whiteTime, blackTime: turn === 'b' ? blackTime + inc : blackTime, result: over } });
       if (over) setResult(over);
       else if (next.inCheck()) toast('Skak!', { icon: '⚠️' });
       return;
@@ -114,6 +160,7 @@ export default function GameRoom({ user, timeControl, onBack, onSocial }) {
   }
 
   function resetGame() {
+    if (isMultiplayer) { onBack(); return; }
     setGame(new Chess());
     setSelectedSquare(null);
     setWhiteTime(base);
@@ -123,7 +170,22 @@ export default function GameRoom({ user, timeControl, onBack, onSocial }) {
 
   function resign() {
     if (result) return;
-    setResult(`${turn === 'w' ? 'Putih' : 'Hitam'} menyerah — ${turn === 'w' ? 'Hitam' : 'Putih'} menang`);
+    const resigningColor = isMultiplayer ? myColor : turn;
+    finishGame(`${resigningColor === 'w' ? 'Putih' : 'Hitam'} menyerah — ${resigningColor === 'w' ? 'Hitam' : 'Putih'} menang`);
+  }
+
+  function offerDraw(accept = false) {
+    if (isMultiplayer && !gameChannelReady) { toast.error('Menghubungkan ke lawan. Coba lagi sebentar.'); return; }
+    if (!isMultiplayer) { setResult('Remis — disepakati'); return; }
+    if (incomingDraw) {
+      setIncomingDraw(false);
+      if (accept) finishGame('Remis — disepakati');
+      else gameChannelRef.current?.send({ type: 'broadcast', event: 'draw-response', payload: { to: match.opponent?.id, accepted: false } });
+      return;
+    }
+    if (drawPending) return;
+    setDrawPending(true);
+    gameChannelRef.current?.send({ type: 'broadcast', event: 'draw-offer', payload: { playerId: user.id } });
   }
 
   function renderBoard() {
@@ -180,7 +242,10 @@ export default function GameRoom({ user, timeControl, onBack, onSocial }) {
   }
 
   const sans = history.map((m) => m.san);
-  const youName = user?.isGuest ? 'You (Guest)' : user?.email?.split('@')[0] || 'You';
+  const youName = user?.isGuest ? 'You (Guest)' : user?.user_metadata?.username || user?.email?.split('@')[0] || 'You';
+  const opponentName = match?.opponent?.username || 'Lawan';
+  const blackName = isMultiplayer ? (myColor === 'b' ? youName : opponentName) : 'Opponent (Black)';
+  const whiteName = isMultiplayer ? (myColor === 'w' ? youName : opponentName) : `${youName} (White)`;
   const activeSkin = resolveChessSkin(skinId, customization);
 
   return (
@@ -202,8 +267,8 @@ export default function GameRoom({ user, timeControl, onBack, onSocial }) {
             <PlayerCard
               icon="♚"
               iconClass="bg-black text-white"
-              name="Opponent (Black)"
-              sub="Local hot-seat"
+              name={`${blackName} (Black)`}
+              sub={isMultiplayer ? 'Quick Match' : 'Local hot-seat'}
               time={blackTime}
               active={turn === 'b' && !result}
             />
@@ -216,6 +281,7 @@ export default function GameRoom({ user, timeControl, onBack, onSocial }) {
           {/* Center — Board */}
           <div className="space-y-3">
             <div className="space-y-2"><div className="flex items-center justify-between gap-3"><div><div className="text-xs uppercase tracking-widest text-gray-500">Skin bidak</div><div className="mt-1 text-[11px] text-gray-500">{CHESS_SKIN_LIST.find((skin) => skin.id === skinId)?.description}</div></div><div className="flex shrink-0 rounded-lg border border-gold/25 bg-graphite p-1"><button onClick={() => setSkinMode('3d')} aria-pressed={skinMode === '3d'} className={`rounded-md px-3 py-1.5 text-xs font-semibold ${skinMode === '3d' ? 'bg-gold text-obsidian' : 'text-gray-300'}`}>3D</button><button onClick={() => setSkinMode('2d')} aria-pressed={skinMode === '2d'} className={`rounded-md px-3 py-1.5 text-xs font-semibold ${skinMode === '2d' ? 'bg-gold text-obsidian' : 'text-gray-300'}`}>2D</button></div></div><div className="grid grid-cols-2 gap-1.5 sm:grid-cols-3">{CHESS_SKIN_LIST.map((skin) => <button key={skin.id} onClick={() => setSkinId(skin.id)} aria-pressed={skinId === skin.id} className={`rounded-md border px-2 py-1.5 text-[11px] font-semibold transition ${skinId === skin.id ? 'border-gold bg-gold text-obsidian shadow-[0_0_14px_rgba(212,175,55,.24)]' : 'border-white/10 bg-graphite text-gray-300 hover:border-gold/50'}`}>{skin.shortLabel}</button>)}</div>{skinId === 'custom' && <CustomNeonControls value={customization} onChange={setCustomization} />}</div>
+            {isMultiplayer && !gameChannelReady && <p role="status" className="rounded border border-amber-400/40 bg-amber-400/10 p-2 text-center text-xs text-amber-200">Menghubungkan ke pertandingan. Langkah akan aktif setelah tersambung.</p>}
             <div className="aspect-square">
               {skinMode === '3d' ? renderBoard() : <div className="w-full h-full grid grid-cols-8 grid-rows-8 rounded-lg overflow-hidden border-4 shadow-2xl" style={{ borderColor: toCssColor(activeSkin.board.frame) }}>{renderBoard()}</div>}
             </div>
@@ -223,7 +289,7 @@ export default function GameRoom({ user, timeControl, onBack, onSocial }) {
               <div className="bg-gold/10 border border-gold rounded-lg p-4 text-center">
                 <div className="text-gold font-cinzel font-bold text-xl mb-2">{result}</div>
                 <button onClick={resetGame} className="px-6 py-2 bg-gold text-obsidian font-bold rounded hover:bg-champagne">
-                  Main Lagi
+                  {isMultiplayer ? 'Kembali ke Lobby' : 'Main Lagi'}
                 </button>
               </div>
             )}
@@ -234,8 +300,8 @@ export default function GameRoom({ user, timeControl, onBack, onSocial }) {
             <PlayerCard
               icon="♔"
               iconClass="bg-gold text-obsidian"
-              name={`${youName} (White)`}
-              sub="Local hot-seat"
+              name={whiteName}
+              sub={isMultiplayer ? 'Quick Match' : 'Local hot-seat'}
               time={whiteTime}
               active={turn === 'w' && !result}
             />
@@ -262,6 +328,7 @@ export default function GameRoom({ user, timeControl, onBack, onSocial }) {
       {/* Bottom Controls */}
       <div className="bg-graphite border-t border-gold/30 p-4">
         <div className="max-w-6xl mx-auto flex flex-wrap justify-center gap-4">
+          {isMultiplayer && <MultiplayerVoice roomId={match.roomId} userId={user.id} opponentName={opponentName} />}
           <button onClick={onSocial} className="px-6 py-2 bg-slate text-gray-300 rounded hover:bg-gray-700">
             🎙️ Voice / Video
           </button>
@@ -269,11 +336,13 @@ export default function GameRoom({ user, timeControl, onBack, onSocial }) {
             💬 Chat
           </button>
           <button
-            onClick={() => !result && setResult('Remis — disepakati')}
-            className="px-6 py-2 bg-slate text-gray-300 rounded hover:bg-gray-700"
+            onClick={() => !result && offerDraw()}
+            disabled={Boolean(result) || drawPending}
+            className="px-6 py-2 bg-slate text-gray-300 rounded hover:bg-gray-700 disabled:opacity-50"
           >
-            🤝 Offer Draw
+            {drawPending ? 'Menunggu jawaban remis…' : '🤝 Tawarkan remis'}
           </button>
+          {incomingDraw && <><span className="self-center text-sm text-amber-200">Lawan menawarkan remis</span><button onClick={() => offerDraw(true)} className="rounded bg-emerald px-4 py-2 font-semibold text-obsidian">Terima remis</button><button onClick={() => offerDraw(false)} className="rounded bg-slate px-4 py-2">Tolak remis</button></>}
           <button onClick={resign} className="px-6 py-2 bg-red-600 text-white rounded hover:bg-red-700">
             🏳️ Resign
           </button>
@@ -281,6 +350,104 @@ export default function GameRoom({ user, timeControl, onBack, onSocial }) {
       </div>
     </div>
   );
+}
+
+function MultiplayerVoice({ roomId, userId, opponentName }) {
+  const [active, setActive] = useState(false);
+  const [muted, setMuted] = useState(false);
+  const [connected, setConnected] = useState(false);
+  const [channelReady, setChannelReady] = useState(false);
+  const peerRef = useRef(null);
+  const streamRef = useRef(null);
+  const channelRef = useRef(null);
+  const remoteAudioRef = useRef(null);
+  const pendingCandidates = useRef([]);
+
+  useEffect(() => {
+    const channel = supabase.channel(`chess-voice:${roomId}`, { config: { private: true, broadcast: { self: false } } });
+    channelRef.current = channel;
+    async function ensurePeer() {
+      if (peerRef.current) return peerRef.current;
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true, video: false });
+      streamRef.current = stream;
+      const peer = new RTCPeerConnection({ iceServers: await getIceServers() });
+      peerRef.current = peer;
+      stream.getTracks().forEach((track) => peer.addTrack(track, stream));
+      peer.ontrack = (event) => { if (remoteAudioRef.current) remoteAudioRef.current.srcObject = event.streams[0]; };
+      peer.onicecandidate = ({ candidate }) => {
+        if (candidate) channel.send({ type: 'broadcast', event: 'signal', payload: { from: userId, kind: 'candidate', candidate: candidate.toJSON() } });
+      };
+      peer.onconnectionstatechange = () => setConnected(peer.connectionState === 'connected');
+      peer.oniceconnectionstatechange = () => { if (peer.iceConnectionState === 'failed') toast.error('Koneksi suara gagal; jaringan mungkin memerlukan TURN.'); };
+      setActive(true);
+      return peer;
+    }
+    channel.on('broadcast', { event: 'signal' }, async ({ payload }) => {
+      if (payload.from === userId) return;
+      if (payload.kind === 'candidate' && !peerRef.current) {
+        pendingCandidates.current.push(payload.candidate);
+        return;
+      }
+      try {
+        const peer = payload.kind === 'offer' ? await ensurePeer() : peerRef.current;
+        if (!peer) return;
+        if (payload.kind === 'offer') {
+          await peer.setRemoteDescription(payload.description);
+          for (const candidate of pendingCandidates.current.splice(0)) await peer.addIceCandidate(candidate);
+          await peer.setLocalDescription(await peer.createAnswer());
+          await channel.send({ type: 'broadcast', event: 'signal', payload: { from: userId, kind: 'answer', description: peer.localDescription } });
+        } else if (payload.kind === 'answer' && peer.signalingState === 'have-local-offer') {
+          await peer.setRemoteDescription(payload.description);
+          for (const candidate of pendingCandidates.current.splice(0)) await peer.addIceCandidate(candidate);
+        } else if (payload.kind === 'candidate') {
+          if (peer.remoteDescription) await peer.addIceCandidate(payload.candidate);
+          else pendingCandidates.current.push(payload.candidate);
+        } else if (payload.kind === 'hangup') {
+          peer.close(); peerRef.current = null; streamRef.current?.getTracks().forEach((track) => track.stop()); streamRef.current = null; setActive(false); setConnected(false);
+        }
+      } catch (error) { toast.error(error.message || 'Tidak dapat menyambungkan voice talk.'); }
+    });
+    channel.subscribe((status) => setChannelReady(status === 'SUBSCRIBED'));
+    return () => {
+      peerRef.current?.close();
+      streamRef.current?.getTracks().forEach((track) => track.stop());
+      if (channelRef.current === channel) channelRef.current = null;
+      supabase.removeChannel(channel);
+    };
+  }, [roomId, userId]);
+
+  async function startVoice() {
+    if (!channelReady) { toast.error('Menghubungkan kanal suara. Coba lagi sebentar.'); return; }
+    try {
+      let peer = peerRef.current;
+      if (!peer) {
+        const stream = await navigator.mediaDevices.getUserMedia({ audio: true, video: false });
+        streamRef.current = stream;
+        peer = new RTCPeerConnection({ iceServers: await getIceServers() });
+        peerRef.current = peer;
+        stream.getTracks().forEach((track) => peer.addTrack(track, stream));
+        peer.ontrack = (event) => { if (remoteAudioRef.current) remoteAudioRef.current.srcObject = event.streams[0]; };
+        peer.onicecandidate = ({ candidate }) => candidate && channelRef.current?.send({ type: 'broadcast', event: 'signal', payload: { from: userId, kind: 'candidate', candidate: candidate.toJSON() } });
+        peer.onconnectionstatechange = () => setConnected(peer.connectionState === 'connected');
+        peer.oniceconnectionstatechange = () => { if (peer.iceConnectionState === 'failed') toast.error('Koneksi suara gagal; jaringan mungkin memerlukan TURN.'); };
+      }
+      setActive(true);
+      await peer.setLocalDescription(await peer.createOffer());
+      await channelRef.current.send({ type: 'broadcast', event: 'signal', payload: { from: userId, kind: 'offer', description: peer.localDescription } });
+    } catch (error) { toast.error(error.name === 'NotAllowedError' ? 'Izinkan akses mikrofon untuk voice talk.' : (error.message || 'Mikrofon tidak tersedia.')); }
+  }
+  function toggleMute() {
+    const next = !muted;
+    streamRef.current?.getAudioTracks().forEach((track) => { track.enabled = !next; });
+    setMuted(next);
+  }
+  function hangup() {
+    channelRef.current?.send({ type: 'broadcast', event: 'signal', payload: { from: userId, kind: 'hangup' } });
+    peerRef.current?.close(); peerRef.current = null;
+    streamRef.current?.getTracks().forEach((track) => track.stop()); streamRef.current = null;
+    setActive(false); setConnected(false);
+  }
+  return <><audio ref={remoteAudioRef} autoPlay/><span className="self-center text-xs text-gray-400">{active ? connected ? `Suara tersambung · ${opponentName}` : 'Menghubungkan suara…' : channelReady ? 'Voice talk' : 'Menghubungkan kanal suara…'}</span>{!active ? <button onClick={startVoice} disabled={!channelReady} className="rounded bg-gold px-4 py-2 font-bold text-obsidian disabled:opacity-50">🎙️ Mulai bicara</button> : <><button onClick={toggleMute} className="rounded bg-slate px-4 py-2">{muted ? 'Aktifkan mikrofon' : 'Bisukan'}</button><button onClick={hangup} className="rounded bg-red-700 px-4 py-2">Akhiri suara</button></>}</>;
 }
 
 function PlayerCard({ icon, iconClass, name, sub, time, active }) {

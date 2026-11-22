@@ -4,6 +4,7 @@ import { supabase } from '../lib/supabaseClient';
 import Avatar from './Avatar';
 import TopNav from './TopNav';
 import { fetchProfile } from '../lib/profile';
+import { getIceServers } from '../lib/webrtc';
 
 export default function Social({ user, profile, onNavigate, onEditProfile, onLogout }) {
   const [friends, setFriends] = useState([]);
@@ -62,7 +63,7 @@ export default function Social({ user, profile, onNavigate, onEditProfile, onLog
         await peerRef.current.setRemoteDescription(row.payload);
         for (const candidate of pendingCandidatesRef.current) await peerRef.current.addIceCandidate(candidate);
         pendingCandidatesRef.current = [];
-        setCallStatus('Terhubung');
+        setCallStatus('Menyambungkan media…');
       }
       if (row.kind === 'candidate' && row.payload) {
         const candidate = new RTCIceCandidate(row.payload);
@@ -87,7 +88,7 @@ export default function Social({ user, profile, onNavigate, onEditProfile, onLog
     if (!mediaOpen || !videoRef.current || !mediaRef.current) return;
     videoRef.current.srcObject = mediaRef.current;
     return undefined;
-  }, [mediaOpen]);
+  }, [mediaOpen, callStatus]);
   useEffect(() => { if (remoteVideoRef.current) remoteVideoRef.current.srcObject = remoteStream; }, [remoteStream, mediaOpen]);
   useEffect(() => () => { peerRef.current?.close(); mediaRef.current?.getTracks().forEach((track) => track.stop()); }, []);
 
@@ -118,10 +119,17 @@ export default function Social({ user, profile, onNavigate, onEditProfile, onLog
     setMessages((old) => old.some((m) => m.id === data.id) ? old : [...old, data]);
   }
   async function makePeer(friendId, stream) {
-    const peer = new RTCPeerConnection({ iceServers: [{ urls: 'stun:stun.l.google.com:19302' }] });
+    const peer = new RTCPeerConnection({ iceServers: await getIceServers() });
     peerRef.current = peer;
     stream.getTracks().forEach((track) => peer.addTrack(track, stream));
     peer.ontrack = (event) => setRemoteStream(event.streams[0]);
+    peer.onconnectionstatechange = () => {
+      if (peer.connectionState === 'connected') setCallStatus('Terhubung');
+      else if (peer.connectionState === 'failed') {
+        setCallStatus('Koneksi gagal');
+        setMediaError('Koneksi gagal. Pastikan TURN server dan firewall mengizinkan relay.');
+      }
+    };
     peer.onicecandidate = ({ candidate }) => {
       if (candidate) supabase.from('call_signals').insert({ sender_id: user.id, recipient_id: friendId, kind: 'candidate', payload: candidate.toJSON() });
     };

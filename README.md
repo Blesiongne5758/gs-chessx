@@ -2,7 +2,7 @@
 
 **Holy vs Anarchy: The Voxel Chess Revolution**
 
-GS-ChessX adalah platform catur online modern dengan tema epik "Holy Kingdom vs Anarchy Rebellion". Papan 3D Voxel kini menjadi skin awal, dengan 2D Classic sebagai alternatif; game room saat ini masih lokal hot-seat dan multiplayer pertandingan tetap ada di roadmap.
+GS-ChessX adalah platform catur online modern dengan tema epik "Holy Kingdom vs Anarchy Rebellion". Papan 3D Voxel kini menjadi skin awal, dengan 2D Classic sebagai alternatif. Quick Match menyiarkan status pemain melalui Supabase Realtime Presence, mendukung tantangan publik maupun undangan teman, menyinkronkan langkah pertandingan, serta menyediakan voice talk peer-to-peer.
 
 ## 🎮 Status Fitur
 
@@ -20,7 +20,9 @@ GS-ChessX adalah platform catur online modern dengan tema epik "Holy Kingdom vs 
 | Chat privat teman (Supabase Realtime + RLS) | ✅ Selesai |
 | Panggilan voice/video peer-to-peer WebRTC | ✅ Selesai (HTTPS + izin media diperlukan) |
 | Halaman Tournaments: daftar, detail, klasemen, daftar/batal ikut | ✅ Selesai |
-| Multiplayer realtime | 🔜 Skema DB siap |
+| Quick Match, presence pemain online, dan undangan teman | ✅ Supabase Realtime |
+| Sinkronisasi langkah catur realtime | ✅ Supabase Realtime Broadcast |
+| Voice talk peer-to-peer dalam pertandingan | ✅ WebRTC (HTTPS + izin mikrofon diperlukan) |
 | Papan 3D Voxel default + 2D Classic alternatif | ✅ Selesai |
 | AI opponent (Stockfish.js) | 🔜 |
 | Chat dan voice/video call antar teman | ✅ Selesai |
@@ -52,9 +54,18 @@ Tanpa `.env`, aplikasi tetap jalan dalam **mode tamu** — klik Play Now untuk l
 ### Setup Supabase
 
 1. Buat proyek di [supabase.com](https://supabase.com).
-2. Buka **SQL Editor**, jalankan `supabase/schema.sql`, lalu migrasi menurut urutan: `002_edit_profile.sql`, `003_tournaments.sql`, `004_swiss_pairing.sql`, `005_admin_tournaments.sql`, dan `20261120145726_social_chat_realtime.sql`. Migrasi terakhir membuat chat privat dan signaling WebRTC dengan RLS.
+2. Buka **SQL Editor**, jalankan `supabase/schema.sql`, lalu migrasi berurutan: `002_edit_profile.sql`, `003_tournaments.sql`, `004_swiss_pairing.sql`, `005_admin_tournaments.sql`, `20261120145726_social_chat_realtime.sql`, dan `20261122073000_quick_match_realtime_turn.sql`. Dua migrasi terakhir menyiapkan chat/signaling, membership Quick Match, serta RLS untuk channel Realtime privat.
 3. Salin **Project URL** dan **anon key** dari *Settings → API* ke `.env`.
-4. (Opsional) Aktifkan Google di *Authentication → Providers*.
+4. Di *Authentication → URL Configuration → Redirect URLs*, izinkan origin development yang digunakan (misalnya `http://localhost:5173/**`) dan origin HTTPS produksi. Signup kembali ke `/?email-confirmed=1`, menampilkan pesan sukses, lalu membuka login.
+5. (Opsional) Aktifkan Google di *Authentication → Providers*.
+
+### Realtime, HTTPS, dan TURN
+
+Quick Match dan voice talk memakai private Realtime channels; terapkan migration di atas sebelum pengujian. Kamera/mikrofon diminta setelah pengguna menekan tombol dan menyetujui izin. Situs produksi harus benar-benar disajikan melalui HTTPS (`localhost` dapat dipakai saat development). `public/_headers` menetapkan Permissions-Policy untuk Cloudflare Pages, tetapi tidak membuat domain atau sertifikat TLS.
+
+TURN credentials sementara diambil dari Edge Function `turn-credentials`. Setelah menghubungkan Supabase CLI ke proyek, deploy dengan `supabase functions deploy turn-credentials`. Atur secret function `TURN_URLS` sebagai daftar URL TURN dipisahkan koma, misalnya `turn:turn.example.com:3478?transport=udp,turns:turn.example.com:5349?transport=tcp`, dan `TURN_SHARED_SECRET` dengan secret acak yang sama seperti `static-auth-secret` Coturn. Jangan menyimpan shared secret, private key TLS, service-role key, atau kredensial server di frontend maupun Git.
+
+`turn/coturn.conf.example` adalah template untuk host TURN yang harus disediakan dan dijalankan terpisah. Siapkan DNS, TLS, IP publik yang benar, buka listener 3478 UDP/TCP dan 5349 TCP, serta rentang relay UDP `49160–49200` (atau rentang lain yang dipilih pada konfigurasi) di firewall dan provider. Tanpa server TURN aktif dan secret yang cocok, aplikasi hanya mencoba STUN; media dapat gagal pada NAT/firewall ketat. Deploy Supabase memerlukan akses proyek yang sah, sedangkan TURN memerlukan host dan kredensial operator server.
 
 ### Build
 
@@ -118,8 +129,9 @@ gs-chessx/
 
 - Cari pemain berdasarkan username; kirim, terima, dan tolak permintaan pertemanan.
 - Chat langsung tersimpan dan diperbarui melalui Supabase Realtime. Row Level Security membatasi akses ke dua akun teman yang sudah menerima pertemanan.
-- Voice/video menggunakan WebRTC peer-to-peer. Database hanya meneruskan sinyal SDP/ICE, bukan audio/video. Browser meminta izin kamera dan mikrofon; jalankan situs lewat HTTPS (atau localhost). STUN publik digunakan, namun sebagian jaringan memerlukan server TURN agar koneksi dapat terbentuk.
+- Voice/video menggunakan WebRTC peer-to-peer. Database hanya meneruskan sinyal SDP/ICE, bukan audio/video. Browser meminta izin kamera dan mikrofon; jalankan situs lewat HTTPS (atau localhost). STUN publik digunakan; jaringan ketat memerlukan server TURN yang terpasang dan aktif.
 - Jalankan migrasi `20261120145726_social_chat_realtime.sql` sebelum memakai fitur sosial.
+- Untuk voice/video melalui TURN, ikuti langkah di bagian **Realtime, HTTPS, dan TURN** di atas.
 
 ## 🏆 Tournaments
 
@@ -202,7 +214,7 @@ Lihat `supabase/schema.sql`: `profiles`, `friendships`, `games`, `moves` (realti
 
 - **Phase 1 – Foundation**: ✅ setup, ✅ auth, ✅ papan 2D, ✅ edit profil
 - **Phase 2 – Core Chess**: ✅ papan 3D + 2D Classic, ⬜ Stockfish AI, ✅ timer, ✅ validasi langkah
-- **Phase 3 – Multiplayer**: ⬜ sinkronisasi realtime, ⬜ matchmaking, ⬜ spectator, ⬜ PGN replay
+- **Phase 3 – Multiplayer**: ✅ sinkronisasi realtime, ✅ matchmaking, ✅ voice talk game, ⬜ spectator, ⬜ PGN replay
 - **Phase 4 – Social**: ✅ friend system, ✅ chat, ✅ voice/video WebRTC, ⬜ notifikasi
 - **Phase 5 – Competitive**: ⬜ ELO Glicko-2, ⬜ leaderboard live, ✅ halaman turnamen, ⬜ pairing otomatis, ⬜ riwayat match
 
