@@ -3,6 +3,7 @@ import Avatar from './Avatar';
 
 const ITEMS = [
   { key: 'lobby', label: 'Lobby' },
+  { key: 'learning', label: 'Chess Academy' },
   { key: 'tournaments', label: 'Tournaments' },
   { key: 'social', label: 'Friends & Chat' },
   { key: 'shop', label: 'Shop', soon: true },

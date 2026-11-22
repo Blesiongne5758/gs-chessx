@@ -1,0 +1,17 @@
+export const STORIES = [
+  { year: '1886', title: 'Kejuaraan dunia pertama', text: 'Wilhelm Steinitz dan Johannes Zukertort bertanding dalam laga yang kemudian dikenang sebagai kejuaraan dunia resmi pertama. Steinitz memperkenalkan cara berpikir positional: bangun keunggulan kecil sebelum menyerang.', lesson: 'Pelajaran: perbaiki posisi bidak sebelum memaksa kombinasi.' },
+  { year: '1972', title: 'Pertarungan abad di Reykjavík', text: 'Bobby Fischer menantang Boris Spassky dalam laga penuh tekanan di Reykjavík. Di balik drama pertandingan, permainan ini menunjukkan bahwa persiapan, keberanian mengambil keputusan, dan ketahanan mental sama pentingnya dengan taktik.', lesson: 'Pelajaran: persiapan membuka peluang, tetapi ketenangan memenangkan momen kritis.' },
+  { year: '1997', title: 'Manusia melawan Deep Blue', text: 'Garry Kasparov menghadapi superkomputer IBM Deep Blue. Pertandingan ini menjadi simbol perubahan zaman: pemain kuat tidak hanya menghitung variasi, tetapi juga memahami kapan intuisi dan evaluasi posisi harus bekerja bersama.', lesson: 'Pelajaran: hitung kandidat utama, lalu nilai posisi akhirnya dengan jernih.' },
+];
+
+export const PUZZLES = [
+  { label: 'PENGEMBANGAN', prompt: 'Raja masih di tengah, dua gajah belum aktif, dan lawan belum membuat ancaman langsung. Prioritas terbaik?', options: ['Rokade dan selesaikan pengembangan', 'Dorong pion sayap berulang kali', 'Keluarkan ratu untuk berburu pion'], answer: 0, explanation: 'Rokade mengamankan raja sekaligus menghubungkan benteng. Prinsip pembukaan biasanya mendahulukan keselamatan raja dan perkembangan bidak ringan.' },
+  { label: 'TEMPO', prompt: 'Lawan baru memindahkan ratu terlalu dini. Respons strategis yang paling sehat?', options: ['Kembangkan bidak sambil menyerang ratu dengan tempo', 'Kejar ratu dengan semua pion', 'Tukar ratu tanpa melihat posisi'], answer: 0, explanation: 'Pengembangan dengan tempo membuat Anda maju sambil memaksa ratu lawan bergerak lagi. Jangan mengorbankan struktur hanya untuk mengejar ratu.' },
+  { label: 'AKHIR PERMAINAN', prompt: 'Anda unggul satu bidak di akhir permainan dan raja cukup aman. Rencana yang paling praktis?', options: ['Tukar bidak untuk mengurangi counterplay', 'Hindari semua pertukaran', 'Berikan bidak unggul demi serangan spekulatif'], answer: 0, explanation: 'Saat unggul materi, pertukaran yang tepat biasanya mengurangi sumber serangan lawan. Tetap pastikan pertukaran tidak masuk ke ending yang remis.' },
+];
+
+export const QUIZ = [
+  { question: 'Siapa yang menjadi lawan Bobby Fischer dalam laga Reykjavík 1972?', options: ['Boris Spassky', 'Mikhail Tal', 'Anatoly Karpov'], answer: 0, explanation: 'Fischer mengalahkan Boris Spassky dalam laga Kejuaraan Dunia 1972.' },
+  { question: 'Manakah yang paling sesuai dengan prinsip pembukaan?', options: ['Kembangkan bidak, rebut pusat, dan amankan raja', 'Gerakkan ratu berkali-kali', 'Mainkan pion tepi sebelum bidak ringan'], answer: 0, explanation: 'Pusat, pengembangan, dan keselamatan raja memberi koordinasi yang sehat untuk middlegame.' },
+  { question: 'Ketika lawan memiliki raja yang belum rokade, apa yang perlu diperhatikan?', options: ['Buka pusat bila perkembangan Anda lebih siap', 'Selalu korbankan ratu', 'Tukar semua bidak tanpa menghitung'], answer: 0, explanation: 'Membuka pusat dapat mengekspos raja yang tertinggal, tetapi hanya jika bidak Anda lebih siap dan taktiknya benar-benar bekerja.' },
+];

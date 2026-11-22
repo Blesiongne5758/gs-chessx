@@ -10,6 +10,7 @@ import Tournaments from './components/Tournaments';
 import AdminTournaments from './components/AdminTournaments';
 import Social from './components/Social';
 import QuickMatch from './components/QuickMatch';
+import LearningHub from './components/LearningHub';
 
 const GUEST = { id: 'guest', email: 'guest@local', isGuest: true };
 
@@ -152,6 +153,10 @@ function App() {
 
       {page === 'social' && user && (
         <Social user={user} onNavigate={setPage} onEditProfile={() => setPage('profile')} onLogout={handleLogout} />
+      )}
+
+      {page === 'learning' && user && (
+        <LearningHub user={user} onNavigate={setPage} onEditProfile={() => setPage('profile')} onLogout={handleLogout} />
       )}
 
       {page === 'game' && user && (
