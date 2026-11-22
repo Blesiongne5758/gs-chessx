@@ -36,7 +36,12 @@ export default function QuickMatch({ user, timeControl, onMatched, onBack }) {
       channelRef.current = channel;
       channel.on('presence', { event: 'sync' }, () => {
         const current = channel.presenceState();
-        const people = Object.values(current).flat().filter((x) => x.id !== userId);
+        const people = [...new Map(
+          Object.values(current)
+            .flat()
+            .filter((x) => x.id !== userId && x.status === 'available')
+            .map((player) => [player.id, player]),
+        ).values()];
         if (active) setOnline(people);
       });
       channel.on('broadcast', { event: 'challenge' }, ({ payload }) => {

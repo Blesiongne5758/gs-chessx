@@ -357,11 +357,13 @@ function MultiplayerVoice({ roomId, userId, opponentName }) {
   const [muted, setMuted] = useState(false);
   const [connected, setConnected] = useState(false);
   const [channelReady, setChannelReady] = useState(false);
+  const [minimized, setMinimized] = useState(false);
   const peerRef = useRef(null);
   const streamRef = useRef(null);
   const channelRef = useRef(null);
   const remoteAudioRef = useRef(null);
   const pendingCandidates = useRef([]);
+  const createPeerRef = useRef(null);
 
   useEffect(() => {
     const channel = supabase.channel(`chess-voice:${roomId}`, { config: { private: true, broadcast: { self: false } } });
@@ -382,6 +384,7 @@ function MultiplayerVoice({ roomId, userId, opponentName }) {
       setActive(true);
       return peer;
     }
+    createPeerRef.current = ensurePeer;
     channel.on('broadcast', { event: 'signal' }, async ({ payload }) => {
       if (payload.from === userId) return;
       if (payload.kind === 'candidate' && !peerRef.current) {
@@ -411,6 +414,7 @@ function MultiplayerVoice({ roomId, userId, opponentName }) {
     return () => {
       peerRef.current?.close();
       streamRef.current?.getTracks().forEach((track) => track.stop());
+      createPeerRef.current = null;
       if (channelRef.current === channel) channelRef.current = null;
       supabase.removeChannel(channel);
     };
@@ -419,19 +423,9 @@ function MultiplayerVoice({ roomId, userId, opponentName }) {
   async function startVoice() {
     if (!channelReady) { toast.error('Menghubungkan kanal suara. Coba lagi sebentar.'); return; }
     try {
-      let peer = peerRef.current;
-      if (!peer) {
-        const stream = await navigator.mediaDevices.getUserMedia({ audio: true, video: false });
-        streamRef.current = stream;
-        peer = new RTCPeerConnection({ iceServers: await getIceServers() });
-        peerRef.current = peer;
-        stream.getTracks().forEach((track) => peer.addTrack(track, stream));
-        peer.ontrack = (event) => { if (remoteAudioRef.current) remoteAudioRef.current.srcObject = event.streams[0]; };
-        peer.onicecandidate = ({ candidate }) => candidate && channelRef.current?.send({ type: 'broadcast', event: 'signal', payload: { from: userId, kind: 'candidate', candidate: candidate.toJSON() } });
-        peer.onconnectionstatechange = () => setConnected(peer.connectionState === 'connected');
-        peer.oniceconnectionstatechange = () => { if (peer.iceConnectionState === 'failed') toast.error('Koneksi suara gagal; jaringan mungkin memerlukan TURN.'); };
-      }
+      const peer = await createPeerRef.current();
       setActive(true);
+      if (peer.signalingState !== 'stable') return;
       await peer.setLocalDescription(await peer.createOffer());
       await channelRef.current.send({ type: 'broadcast', event: 'signal', payload: { from: userId, kind: 'offer', description: peer.localDescription } });
     } catch (error) { toast.error(error.name === 'NotAllowedError' ? 'Izinkan akses mikrofon untuk voice talk.' : (error.message || 'Mikrofon tidak tersedia.')); }
@@ -445,9 +439,26 @@ function MultiplayerVoice({ roomId, userId, opponentName }) {
     channelRef.current?.send({ type: 'broadcast', event: 'signal', payload: { from: userId, kind: 'hangup' } });
     peerRef.current?.close(); peerRef.current = null;
     streamRef.current?.getTracks().forEach((track) => track.stop()); streamRef.current = null;
-    setActive(false); setConnected(false);
+    pendingCandidates.current = [];
+    setActive(false); setConnected(false); setMuted(false);
   }
-  return <><audio ref={remoteAudioRef} autoPlay/><span className="self-center text-xs text-gray-400">{active ? connected ? `Suara tersambung · ${opponentName}` : 'Menghubungkan suara…' : channelReady ? 'Voice talk' : 'Menghubungkan kanal suara…'}</span>{!active ? <button onClick={startVoice} disabled={!channelReady} className="rounded bg-gold px-4 py-2 font-bold text-obsidian disabled:opacity-50">🎙️ Mulai bicara</button> : <><button onClick={toggleMute} className="rounded bg-slate px-4 py-2">{muted ? 'Aktifkan mikrofon' : 'Bisukan'}</button><button onClick={hangup} className="rounded bg-red-700 px-4 py-2">Akhiri suara</button></>}</>;
+  const status = active ? (connected ? `Tersambung · ${opponentName}` : 'Menghubungkan suara…') : channelReady ? 'Siap bicara 2 arah' : 'Menghubungkan kanal…';
+  return (
+    <div className="fixed bottom-4 right-4 z-40 w-[min(22rem,calc(100vw-2rem))] rounded-xl border border-gold/50 bg-graphite/95 p-3 shadow-2xl backdrop-blur">
+      <audio ref={remoteAudioRef} autoPlay />
+      <div className="flex items-center gap-2">
+        <span className={`h-2.5 w-2.5 rounded-full ${connected ? 'bg-emerald' : active ? 'bg-amber-400' : 'bg-gray-500'}`} />
+        <span className="min-w-0 flex-1 truncate text-sm font-semibold text-white">TalkVoice <span className="font-normal text-gray-400">{status}</span></span>
+        <button onClick={() => setMinimized((value) => !value)} className="rounded px-2 py-1 text-gray-300 hover:bg-slate" aria-label={minimized ? 'Buka panel voice' : 'Kecilkan panel voice'}>{minimized ? '□' : '—'}</button>
+      </div>
+      {!minimized && <div className="mt-3 flex flex-wrap gap-2">
+        {!active ? <button onClick={startVoice} disabled={!channelReady} className="rounded bg-gold px-3 py-2 text-sm font-bold text-obsidian disabled:opacity-50">🎙️ Mulai bicara</button> : <>
+          <button onClick={toggleMute} className="rounded bg-slate px-3 py-2 text-sm text-white">{muted ? 'Aktifkan mikrofon' : 'Bisukan'}</button>
+          <button onClick={hangup} className="rounded bg-red-700 px-3 py-2 text-sm text-white">Akhiri suara</button>
+        </>}
+      </div>}
+    </div>
+  );
 }
 
 function PlayerCard({ icon, iconClass, name, sub, time, active }) {

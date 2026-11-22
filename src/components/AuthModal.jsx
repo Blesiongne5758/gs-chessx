@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import toast from 'react-hot-toast';
-import { supabase } from '../lib/supabaseClient';
+import { isSupabaseConfigured, supabase, supabaseConfigError } from '../lib/supabaseClient';
 
 export default function AuthModal({ onClose, initialMode = 'login' }) {
   const [isLogin, setIsLogin] = useState(initialMode === 'login');
@@ -16,6 +16,7 @@ export default function AuthModal({ onClose, initialMode = 'login' }) {
     setError(null);
 
     try {
+      if (!isSupabaseConfigured) throw new Error(supabaseConfigError || 'Konfigurasi Supabase belum siap.');
       if (isLogin) {
         const { error: err } = await supabase.auth.signInWithPassword({ email, password });
         if (err) throw err;
@@ -32,24 +33,27 @@ export default function AuthModal({ onClose, initialMode = 'login' }) {
           },
         });
         if (err) throw err;
-        if (!data.session) {
-          toast.success('Cek email Anda untuk konfirmasi akun.');
-          onClose();
-        }
+        if (data.session) toast.success('Akun berhasil dibuat. Selamat bermain!');
+        else toast.success('Akun dibuat. Konfirmasi email masih aktif di Supabase, jadi cek inbox Anda.');
+        onClose();
       }
     } catch (err) {
-      setError(err.message);
+      setError(formatAuthError(err));
     } finally {
       setLoading(false);
     }
   }
 
   async function handleGoogle() {
+    if (!isSupabaseConfigured) {
+      setError(supabaseConfigError || 'Konfigurasi Supabase belum siap.');
+      return;
+    }
     const { error: err } = await supabase.auth.signInWithOAuth({
       provider: 'google',
       options: { redirectTo: window.location.origin },
     });
-    if (err) setError(err.message);
+    if (err) setError(formatAuthError(err));
   }
 
   return (
@@ -128,6 +132,18 @@ export default function AuthModal({ onClose, initialMode = 'login' }) {
       </div>
     </div>
   );
+}
+
+function formatAuthError(error) {
+  const message = String(error?.message || error || 'Login gagal.');
+  const normalized = message.toLowerCase();
+  if (normalized.includes('invalid api key') || normalized.includes('apikey')) {
+    return 'Invalid API key Supabase. Periksa VITE_SUPABASE_URL dan VITE_SUPABASE_ANON_KEY di GitHub Actions secrets, lalu deploy ulang.';
+  }
+  if (normalized.includes('email not confirmed')) {
+    return 'Email belum dikonfirmasi. Matikan Confirm email di Supabase Authentication → Providers → Email, atau konfirmasi email akun ini.';
+  }
+  return message;
 }
 
 const inputClass =
