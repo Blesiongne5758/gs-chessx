@@ -54,7 +54,7 @@ Tanpa `.env`, aplikasi tetap jalan dalam **mode tamu** — klik Play Now untuk l
 ### Setup Supabase
 
 1. Buat proyek di [supabase.com](https://supabase.com).
-2. Buka **SQL Editor**, jalankan `supabase/schema.sql`, lalu migrasi berurutan: `002_edit_profile.sql`, `003_tournaments.sql`, `004_swiss_pairing.sql`, `005_admin_tournaments.sql`, `20261120145726_social_chat_realtime.sql`, dan `20261122004636_quick_match_realtime_turn.sql`. Dua migrasi terakhir menyiapkan chat/signaling, membership Quick Match, serta RLS untuk channel Realtime privat.
+2. Buka **SQL Editor**, jalankan `supabase/schema.sql`, lalu migrasi berurutan: `002_edit_profile.sql`, `003_tournaments.sql`, `004_swiss_pairing.sql`, `005_admin_tournaments.sql`, `20261120145726_social_chat_realtime.sql`, `20261122004636_quick_match_realtime_turn.sql`, dan `20261123020000_fix_profile_update_permissions.sql`. Migrasi terakhir memperbaiki izin edit profil tanpa membuka kolom rating, statistik, atau admin.
 3. Salin **Project URL** dan **anon/publishable key** dari *Settings → API* ke `.env` atau GitHub Actions secrets `VITE_SUPABASE_URL` dan `VITE_SUPABASE_ANON_KEY`. Jangan gunakan `service_role` key.
 4. Untuk menonaktifkan verifikasi email, buka *Authentication → Providers → Email*, matikan **Confirm email**, lalu simpan. Ini adalah pengaturan proyek Supabase dan tidak dapat diubah dari frontend.
 5. Di *Authentication → URL Configuration → Redirect URLs*, izinkan origin development yang digunakan (misalnya `http://localhost:5173/**`) dan origin HTTPS produksi.
