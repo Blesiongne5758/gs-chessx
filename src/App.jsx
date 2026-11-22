@@ -105,7 +105,16 @@ function App() {
       {page === 'lobby' && user && (
         <Lobby
           user={user}
-          onPlay={(tc) => { setTimeControl(tc); setMatch(null); setPage('quick-match'); }}
+          onPlay={(tc) => {
+            setTimeControl(tc);
+            if (tc.mode === 'ai') {
+              setMatch({ mode: 'ai', aiLevel: tc.aiLevel || 10, opponent: { username: 'Komputer' } });
+              setPage('game');
+            } else {
+              setMatch(null);
+              setPage('quick-match');
+            }
+          }}
           onLogout={handleLogout}
           onEditProfile={() => setPage('profile')}
           onNavigate={setPage}

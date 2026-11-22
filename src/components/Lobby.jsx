@@ -9,7 +9,7 @@ const TIME_CONTROLS = [
   { label: '⚡ Blitz (3+2)', desc: 'Most popular', base: 180, inc: 2 },
   { label: '⚡ Rapid (10+0)', desc: 'Strategic play', base: 600, inc: 0 },
   { label: '🎯 Classical (30+0)', desc: 'Deep thinking', base: 1800, inc: 0 },
-  { label: '🤖 vs AI (10 levels)', desc: 'Practice mode — segera hadir', base: 600, inc: 0 },
+  { label: '🤖 VS AI (10 level)', desc: 'Lawan komputer — tidak memakai pemain online', base: 600, inc: 0, mode: 'ai', aiLevel: 10 },
 ];
 
 export default function Lobby({ user, onPlay, onLogout, onEditProfile, onNavigate }) {

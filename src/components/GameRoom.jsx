@@ -23,6 +23,31 @@ const DEFAULT_CUSTOMIZATION = {
   aura: true,
 };
 
+const AI_VALUES = { p: 100, n: 320, b: 330, r: 500, q: 900, k: 20000 };
+
+function checkGameOverPosition(g) {
+  if (g.isCheckmate()) return `Skakmat — ${g.turn() === 'w' ? 'Hitam' : 'Putih'} menang`;
+  if (g.isStalemate()) return 'Remis — stalemate';
+  if (g.isThreefoldRepetition()) return 'Remis — pengulangan tiga kali';
+  if (g.isInsufficientMaterial()) return 'Remis — material tidak cukup';
+  if (g.isDraw()) return 'Remis — aturan 50 langkah';
+  return null;
+}
+
+function chooseComputerMove(position, level = 10) {
+  const moves = position.moves({ verbose: true });
+  if (!moves.length) return null;
+  let best = moves[0];
+  let bestScore = -Infinity;
+  for (const move of moves) {
+    const score = (AI_VALUES[move.captured] || 0)
+      + (move.san?.includes('+') ? 60 : 0)
+      + Math.random() * Math.max(0, 11 - level) * 20;
+    if (score > bestScore) { best = move; bestScore = score; }
+  }
+  return { from: best.from, to: best.to, promotion: best.promotion || 'q' };
+}
+
 export default function GameRoom({ user, timeControl, match, onBack, onSocial }) {
   const base = timeControl?.base ?? 600;
   const inc = timeControl?.inc ?? 0;
@@ -35,12 +60,14 @@ export default function GameRoom({ user, timeControl, match, onBack, onSocial })
   const [incomingDraw, setIncomingDraw] = useState(false);
   const [drawPending, setDrawPending] = useState(false);
   const [gameChannelReady, setGameChannelReady] = useState(false);
+  const [aiThinking, setAiThinking] = useState(false);
   const [skinMode, setSkinMode] = useState('3d');
   const [skinId, setSkinId] = useState('holy');
   const [customization, setCustomization] = useState(DEFAULT_CUSTOMIZATION);
   const gameChannelRef = useRef(null);
   const myColor = match?.color === 'black' ? 'b' : 'w';
   const isMultiplayer = Boolean(match?.roomId);
+  const isAiMatch = match?.mode === 'ai';
 
   const turn = game.turn();
   const history = game.history({ verbose: true });
@@ -81,6 +108,29 @@ export default function GameRoom({ user, timeControl, match, onBack, onSocial })
     });
     return () => { gameChannelRef.current = null; supabase.removeChannel(channel); };
   }, [isMultiplayer, match?.roomId, user.id]);
+
+  // VS AI is entirely local: it never joins Presence or a Realtime channel.
+  useEffect(() => {
+    if (!isAiMatch || result || turn !== 'b') return undefined;
+    setAiThinking(true);
+    const timer = window.setTimeout(() => {
+      setGame((current) => {
+        const next = new Chess();
+        next.loadPgn(current.pgn());
+        const move = chooseComputerMove(next, match?.aiLevel || 10);
+        if (!move) {
+          setAiThinking(false);
+          return current;
+        }
+        next.move(move);
+        const over = checkGameOverPosition(next);
+        if (over) setResult(over);
+        setAiThinking(false);
+        return next;
+      });
+    }, 550);
+    return () => window.clearTimeout(timer);
+  }, [isAiMatch, match?.aiLevel, result, turn]);
 
   // Clock: only the side to move ticks, and only while the game is running and at least one move was made.
   useEffect(() => {
@@ -128,7 +178,7 @@ export default function GameRoom({ user, timeControl, match, onBack, onSocial })
 
   function handleSquareClick(square) {
     if (isMultiplayer && !gameChannelReady) return;
-    if (result || (isMultiplayer && turn !== myColor)) return;
+    if (result || (isMultiplayer && turn !== myColor) || (isAiMatch && turn !== 'w')) return;
     const piece = game.get(square);
 
     if (selectedSquare && validTargets.includes(square)) {
@@ -170,7 +220,7 @@ export default function GameRoom({ user, timeControl, match, onBack, onSocial })
 
   function resign() {
     if (result) return;
-    const resigningColor = isMultiplayer ? myColor : turn;
+    const resigningColor = isMultiplayer ? myColor : isAiMatch ? 'w' : turn;
     finishGame(`${resigningColor === 'w' ? 'Putih' : 'Hitam'} menyerah — ${resigningColor === 'w' ? 'Hitam' : 'Putih'} menang`);
   }
 
@@ -243,8 +293,8 @@ export default function GameRoom({ user, timeControl, match, onBack, onSocial })
 
   const sans = history.map((m) => m.san);
   const youName = user?.isGuest ? 'You (Guest)' : user?.user_metadata?.username || user?.email?.split('@')[0] || 'You';
-  const opponentName = match?.opponent?.username || 'Lawan';
-  const blackName = isMultiplayer ? (myColor === 'b' ? youName : opponentName) : 'Opponent (Black)';
+  const opponentName = isAiMatch ? 'Komputer' : match?.opponent?.username || 'Lawan';
+  const blackName = isMultiplayer ? (myColor === 'b' ? youName : opponentName) : isAiMatch ? opponentName : 'Opponent (Black)';
   const whiteName = isMultiplayer ? (myColor === 'w' ? youName : opponentName) : `${youName} (White)`;
   const activeSkin = resolveChessSkin(skinId, customization);
 
@@ -268,7 +318,7 @@ export default function GameRoom({ user, timeControl, match, onBack, onSocial })
               icon="♚"
               iconClass="bg-black text-white"
               name={`${blackName} (Black)`}
-              sub={isMultiplayer ? 'Quick Match' : 'Local hot-seat'}
+              sub={isMultiplayer ? 'Quick Match' : isAiMatch ? `Komputer · Level ${match.aiLevel || 10}` : 'Local hot-seat'}
               time={blackTime}
               active={turn === 'b' && !result}
             />
@@ -282,6 +332,7 @@ export default function GameRoom({ user, timeControl, match, onBack, onSocial })
           <div className="space-y-3">
             <div className="space-y-2"><div className="flex items-center justify-between gap-3"><div><div className="text-xs uppercase tracking-widest text-gray-500">Skin bidak</div><div className="mt-1 text-[11px] text-gray-500">{CHESS_SKIN_LIST.find((skin) => skin.id === skinId)?.description}</div></div><div className="flex shrink-0 rounded-lg border border-gold/25 bg-graphite p-1"><button onClick={() => setSkinMode('3d')} aria-pressed={skinMode === '3d'} className={`rounded-md px-3 py-1.5 text-xs font-semibold ${skinMode === '3d' ? 'bg-gold text-obsidian' : 'text-gray-300'}`}>3D</button><button onClick={() => setSkinMode('2d')} aria-pressed={skinMode === '2d'} className={`rounded-md px-3 py-1.5 text-xs font-semibold ${skinMode === '2d' ? 'bg-gold text-obsidian' : 'text-gray-300'}`}>2D</button></div></div><div className="grid grid-cols-2 gap-1.5 sm:grid-cols-3">{CHESS_SKIN_LIST.map((skin) => <button key={skin.id} onClick={() => setSkinId(skin.id)} aria-pressed={skinId === skin.id} className={`rounded-md border px-2 py-1.5 text-[11px] font-semibold transition ${skinId === skin.id ? 'border-gold bg-gold text-obsidian shadow-[0_0_14px_rgba(212,175,55,.24)]' : 'border-white/10 bg-graphite text-gray-300 hover:border-gold/50'}`}>{skin.shortLabel}</button>)}</div>{skinId === 'custom' && <CustomNeonControls value={customization} onChange={setCustomization} />}</div>
             {isMultiplayer && !gameChannelReady && <p role="status" className="rounded border border-amber-400/40 bg-amber-400/10 p-2 text-center text-xs text-amber-200">Menghubungkan ke pertandingan. Langkah akan aktif setelah tersambung.</p>}
+            {isAiMatch && aiThinking && <p role="status" className="rounded border border-gold/40 bg-gold/10 p-2 text-center text-xs text-gold">Komputer sedang berpikir…</p>}
             <div className="aspect-square">
               {skinMode === '3d' ? renderBoard() : <div className="w-full h-full grid grid-cols-8 grid-rows-8 rounded-lg overflow-hidden border-4 shadow-2xl" style={{ borderColor: toCssColor(activeSkin.board.frame) }}>{renderBoard()}</div>}
             </div>
@@ -301,7 +352,7 @@ export default function GameRoom({ user, timeControl, match, onBack, onSocial })
               icon="♔"
               iconClass="bg-gold text-obsidian"
               name={whiteName}
-              sub={isMultiplayer ? 'Quick Match' : 'Local hot-seat'}
+              sub={isMultiplayer ? 'Quick Match' : isAiMatch ? 'Pemain' : 'Local hot-seat'}
               time={whiteTime}
               active={turn === 'w' && !result}
             />
