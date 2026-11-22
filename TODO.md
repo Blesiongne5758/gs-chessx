@@ -7,12 +7,11 @@
 - [x] Kontrol perspektif dan konfigurasi tidak menutupi papan; panel konfigurasi diletakkan di luar area render papan.
 - [x] Pemilihan petak, highlight langkah legal, langkah terakhir, dan status skak tetap akurat saat perspektif berubah.
 
-## Storytelling, puzzle, dan quiz saat memasuki ruang permainan
-- [x] Saat memasuki ruang permainan melalui Quick Match atau VS AI, storytelling historical tampil otomatis tanpa menunggu langkah pertama.
-- [x] Storytelling memiliki beberapa bab singkat dengan konteks tokoh/peristiwa sejarah catur dan kontrol lanjut/mundur.
-- [x] Ruang permainan menyediakan puzzle mengenai strategi permainan catur dengan pilihan jawaban, feedback, dan penjelasan.
-- [x] Ruang permainan menyediakan quiz strategi/sejarah dengan beberapa pertanyaan, skor, feedback, dan reset.
-- [x] Puzzle dan Quiz tersedia pada menu baru Chess Academy di luar permainan; ruang permainan hanya menampilkan storytelling dan tidak ada panel puzzle/quiz yang mengganggu fokus papan.
+## Splash sejarah dan Chess Academy di luar permainan
+- [x] Storytelling sejarah dihapus dari dalam permainan Quick Match dan VS AI karena tersedia pada menu Chess Academy.
+- [x] Saat memasuki ruang permainan, satu splash sejarah epik dipilih secara random dan menampilkan visual momen sejarah, tahun, narasi singkat, pelajaran strategi, serta tombol masuk atau lewati.
+- [x] Puzzle dan Quiz tersedia pada menu Chess Academy di luar permainan dengan pilihan jawaban, feedback, skor, dan penjelasan.
+- [x] Setiap puzzle strategi menampilkan diagram posisi papan catur visual sebelum pertanyaan.
 
 ## Validasi teknis
 - [x] Build Vite, lint, dan test yang sudah ada lulus setelah perubahan.

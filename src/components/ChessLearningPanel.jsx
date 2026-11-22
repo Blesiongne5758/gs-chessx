@@ -12,6 +12,22 @@ function ChoiceButton({ selected, correct, children, onClick, disabled }) {
   );
 }
 
+const PIECE_GLYPHS = { K: '♔', Q: '♕', R: '♖', B: '♗', N: '♘', P: '♙', k: '♚', q: '♛', r: '♜', b: '♝', n: '♞', p: '♟' };
+
+function PuzzleBoard({ position }) {
+  return (
+    <div className="mx-auto mt-4 max-w-[15rem] overflow-hidden rounded-lg border-2 border-gold/40 shadow-[0_0_22px_rgba(212,175,55,.12)]" role="img" aria-label="Diagram posisi puzzle catur">
+      <div className="grid grid-cols-8">
+        {position.flatMap((row, rowIndex) => [...row].map((piece, colIndex) => {
+          const light = (rowIndex + colIndex) % 2 === 0;
+          return <div key={`${rowIndex}-${colIndex}`} className={`grid aspect-square place-items-center text-[clamp(1.2rem,5vw,2rem)] leading-none ${light ? 'bg-[#d8c18d] text-[#19151a]' : 'bg-[#654936] text-white'} ${piece === '.' ? '' : 'drop-shadow-[0_2px_1px_rgba(0,0,0,.6)]'}`}>{PIECE_GLYPHS[piece] || ''}</div>;
+        }))}
+      </div>
+      <div className="flex justify-between bg-[#171411] px-2 py-1 font-mono text-[9px] text-gold/70"><span>a</span><span>b</span><span>c</span><span>d</span><span>e</span><span>f</span><span>g</span><span>h</span></div>
+    </div>
+  );
+}
+
 export default function ChessLearningPanel({ mode = 'all' }) {
   const [activeTab, setActiveTab] = useState('story');
   const [storyIndex, setStoryIndex] = useState(0);
@@ -58,9 +74,9 @@ export default function ChessLearningPanel({ mode = 'all' }) {
         <div>
           <p className="text-[10px] uppercase tracking-[0.22em] text-gold/80">Ruang belajar</p>
           <h3 id="learning-title" className="mt-1 font-cinzel text-lg font-bold text-gold">Satu langkah, satu warisan</h3>
-          <p className="mt-1 text-xs text-gray-400">Cerita sejarah, strategi praktis, dan quiz singkat untuk menemani pertandingan.</p>
+          <p className="mt-1 text-xs text-gray-400">Cerita sejarah, strategi praktis, dan quiz singkat untuk melatih keputusan sebelum bertanding.</p>
         </div>
-        <span className="rounded-full border border-gold/25 bg-gold/10 px-2 py-1 text-[10px] font-semibold text-gold">Selalu aktif saat masuk</span>
+        <span className="rounded-full border border-gold/25 bg-gold/10 px-2 py-1 text-[10px] font-semibold text-gold">Di luar permainan</span>
       </div>
 
       {mode !== 'story' && <div className="mt-4 grid grid-cols-3 gap-1 rounded-lg border border-white/10 bg-obsidian/60 p-1" role="tablist" aria-label="Materi belajar catur">
@@ -97,6 +113,8 @@ export default function ChessLearningPanel({ mode = 'all' }) {
             <span>Puzzle {puzzleIndex + 1} / {PUZZLES.length}</span>
             <span className="text-emerald">{puzzle.label}</span>
           </div>
+          <PuzzleBoard position={puzzle.position} />
+          <p className="mt-2 text-center text-[10px] uppercase tracking-[0.18em] text-gray-500">Baca posisi sebelum memilih rencana</p>
           <h4 className="mt-2 text-sm font-bold leading-5 text-white">{puzzle.prompt}</h4>
           <div className="mt-3 space-y-2">
             {puzzle.options.map((option, index) => (

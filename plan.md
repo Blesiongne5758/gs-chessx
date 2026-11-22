@@ -7,7 +7,8 @@ Memperbarui ruang permainan agar papan 3D dapat diputar ke kiri/kanan dan atas/b
 - **ChessBoard3D.jsx** tetap menjadi pemilik state kamera/perspektif: azimuth horizontal, kemiringan vertikal, zoom ter-clamp pada 0.4–1.2, reset, fullscreen, wheel zoom, drag orbit, dan pinch zoom.
 - Interaksi petak memakai **Three.js raycaster** pada canvas, sehingga pemilihan petak tetap akurat walaupun kamera miring atau diputar. Highlight petak legal, langkah terakhir, dan skak dirender di scene 3D; overlay HTML hanya menyisakan informasi pemain yang pointer-transparent.
 - Kontrol perspektif ditampilkan sebagai panel flow di bawah papan, bukan floating overlay, sehingga tidak menutupi papan. Panel berisi tombol kiri/kanan/atas/bawah, slider zoom 40%–120%, reset, fullscreen, dan petunjuk gesture.
-- **ChessLearningPanel.jsx** dipakai dalam dua mode: mode storytelling-only di sisi kanan ruang permainan (selalu mulai dari bab sejarah saat Quick Match/VS AI masuk), dan mode lengkap di halaman Chess Academy di luar permainan. Mode lengkap menyediakan tab Story, Puzzle Strategi, dan Quiz dengan feedback jawaban, skor, serta penjelasan.
+- **HistoricalSplash.jsx** tampil satu kali setiap Game Room mount dengan satu dari tiga momen sejarah dan visual CSS epik yang dipilih acak; pemain dapat masuk ke papan atau melewati splash.
+- **ChessLearningPanel.jsx** menjadi mode lengkap di halaman Chess Academy di luar permainan. Story, Puzzle Strategi, dan Quiz tersedia di sana; setiap puzzle menampilkan diagram posisi catur visual, feedback jawaban, dan penjelasan.
 - Gaya visual memakai token GS-ChessX yang sudah ada (obsidian, graphite, gold, emerald) dengan panel padat dan responsif agar tidak menggeser/menutupi papan.
 
 ## Struktur proyek
@@ -21,7 +22,7 @@ Memperbarui ruang permainan agar papan 3D dapat diputar ke kiri/kanan dan atas/b
 - **Design Movement:** *Tactical Observatory* — interface gelap seperti ruang observasi, dengan gold sebagai aksen artefak sejarah dan emerald sebagai sinyal langkah benar.
 - **Core Principles:** papan selalu menjadi fokus utama; konfigurasi berada dalam alur dokumen; edukasi singkat dan dapat dipindai; feedback interaksi jelas tanpa modal yang menghalangi permainan.
 - **Color Philosophy:** obsidian/graphite menciptakan ruang tenang untuk fokus, gold menandai perspektif dan sejarah, emerald menegaskan langkah/insight yang benar, crimson hanya untuk bahaya/skak.
-- **Layout Paradigm:** tiga kolom tetap dipertahankan; kolom tengah berisi papan dan kontrolnya secara vertikal, kolom kanan menjadi companion rail untuk history dan storytelling. Puzzle/Quiz memiliki menu Chess Academy sendiri di luar permainan.
+- **Layout Paradigm:** tiga kolom tetap dipertahankan; kolom tengah berisi papan dan kontrolnya secara vertikal, kolom kanan fokus pada history pertandingan. Puzzle/Quiz memiliki menu Chess Academy sendiri di luar permainan; splash menjadi satu-satunya visual pembuka yang sementara menutup layar.
 - **Signature Elements:** label bab sejarah bergaya arsip, tombol kamera sebagai kompas empat arah, dan feedback jawaban berupa garis gold/emerald.
 - **Interaction Philosophy:** tap tombol untuk perubahan presisi, drag untuk orbit cepat, pinch/wheel untuk zoom; tidak ada kontrol kamera yang menutupi petak.
 - **Animation:** transisi perspektif instan dan ringan; panel jawaban memakai fade/slide kecil; hormati reduced motion yang sudah didukung scene.

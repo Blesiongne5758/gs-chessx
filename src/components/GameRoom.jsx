@@ -5,7 +5,7 @@ import { supabase } from '../lib/supabaseClient';
 import { getIceServers } from '../lib/webrtc';
 const ChessBoard3D = lazy(() => import('./ChessBoard3D'));
 import ChessPiece2D from './ChessPiece2D';
-import ChessLearningPanel from './ChessLearningPanel';
+import HistoricalSplash from './HistoricalSplash';
 import { CHESS_SKIN_LIST, resolveChessSkin } from '../lib/chessSkins';
 
 const PIECES = {
@@ -65,6 +65,7 @@ export default function GameRoom({ user, timeControl, match, onBack, onSocial })
   const [skinMode, setSkinMode] = useState('3d');
   const [skinId, setSkinId] = useState('holy');
   const [customization, setCustomization] = useState(DEFAULT_CUSTOMIZATION);
+  const [showHistoricalSplash, setShowHistoricalSplash] = useState(true);
   const gameChannelRef = useRef(null);
   const myColor = match?.color === 'black' ? 'b' : 'w';
   const isMultiplayer = Boolean(match?.roomId);
@@ -361,7 +362,6 @@ export default function GameRoom({ user, timeControl, match, onBack, onSocial })
               <h3 className="text-gold font-bold mb-2">♙ Captured by White</h3>
               <div className="text-2xl min-h-8">{captured.byWhite.join('') || '—'}</div>
             </div>
-            <ChessLearningPanel mode="story" />
             <div className="bg-graphite border border-gold/30 rounded-lg p-4">
               <h3 className="text-gold font-bold mb-2">📜 Move History</h3>
               <div className="h-48 overflow-y-auto font-mono text-sm grid grid-cols-[2.5rem_1fr_1fr] gap-y-1 content-start">
@@ -401,6 +401,7 @@ export default function GameRoom({ user, timeControl, match, onBack, onSocial })
           </button>
         </div>
       </div>
+      {showHistoricalSplash && <HistoricalSplash onContinue={() => setShowHistoricalSplash(false)} />}
     </div>
   );
 }
