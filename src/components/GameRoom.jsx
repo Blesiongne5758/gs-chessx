@@ -245,7 +245,7 @@ export default function GameRoom({ user, timeControl, match, onBack, onSocial })
       ? board.flat().find((p) => p && p.type === 'k' && p.color === turn)?.square
       : null;
     if (skinMode === '3d') {
-      return <Suspense fallback={<div className="grid h-full place-items-center rounded-xl border border-gold/30 bg-graphite text-sm text-gold">Memuat papan 3D…</div>}><ChessBoard3D board={board} selectedSquare={selectedSquare} validTargets={validTargets} lastMove={lastMove} kingInCheck={kingInCheck} onSquareClick={handleSquareClick} skin={skinId} customization={customization} /></Suspense>;
+      return <Suspense fallback={<div className="grid h-full place-items-center rounded-xl border border-gold/30 bg-graphite text-sm text-gold">Memuat papan 3D…</div>}><ChessBoard3D board={board} selectedSquare={selectedSquare} validTargets={validTargets} lastMove={lastMove} kingInCheck={kingInCheck} onSquareClick={handleSquareClick} skin={skinId} customization={customization} whiteName={whiteName} blackName={blackName} capturedByWhite={captured.byWhite} capturedByBlack={captured.byBlack} /></Suspense>;
     }
     const squares = [];
 

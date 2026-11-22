@@ -1,4 +1,4 @@
-import { useEffect, useRef } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import * as THREE from 'three';
 import { resolveChessSkin } from '../lib/chessSkins';
 
@@ -117,13 +117,17 @@ function squareName(row, col) {
   return `${FILES[col]}${8 - row}`;
 }
 
-export default function ChessBoard3D({ board, selectedSquare, validTargets = [], lastMove, kingInCheck, onSquareClick, skin = 'holy', customization }) {
+export default function ChessBoard3D({ board, selectedSquare, validTargets = [], lastMove, kingInCheck, onSquareClick, skin = 'holy', customization, whiteName = 'Putih', blackName = 'Hitam', capturedByWhite = [], capturedByBlack = [] }) {
   const hostRef = useRef(null);
+  const boardRef = useRef(null);
   const sceneRef = useRef(null);
   const objectsRef = useRef([]);
   const animatedEffectsRef = useRef([]);
   const rendererRef = useRef(null);
   const cameraRef = useRef(null);
+  const [zoom, setZoom] = useState(1);
+  const [topDown, setTopDown] = useState(true);
+  const [isFullscreen, setIsFullscreen] = useState(false);
 
   useEffect(() => {
     const host = hostRef.current;
@@ -135,7 +139,7 @@ export default function ChessBoard3D({ board, selectedSquare, validTargets = [],
     const scene = new THREE.Scene();
     scene.background = new THREE.Color(0x171411);
     const camera = new THREE.PerspectiveCamera(36, 1, 0.1, 100);
-    camera.position.set(10.8, 12.6, 14.2);
+    camera.position.set(0, 15, 0.01);
     camera.lookAt(0, 0, 0);
     const renderer = new THREE.WebGLRenderer({ antialias: !isMobile, alpha: false, powerPreference: 'high-performance' });
     renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, isMobile ? 1.25 : 1.75));
@@ -241,6 +245,34 @@ export default function ChessBoard3D({ board, selectedSquare, validTargets = [],
   }, [skin]);
 
   useEffect(() => {
+    const camera = cameraRef.current;
+    const renderer = rendererRef.current;
+    const scene = sceneRef.current;
+    if (!camera || !renderer || !scene) return;
+    const distance = 1 / zoom;
+    if (topDown) camera.position.set(0, 15 * distance, 0.01);
+    else camera.position.set(10.8 * distance, 12.6 * distance, 14.2 * distance);
+    camera.lookAt(0, 0, 0);
+    camera.updateProjectionMatrix();
+    renderer.render(scene, camera);
+  }, [zoom, topDown]);
+
+  useEffect(() => {
+    const syncFullscreen = () => setIsFullscreen(document.fullscreenElement === boardRef.current);
+    document.addEventListener('fullscreenchange', syncFullscreen);
+    return () => document.removeEventListener('fullscreenchange', syncFullscreen);
+  }, []);
+
+  async function toggleFullscreen() {
+    try {
+      if (document.fullscreenElement === boardRef.current) await document.exitFullscreen();
+      else await boardRef.current?.requestFullscreen();
+    } catch {
+      // Fullscreen can be denied by the browser; the board remains usable normally.
+    }
+  }
+
+  useEffect(() => {
     const scene = sceneRef.current;
     if (!scene) return;
     for (const object of objectsRef.current) {
@@ -287,8 +319,19 @@ export default function ChessBoard3D({ board, selectedSquare, validTargets = [],
   }, [board, selectedSquare, validTargets, lastMove, kingInCheck, skin, customization]);
 
   return (
-    <div className="relative isolate aspect-square w-full overflow-hidden rounded-xl border-4 border-[#6b4423] bg-[#171411] shadow-2xl" aria-label="Three-dimensional chessboard">
+    <div ref={boardRef} className={`relative isolate aspect-square w-full overflow-hidden rounded-xl border-4 border-[#6b4423] bg-[#171411] shadow-2xl ${isFullscreen ? 'h-screen max-h-screen rounded-none border-0' : ''}`} aria-label="Three-dimensional chessboard">
       <div ref={hostRef} className="absolute inset-0" />
+      <div className="pointer-events-none absolute inset-x-2 top-2 z-20 flex justify-between gap-2 text-[10px] sm:text-xs">
+        <div className="max-w-[48%] rounded-lg border border-white/15 bg-black/65 px-2 py-1 text-white backdrop-blur"><span className="font-semibold text-gold">♚ {blackName}</span><div className="truncate text-gray-300">Dimakan: {capturedByBlack.join('') || '—'}</div></div>
+        <div className="max-w-[48%] rounded-lg border border-white/15 bg-black/65 px-2 py-1 text-right text-white backdrop-blur"><span className="font-semibold text-gold">♔ {whiteName}</span><div className="truncate text-gray-300">Dimakan: {capturedByWhite.join('') || '—'}</div></div>
+      </div>
+      <div className="absolute right-2 top-16 z-30 flex items-center gap-1 rounded-lg border border-white/15 bg-black/65 p-1 text-xs text-white backdrop-blur sm:top-14">
+        <button type="button" onClick={() => setZoom((value) => Math.max(0.82, Number((value - 0.12).toFixed(2))))} className="rounded px-2 py-1 hover:bg-white/15" aria-label="Perkecil papan">−</button>
+        <span className="min-w-10 text-center text-gold">{Math.round(zoom * 100)}%</span>
+        <button type="button" onClick={() => setZoom((value) => Math.min(1.5, Number((value + 0.12).toFixed(2))))} className="rounded px-2 py-1 hover:bg-white/15" aria-label="Perbesar papan">+</button>
+        <button type="button" onClick={() => setTopDown((value) => !value)} className="rounded px-2 py-1 hover:bg-white/15" aria-label={topDown ? 'Gunakan sudut miring' : 'Luruskan kamera'}>{topDown ? 'Lurus' : 'Miring'}</button>
+        <button type="button" onClick={toggleFullscreen} className="rounded px-2 py-1 hover:bg-white/15" aria-label={isFullscreen ? 'Keluar layar penuh' : 'Layar penuh'}>{isFullscreen ? '×' : '⛶'}</button>
+      </div>
       <div className="absolute inset-0 z-10 grid grid-cols-8 grid-rows-8" role="grid" aria-label="Chess board">
         {Array.from({ length: 64 }, (_, index) => {
           const row = Math.floor(index / 8);
