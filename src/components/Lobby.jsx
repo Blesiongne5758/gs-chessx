@@ -26,6 +26,8 @@ export default function Lobby({ user, onPlay, onLogout, onEditProfile, onNavigat
   const [profile, setProfile] = useState(null);
   const [friends, setFriends] = useState([]);
   const [leaders, setLeaders] = useState([]);
+  const [leaderError, setLeaderError] = useState('');
+  const [lastLeaderSync, setLastLeaderSync] = useState(null);
 
   useEffect(() => {
     if (user.isGuest) {
@@ -35,7 +37,7 @@ export default function Lobby({ user, onPlay, onLogout, onEditProfile, onNavigat
 
     let alive = true;
     async function load() {
-      const [{ data: prof }, { data: fr }, { data: lb }] = await Promise.all([
+      const [{ data: prof }, { data: fr }, { data: lb, error: lbError }] = await Promise.all([
         supabase.from('profiles').select('*').eq('id', user.id).single(),
         supabase
           .from('friendships')
@@ -46,10 +48,12 @@ export default function Lobby({ user, onPlay, onLogout, onEditProfile, onNavigat
           `)
           .or(`requester_id.eq.${user.id},addressee_id.eq.${user.id}`)
           .eq('status', 'accepted'),
-        supabase.from('profiles').select('id, username, rating, avatar_url').order('rating', { ascending: false }).limit(10),
+        supabase.from('profiles').select('id, username, rating, avatar_url, games_played, wins, created_at').order('rating', { ascending: false }).order('created_at', { ascending: false }).limit(10),
       ]);
 
       if (!alive) return;
+      setLeaderError(lbError?.message || '');
+      setLastLeaderSync(new Date());
       setProfile(prof);
       setFriends((fr || []).map((f) => ({
         friendshipId: f.id,
@@ -63,10 +67,12 @@ export default function Lobby({ user, onPlay, onLogout, onEditProfile, onNavigat
       .channel(`dashboard-profiles-${user.id}`)
       .on('postgres_changes', { event: '*', schema: 'public', table: 'profiles' }, load)
       .subscribe();
+    const refreshTimer = window.setInterval(load, 15_000);
 
     return () => {
       alive = false;
       supabase.removeChannel(profileChannel);
+      window.clearInterval(refreshTimer);
     };
   }, [user]);
 
@@ -123,7 +129,7 @@ export default function Lobby({ user, onPlay, onLogout, onEditProfile, onNavigat
           <div className="absolute bottom-4 left-1/2 flex -translate-x-1/2 gap-2" aria-hidden="true"><span className="h-2 w-7 rounded-full bg-gold" /><span className="h-2 w-2 rounded-full bg-white/40" /><span className="h-2 w-2 rounded-full bg-white/40" /></div>
         </section>
 
-        <section className="relative -mt-7 mx-3 rounded-[1.75rem] border border-gold/50 bg-gradient-to-br from-[#17181f] via-[#11131a] to-[#252014] p-4 shadow-[0_18px_50px_rgba(0,0,0,.55)] sm:mx-8 sm:p-5">
+        <section className="relative mt-5 mx-3 rounded-[1.75rem] border border-gold/50 bg-gradient-to-br from-[#17181f] via-[#11131a] to-[#252014] p-4 shadow-[0_18px_50px_rgba(0,0,0,.55)] sm:mx-8 sm:p-5">
           <div className="flex items-center gap-4">
             <button type="button" onClick={onEditProfile} className="shrink-0 rounded-full ring-2 ring-gold/80 ring-offset-2 ring-offset-[#15161b]" aria-label="Edit profile"><Avatar name={username} url={profile?.avatar_url} size="h-16 w-16 text-2xl sm:h-20 sm:w-20 sm:text-3xl" /></button>
             <div className="min-w-0 flex-1"><p className="truncate font-cinzel text-xl font-bold text-gold sm:text-2xl">{username}</p><p className="text-sm text-gray-300">🇮🇩 Indonesia</p><span className="mt-2 inline-flex items-center gap-1 rounded-full border border-gold/40 bg-gold/10 px-3 py-1 text-xs font-bold text-gold">★ {rank}</span></div>
@@ -150,7 +156,7 @@ export default function Lobby({ user, onPlay, onLogout, onEditProfile, onNavigat
           <div className="rounded-[1.75rem] border border-white/10 bg-[#15171d] p-5 shadow-xl sm:p-6"><div className="flex items-center justify-between"><h2 className="font-cinzel text-xl font-bold">Your Stats</h2><span className="rounded-full bg-white/10 px-3 py-1 text-xs text-gray-300">This month⌄</span></div><div className="mt-6 grid grid-cols-2 gap-5 sm:grid-cols-4 lg:grid-cols-2"><Stat value={wins} label="Wins" color="text-gold" /><Stat value={Math.max(games - wins, 0)} label="Losses" color="text-rose-400" /><Stat value={`${winRate}%`} label="Win rate" color="text-emerald-400" /><Stat value={rating} label="Max rating" color="text-violet-300" /></div></div>
         </section>
 
-        <section className="mt-8 rounded-[1.75rem] border border-white/10 bg-[#111319] p-5 sm:p-6"><div className="flex items-center justify-between"><div><p className="text-xs uppercase tracking-[.25em] text-gold">Community pulse</p><h2 className="mt-1 font-cinzel text-xl font-bold">Top players</h2></div><button type="button" onClick={() => onNavigate('social')} className="text-sm text-gray-400 hover:text-white">Friends {friends.length} →</button></div>{leaders.length === 0 ? <p className="mt-5 text-sm text-gray-500">Leaderboard akan muncul setelah ada pemain terdaftar.</p> : <div className="mt-5 grid gap-2 sm:grid-cols-2">{leaders.slice(0, 4).map((player, index) => <LeaderboardRow key={player.id} rank={index + 1} name={player.username} avatarUrl={player.avatar_url} rating={player.rating} isYou={player.id === user.id} />)}</div>}</section>
+        <section className="mt-8 rounded-[1.75rem] border border-white/10 bg-[#111319] p-5 sm:p-6"><div className="flex items-center justify-between"><div><p className="text-xs uppercase tracking-[.25em] text-gold">Community pulse</p><h2 className="mt-1 font-cinzel text-xl font-bold">Top players</h2><p className="mt-1 text-[11px] text-gray-500">{lastLeaderSync ? `Live · diperbarui ${lastLeaderSync.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}` : 'Menyinkronkan pemain…'}</p></div><button type="button" onClick={() => onNavigate('social')} className="text-sm text-gray-400 hover:text-white">Friends {friends.length} →</button></div>{leaderError ? <p className="mt-5 rounded-xl border border-amber-400/30 bg-amber-400/10 p-3 text-sm text-amber-200">Top players belum dapat dimuat: {leaderError}</p> : leaders.length === 0 ? <p className="mt-5 text-sm text-gray-500">Belum ada profil pemain di database. Pemain baru akan muncul otomatis setelah registrasi dan sinkronisasi.</p> : <div className="mt-5 grid gap-2 sm:grid-cols-2">{leaders.slice(0, 4).map((player, index) => <LeaderboardRow key={player.id} rank={index + 1} name={player.username} avatarUrl={player.avatar_url} rating={player.rating} games={player.games_played} isNew={player.created_at && Date.now() - new Date(player.created_at).getTime() < 7 * 24 * 60 * 60 * 1000} isYou={player.id === user.id} />)}</div>}</section>
       </main>
 
     </div>
@@ -165,6 +171,6 @@ function Stat({ value, label, color }) {
   return <div className="text-center"><div className={`text-2xl font-bold ${color}`}>{value}</div><div className="mt-1 text-xs text-gray-400">{label}</div></div>;
 }
 
-function LeaderboardRow({ rank, name, avatarUrl, rating, isYou }) {
-  return <div className={`flex items-center gap-3 rounded-xl p-3 ${isYou ? 'border border-gold/30 bg-gold/10' : 'bg-white/[.04]'}`}><span className="w-5 text-center font-bold text-gold">{rank}</span><Avatar name={name} url={avatarUrl} size="h-8 w-8 text-sm" /><span className="flex-1 truncate text-sm font-semibold text-white">{name} {isYou && <span className="text-xs text-gold">(You)</span>}</span><span className="text-sm font-bold text-gold">{rating}</span></div>;
+function LeaderboardRow({ rank, name, avatarUrl, rating, games, isNew, isYou }) {
+  return <div className={`flex items-center gap-3 rounded-xl p-3 ${isYou ? 'border border-gold/30 bg-gold/10' : 'bg-white/[.04]'}`}><span className="w-5 text-center font-bold text-gold">{rank}</span><Avatar name={name} url={avatarUrl} size="h-8 w-8 text-sm" /><span className="min-w-0 flex-1 truncate text-sm font-semibold text-white">{name} {isYou && <span className="text-xs text-gold">(You)</span>} {isNew && <span className="rounded-full bg-emerald/15 px-1.5 py-0.5 text-[9px] font-bold uppercase text-emerald-300">New</span>}<small className="block text-[10px] font-normal text-gray-500">{games ?? 0} games</small></span><span className="text-sm font-bold text-gold">{rating ?? 1200}</span></div>;
 }
