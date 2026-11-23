@@ -32,6 +32,9 @@ export default function Lobby({ user, onPlay, onLogout, onEditProfile, onNavigat
   useEffect(() => {
     if (user.isGuest) {
       setProfile(loadGuestProfile());
+      setLeaders([]);
+      setLastLeaderSync(null);
+      setLeaderError('Mode guest tidak terhubung ke leaderboard realtime. Masuk atau daftar untuk melihat pemain Supabase.');
       return;
     }
 
