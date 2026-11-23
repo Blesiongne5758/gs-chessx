@@ -9,6 +9,7 @@ Memperbarui ruang permainan agar papan 3D dapat diputar ke kiri/kanan dan atas/b
 - Kontrol perspektif ditampilkan sebagai panel flow di bawah papan, bukan floating overlay, sehingga tidak menutupi papan. Panel berisi tombol kiri/kanan/atas/bawah, slider zoom 40%–120%, reset, fullscreen, dan petunjuk gesture.
 - **HistoricalSplash.jsx** tampil satu kali setiap Game Room mount dengan satu dari delapan momen sejarah lintas era dan ilustrasi epik khusus per momen dari aset PNG/SVG lokal; pemain dapat masuk ke papan atau melewati splash.
 - **ChessLearningPanel.jsx** menjadi mode lengkap di halaman Chess Academy di luar permainan. Story, Puzzle Strategi, dan Quiz tersedia di sana; setiap puzzle menampilkan diagram posisi catur visual, feedback jawaban, dan penjelasan.
+- **Lobby.jsx** menjadi dashboard mobile-first bergaya premium sesuai referensi: hero catur sinematik, kartu profil, grid fitur berwarna, kartu turnamen, statistik, leaderboard, serta bottom navigation mobile yang tetap terhubung ke semua fitur aplikasi.
 - Gaya visual memakai token GS-ChessX yang sudah ada (obsidian, graphite, gold, emerald) dengan panel padat dan responsif agar tidak menggeser/menutupi papan.
 
 ## Struktur proyek
@@ -23,6 +24,7 @@ Memperbarui ruang permainan agar papan 3D dapat diputar ke kiri/kanan dan atas/b
 - **Core Principles:** papan selalu menjadi fokus utama; konfigurasi berada dalam alur dokumen; edukasi singkat dan dapat dipindai; feedback interaksi jelas tanpa modal yang menghalangi permainan.
 - **Color Philosophy:** obsidian/graphite menciptakan ruang tenang untuk fokus, gold menandai perspektif dan sejarah, emerald menegaskan langkah/insight yang benar, crimson hanya untuk bahaya/skak.
 - **Layout Paradigm:** tiga kolom tetap dipertahankan; kolom tengah berisi papan dan kontrolnya secara vertikal, kolom kanan fokus pada history pertandingan. Puzzle/Quiz memiliki menu Chess Academy sendiri di luar permainan; splash menjadi satu-satunya visual pembuka yang sementara menutup layar.
+- **Dashboard adaptation:** home memakai komposisi mobile-first seperti referensi unggahan—header ringkas, hero CTA, profile summary, feature tiles dua kolom, tournament/stat cards, lalu bottom navigation pada viewport kecil.
 - **Signature Elements:** label bab sejarah bergaya arsip, tombol kamera sebagai kompas empat arah, dan feedback jawaban berupa garis gold/emerald.
 - **Interaction Philosophy:** tap tombol untuk perubahan presisi, drag untuk orbit cepat, pinch/wheel untuk zoom; tidak ada kontrol kamera yang menutupi petak.
 - **Animation:** transisi perspektif instan dan ringan; panel jawaban memakai fade/slide kecil; hormati reduced motion yang sudah didukung scene.

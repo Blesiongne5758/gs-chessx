@@ -14,6 +14,10 @@
 - [x] Puzzle dan Quiz tersedia pada menu Chess Academy di luar permainan dengan pilihan jawaban, feedback, skor, dan penjelasan.
 - [x] Setiap puzzle strategi menampilkan diagram posisi papan catur visual sebelum pertanyaan.
 
+## Dashboard UI/UX sesuai desain terbaru
+- [x] Home setelah login memakai header gelap premium, hero catur sinematik dengan CTA Quick Match dan VS AI, kartu profil/rating, grid fitur berwarna, kartu upcoming tournament, statistik, leaderboard, dan bottom navigation mobile.
+- [x] Setiap tile dashboard tetap terhubung ke fitur yang tersedia: Quick Match, VS AI, Chess Academy, Tournaments, Friends & Chat, Profile/Settings, serta Shop placeholder.
+
 ## Validasi teknis
 - [x] Build Vite, lint, dan test yang sudah ada lulus setelah perubahan.
 - [x] Perubahan dikomit dan didorong ke `main` repository `Blesiongne5758/gs-chessx`.
