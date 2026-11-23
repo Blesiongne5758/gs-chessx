@@ -194,9 +194,9 @@ export default function Social({ user, profile, onNavigate, onEditProfile, onLog
     setCameraOff(nextOff);
   }
 
-  if (user?.isGuest) return <div className="min-h-screen bg-obsidian p-6 text-white"><button onClick={() => onNavigate('lobby')} className="text-gold">← Lobby</button><div className="mx-auto mt-20 max-w-xl rounded-2xl border border-gold/30 bg-graphite p-8 text-center"><h1 className="font-cinzel text-3xl text-gold">Friends & chat</h1><p className="mt-3 text-gray-300">Masuk dengan akun Supabase untuk menggunakan kontak pertemanan dan chat.</p></div></div>;
+  if (user?.isGuest) return <div className="app-page min-h-screen bg-obsidian p-6 text-white"><TopNav active="social" onNavigate={onNavigate} profile={{ username: 'Guest' }} onEditProfile={onEditProfile} onLogout={onLogout} isAdmin /><button onClick={() => onNavigate('lobby')} className="text-gold">← Lobby</button><div className="mx-auto mt-20 max-w-xl rounded-2xl border border-gold/30 bg-graphite p-8 text-center"><h1 className="font-cinzel text-3xl text-gold">Friends & chat</h1><p className="mt-3 text-gray-300">Masuk dengan akun Supabase untuk menggunakan kontak pertemanan dan chat.</p></div></div>;
   return (
-    <div className="min-h-screen bg-obsidian p-6 text-white">
+    <div className="app-page min-h-screen bg-obsidian p-6 text-white">
       <TopNav active="social" onNavigate={onNavigate} profile={{ username: name, avatar_url: ownProfile?.avatar_url }} onEditProfile={onEditProfile} onLogout={onLogout} />
       <div className="mx-auto max-w-7xl">
         <div className="mb-6 flex flex-wrap items-end justify-between gap-4"><div><p className="text-xs uppercase tracking-[.25em] text-gold/70">GS-ChessX / Community</p><h1 className="mt-2 font-cinzel text-3xl text-gold">Friends & messages</h1><p className="mt-1 text-sm text-gray-400">Temukan lawan, terima permintaan, dan ngobrol langsung.</p></div><span className="rounded-full border border-emerald/30 bg-emerald/10 px-3 py-1 text-xs text-emerald">Akun terhubung</span></div>

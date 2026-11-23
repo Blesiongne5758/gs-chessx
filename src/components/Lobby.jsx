@@ -33,6 +33,7 @@ export default function Lobby({ user, onPlay, onLogout, onEditProfile, onNavigat
       return;
     }
 
+    let alive = true;
     async function load() {
       const [{ data: prof }, { data: fr }, { data: lb }] = await Promise.all([
         supabase.from('profiles').select('*').eq('id', user.id).single(),
@@ -48,6 +49,7 @@ export default function Lobby({ user, onPlay, onLogout, onEditProfile, onNavigat
         supabase.from('profiles').select('id, username, rating, avatar_url').order('rating', { ascending: false }).limit(10),
       ]);
 
+      if (!alive) return;
       setProfile(prof);
       setFriends((fr || []).map((f) => ({
         friendshipId: f.id,
@@ -57,6 +59,15 @@ export default function Lobby({ user, onPlay, onLogout, onEditProfile, onNavigat
     }
 
     load();
+    const profileChannel = supabase
+      .channel(`dashboard-profiles-${user.id}`)
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'profiles' }, load)
+      .subscribe();
+
+    return () => {
+      alive = false;
+      supabase.removeChannel(profileChannel);
+    };
   }, [user]);
 
   const username = profile?.username || user.email?.split('@')[0] || 'Player';
@@ -83,7 +94,7 @@ export default function Lobby({ user, onPlay, onLogout, onEditProfile, onNavigat
   }
 
   return (
-    <div className="min-h-screen overflow-x-hidden bg-[#08090d] text-white">
+    <div className="app-page min-h-screen overflow-x-hidden bg-[#08090d] text-white">
       <TopNav
         active="lobby"
         onNavigate={onNavigate}
@@ -142,7 +153,6 @@ export default function Lobby({ user, onPlay, onLogout, onEditProfile, onNavigat
         <section className="mt-8 rounded-[1.75rem] border border-white/10 bg-[#111319] p-5 sm:p-6"><div className="flex items-center justify-between"><div><p className="text-xs uppercase tracking-[.25em] text-gold">Community pulse</p><h2 className="mt-1 font-cinzel text-xl font-bold">Top players</h2></div><button type="button" onClick={() => onNavigate('social')} className="text-sm text-gray-400 hover:text-white">Friends {friends.length} →</button></div>{leaders.length === 0 ? <p className="mt-5 text-sm text-gray-500">Leaderboard akan muncul setelah ada pemain terdaftar.</p> : <div className="mt-5 grid gap-2 sm:grid-cols-2">{leaders.slice(0, 4).map((player, index) => <LeaderboardRow key={player.id} rank={index + 1} name={player.username} avatarUrl={player.avatar_url} rating={player.rating} isYou={player.id === user.id} />)}</div>}</section>
       </main>
 
-      <nav className="fixed inset-x-3 bottom-3 z-40 mx-auto flex max-w-xl items-center justify-around rounded-[1.5rem] border border-white/15 bg-[#0d0f15]/95 px-2 py-3 shadow-2xl shadow-black/50 backdrop-blur-xl sm:hidden" aria-label="Primary navigation"><BottomNavItem active icon="⌂" label="Home" onClick={() => onNavigate('lobby')} /><BottomNavItem icon="♟" label="Play" onClick={startQuickMatch} /><BottomNavItem icon="♜" label="Tournaments" onClick={() => onNavigate('tournaments')} /><BottomNavItem icon="☁" label="Chat" onClick={() => onNavigate('social')} /><BottomNavItem icon="●" label="Profile" onClick={onEditProfile} /></nav>
     </div>
   );
 }
@@ -153,10 +163,6 @@ function MiniStat({ icon, value, label, tone = 'text-gold' }) {
 
 function Stat({ value, label, color }) {
   return <div className="text-center"><div className={`text-2xl font-bold ${color}`}>{value}</div><div className="mt-1 text-xs text-gray-400">{label}</div></div>;
-}
-
-function BottomNavItem({ active = false, icon, label, onClick }) {
-  return <button type="button" onClick={onClick} className={`flex min-w-0 flex-1 flex-col items-center gap-1 text-[10px] transition ${active ? 'text-gold' : 'text-gray-400 hover:text-white'}`}><span className={`text-2xl leading-6 ${active ? 'drop-shadow-[0_0_8px_rgba(245,158,11,.8)]' : ''}`}>{icon}</span>{label}</button>;
 }
 
 function LeaderboardRow({ rank, name, avatarUrl, rating, isYou }) {

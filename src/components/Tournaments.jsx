@@ -103,7 +103,7 @@ export default function Tournaments({ user, onNavigate, onEditProfile, onLogout,
   }
 
   return (
-    <div className="min-h-screen bg-obsidian p-6">
+    <div className="app-page min-h-screen bg-obsidian p-6">
       <TopNav
         active="tournaments"
         onNavigate={onNavigate}

@@ -5,7 +5,7 @@ export default function LearningHub({ user, onNavigate, onEditProfile, onLogout 
   const username = user?.isGuest ? 'You (Guest)' : user?.user_metadata?.username || user?.email?.split('@')[0] || 'Player';
 
   return (
-    <div className="min-h-screen bg-obsidian p-6">
+    <div className="app-page min-h-screen bg-obsidian p-6">
       <TopNav
         active="learning"
         onNavigate={onNavigate}

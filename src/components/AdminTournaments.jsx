@@ -554,7 +554,7 @@ export default function AdminTournaments({ user, onNavigate, onEditProfile, onLo
 
 function Shell({ user, profile, onNavigate, onEditProfile, onLogout, isAdmin, children }) {
   return (
-    <div className="min-h-screen bg-obsidian p-6">
+    <div className="app-page min-h-screen bg-obsidian p-6">
       <TopNav
         active="admin"
         onNavigate={onNavigate}

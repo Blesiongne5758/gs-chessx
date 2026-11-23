@@ -17,6 +17,8 @@
 ## Dashboard UI/UX sesuai desain terbaru
 - [x] Home setelah login memakai header gelap premium, hero catur sinematik dengan CTA Quick Match dan VS AI, kartu profil/rating, grid fitur berwarna, kartu upcoming tournament, statistik, leaderboard, dan bottom navigation mobile.
 - [x] Setiap tile dashboard tetap terhubung ke fitur yang tersedia: Quick Match, VS AI, Chess Academy, Tournaments, Friends & Chat, Profile/Settings, serta Shop placeholder.
+- [x] Header atas fixed dan tidak bergerak, bottom navigation fixed tersedia pada seluruh halaman terautentikasi, dan safe-area memastikan konten tidak tertutup navigasi.
+- [x] ELO rating, win rate, jumlah games, dan daftar top players diperbarui realtime melalui subscription perubahan tabel profiles; mode tamu memakai fallback localStorage.
 
 ## Validasi teknis
 - [x] Build Vite, lint, dan test yang sudah ada lulus setelah perubahan.

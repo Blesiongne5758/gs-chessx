@@ -6,6 +6,7 @@ import { getIceServers } from '../lib/webrtc';
 const ChessBoard3D = lazy(() => import('./ChessBoard3D'));
 import ChessPiece2D from './ChessPiece2D';
 import HistoricalSplash from './HistoricalSplash';
+import TopNav from './TopNav';
 import { CHESS_SKIN_LIST, resolveChessSkin } from '../lib/chessSkins';
 
 const PIECES = {
@@ -49,7 +50,7 @@ function chooseComputerMove(position, level = 10) {
   return { from: best.from, to: best.to, promotion: best.promotion || 'q' };
 }
 
-export default function GameRoom({ user, timeControl, match, onBack, onSocial }) {
+export default function GameRoom({ user, timeControl, match, onBack, onSocial, onNavigate, onEditProfile, onLogout }) {
   const base = timeControl?.base ?? 600;
   const inc = timeControl?.inc ?? 0;
 
@@ -301,15 +302,9 @@ export default function GameRoom({ user, timeControl, match, onBack, onSocial })
   const activeSkin = resolveChessSkin(skinId, customization);
 
   return (
-    <div className="min-h-screen bg-obsidian flex flex-col">
-      {/* Header */}
-      <nav className="flex justify-between items-center p-4 bg-graphite border-b border-gold/30">
-        <button onClick={onBack} className="px-4 py-2 text-gray-300 hover:text-white">
-          ← Back to Lobby
-        </button>
-        <div className="text-xl font-cinzel font-bold text-gold">♟️ GS-ChessX</div>
-        <div className="text-gray-400 text-sm">{timeControl?.label}</div>
-      </nav>
+    <div className="app-page min-h-screen bg-obsidian flex flex-col">
+      <TopNav active="game" onNavigate={onNavigate} profile={{ username: youName }} onEditProfile={onEditProfile} onLogout={onLogout} isAdmin={user?.isGuest} />
+      <div className="mx-auto flex w-full max-w-6xl items-center justify-between px-4 pt-4 text-sm"><button onClick={onBack} className="text-gray-300 hover:text-white">← Back to Lobby</button><span className="text-gray-500">{timeControl?.label}</span></div>
 
       {/* Game Area */}
       <div className="flex-1 flex items-center justify-center p-6">

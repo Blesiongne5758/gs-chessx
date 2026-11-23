@@ -2,9 +2,10 @@ import { useEffect, useRef, useState } from 'react';
 import toast from 'react-hot-toast';
 import { supabase } from '../lib/supabaseClient';
 import Avatar from './Avatar';
+import TopNav from './TopNav';
 import { fetchProfile, updateProfile, validateUsername, validateAvatarFile, resizeImage } from '../lib/profile';
 
-export default function EditProfile({ user, onBack }) {
+export default function EditProfile({ user, onBack, onNavigate, onEditProfile, onLogout }) {
   const [profile, setProfile] = useState(null);
   const [username, setUsername] = useState('');
   const [avatarBlob, setAvatarBlob] = useState(null);
@@ -116,13 +117,11 @@ export default function EditProfile({ user, onBack }) {
   }
 
   return (
-    <div className="min-h-screen bg-obsidian p-6">
-      <nav className="flex justify-between items-center mb-8 max-w-3xl mx-auto">
-        <button onClick={onBack} className="px-4 py-2 text-gray-300 hover:text-white">
-          ← Back to Lobby
-        </button>
-        <div className="text-2xl font-cinzel font-bold text-gold">♟️ GS-ChessX</div>
-      </nav>
+    <div className="app-page min-h-screen bg-obsidian p-6">
+      <TopNav active="profile" onNavigate={onNavigate} profile={{ username: profile?.username || username, avatar_url: profile?.avatar_url }} onEditProfile={onEditProfile} onLogout={onLogout} isAdmin={user?.isGuest} />
+      <button onClick={onBack} className="mx-auto mb-8 block max-w-3xl text-left text-sm text-gray-300 hover:text-white">
+        ← Back to Lobby
+      </button>
 
       <div className="max-w-xl mx-auto bg-graphite border border-gold/30 rounded-xl p-8">
         <h1 className="text-2xl font-cinzel font-bold text-gold mb-1">Edit Profile</h1>

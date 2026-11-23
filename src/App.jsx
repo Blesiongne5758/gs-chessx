@@ -126,6 +126,9 @@ function App() {
         <QuickMatch
           user={user}
           timeControl={timeControl}
+          onNavigate={setPage}
+          onEditProfile={() => setPage('profile')}
+          onLogout={handleLogout}
           onBack={() => setPage('lobby')}
           onMatched={(nextMatch) => { setMatch(nextMatch); setTimeControl(nextMatch.timeControl || timeControl); setPage('game'); }}
         />
@@ -149,7 +152,7 @@ function App() {
         />
       )}
 
-      {page === 'profile' && user && <EditProfile user={user} onBack={() => setPage('lobby')} />}
+      {page === 'profile' && user && <EditProfile user={user} onBack={() => setPage('lobby')} onNavigate={setPage} onEditProfile={() => setPage('profile')} onLogout={handleLogout} />}
 
       {page === 'social' && user && (
         <Social user={user} onNavigate={setPage} onEditProfile={() => setPage('profile')} onLogout={handleLogout} />
@@ -160,7 +163,7 @@ function App() {
       )}
 
       {page === 'game' && user && (
-        <GameRoom user={user} timeControl={timeControl} match={match} onBack={() => { setMatch(null); setPage('lobby'); }} onSocial={() => setPage('social')} />
+        <GameRoom user={user} timeControl={timeControl} match={match} onBack={() => { setMatch(null); setPage('lobby'); }} onSocial={() => setPage('social')} onNavigate={setPage} onEditProfile={() => setPage('profile')} onLogout={handleLogout} />
       )}
 
       {authMode && (

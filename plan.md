@@ -10,6 +10,8 @@ Memperbarui ruang permainan agar papan 3D dapat diputar ke kiri/kanan dan atas/b
 - **HistoricalSplash.jsx** tampil satu kali setiap Game Room mount dengan satu dari delapan momen sejarah lintas era dan ilustrasi epik khusus per momen dari aset PNG/SVG lokal; pemain dapat masuk ke papan atau melewati splash.
 - **ChessLearningPanel.jsx** menjadi mode lengkap di halaman Chess Academy di luar permainan. Story, Puzzle Strategi, dan Quiz tersedia di sana; setiap puzzle menampilkan diagram posisi catur visual, feedback jawaban, dan penjelasan.
 - **Lobby.jsx** menjadi dashboard mobile-first bergaya premium sesuai referensi: hero catur sinematik, kartu profil, grid fitur berwarna, kartu turnamen, statistik, leaderboard, serta bottom navigation mobile yang tetap terhubung ke semua fitur aplikasi.
+- **TopNav.jsx** menjadi shell navigasi global dengan header fixed yang tidak ikut scroll, bottom navigation fixed di seluruh halaman terautentikasi, dan spacer/safe-area agar konten tidak tertutup.
+- Dashboard berlangganan perubahan realtime tabel `profiles` untuk memperbarui ELO, win rate, games, dan daftar top players tanpa reload manual; mode tamu tetap memakai profil lokal.
 - Gaya visual memakai token GS-ChessX yang sudah ada (obsidian, graphite, gold, emerald) dengan panel padat dan responsif agar tidak menggeser/menutupi papan.
 
 ## Struktur proyek
