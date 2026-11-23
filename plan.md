@@ -7,7 +7,7 @@ Memperbarui ruang permainan agar papan 3D dapat diputar ke kiri/kanan dan atas/b
 - **ChessBoard3D.jsx** tetap menjadi pemilik state kamera/perspektif: azimuth horizontal, kemiringan vertikal, zoom ter-clamp pada 0.4–1.2, reset, fullscreen, wheel zoom, drag orbit, dan pinch zoom.
 - Interaksi petak memakai **Three.js raycaster** pada canvas, sehingga pemilihan petak tetap akurat walaupun kamera miring atau diputar. Highlight petak legal, langkah terakhir, dan skak dirender di scene 3D; overlay HTML hanya menyisakan informasi pemain yang pointer-transparent.
 - Kontrol perspektif ditampilkan sebagai panel flow di bawah papan, bukan floating overlay, sehingga tidak menutupi papan. Panel berisi tombol kiri/kanan/atas/bawah, slider zoom 40%–120%, reset, fullscreen, dan petunjuk gesture.
-- **HistoricalSplash.jsx** tampil satu kali setiap Game Room mount dengan satu dari delapan momen sejarah lintas era dan visual CSS epik yang dipilih acak; pemain dapat masuk ke papan atau melewati splash.
+- **HistoricalSplash.jsx** tampil satu kali setiap Game Room mount dengan satu dari delapan momen sejarah lintas era dan ilustrasi epik khusus per momen dari aset PNG/SVG lokal; pemain dapat masuk ke papan atau melewati splash.
 - **ChessLearningPanel.jsx** menjadi mode lengkap di halaman Chess Academy di luar permainan. Story, Puzzle Strategi, dan Quiz tersedia di sana; setiap puzzle menampilkan diagram posisi catur visual, feedback jawaban, dan penjelasan.
 - Gaya visual memakai token GS-ChessX yang sudah ada (obsidian, graphite, gold, emerald) dengan panel padat dan responsif agar tidak menggeser/menutupi papan.
 

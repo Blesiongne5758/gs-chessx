@@ -10,7 +10,7 @@
 ## Splash sejarah dan Chess Academy di luar permainan
 - [x] Storytelling sejarah dihapus dari dalam permainan Quick Match dan VS AI karena tersedia pada menu Chess Academy.
 - [x] Saat memasuki ruang permainan, satu splash sejarah epik dipilih secara random dan menampilkan visual momen sejarah, tahun, narasi singkat, pelajaran strategi, serta tombol masuk atau lewati.
-- [x] Bank splash diperluas menjadi delapan momen ikonik lintas era, masing-masing dengan visual CSS epik yang berbeda.
+- [x] Bank splash diperluas menjadi delapan momen ikonik lintas era, masing-masing dengan ilustrasi epik unik berbasis aset PNG/SVG.
 - [x] Puzzle dan Quiz tersedia pada menu Chess Academy di luar permainan dengan pilihan jawaban, feedback, skor, dan penjelasan.
 - [x] Setiap puzzle strategi menampilkan diagram posisi papan catur visual sebelum pertanyaan.
 
