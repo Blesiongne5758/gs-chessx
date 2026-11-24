@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useRef, useState, useCallback } from 'react';
 import toast from 'react-hot-toast';
 import { supabase } from '../lib/supabaseClient';
 import Avatar from './Avatar';
@@ -16,18 +16,27 @@ export default function Social({ user, profile, onNavigate, onEditProfile, onLog
   const [draft, setDraft] = useState('');
   const [loading, setLoading] = useState(true);
   const [ownProfile, setOwnProfile] = useState(profile || null);
+
+  // WebRTC Call State
   const [mediaOpen, setMediaOpen] = useState(false);
+  const [callType, setCallType] = useState('video'); // 'voice' | 'video'
+  const [callMinimized, setCallMinimized] = useState(false);
+  const [callStatus, setCallStatus] = useState('');
+  const [callDuration, setCallDuration] = useState(0);
   const [mediaError, setMediaError] = useState('');
   const [incomingOffer, setIncomingOffer] = useState(null);
-  const [callStatus, setCallStatus] = useState('');
   const [remoteStream, setRemoteStream] = useState(null);
   const [micMuted, setMicMuted] = useState(false);
   const [cameraOff, setCameraOff] = useState(false);
+
   const videoRef = useRef(null);
   const remoteVideoRef = useRef(null);
   const mediaRef = useRef(null);
   const peerRef = useRef(null);
   const pendingCandidatesRef = useRef([]);
+  const activeRef = useRef(active);
+  activeRef.current = active;
+
   const name = ownProfile?.username || user.email?.split('@')[0] || 'Player';
 
   useEffect(() => {
@@ -37,41 +46,187 @@ export default function Social({ user, profile, onNavigate, onEditProfile, onLog
 
   async function loadFriends() {
     if (!user || user.isGuest) return;
-    const { data, error } = await supabase.from('friendships').select(`id, status, requester_id, addressee_id, requester:profiles!requester_id(id, username, avatar_url, rating), addressee:profiles!addressee_id(id, username, avatar_url, rating)`).or(`requester_id.eq.${user.id},addressee_id.eq.${user.id}`).order('created_at', { ascending: false });
+    const { data, error } = await supabase
+      .from('friendships')
+      .select(`id, status, requester_id, addressee_id, requester:profiles!requester_id(id, username, avatar_url, rating), addressee:profiles!addressee_id(id, username, avatar_url, rating)`)
+      .or(`requester_id.eq.${user.id},addressee_id.eq.${user.id}`)
+      .order('created_at', { ascending: false });
     if (error) { toast.error(error.message); setLoading(false); return; }
     const rows = data || [];
     setFriends(rows.filter((f) => f.status === 'accepted').map((f) => ({ friendshipId: f.id, ...(f.requester_id === user.id ? f.addressee : f.requester) })));
     setRequests(rows.filter((f) => f.status === 'pending').map((f) => ({ ...f, other: f.requester_id === user.id ? f.addressee : f.requester, incoming: f.addressee_id === user.id })));
     setLoading(false);
   }
+
   useEffect(() => { loadFriends(); }, [user]);
 
+  // Call duration counter
+  useEffect(() => {
+    let interval = null;
+    if (callStatus === 'Terhubung') {
+      interval = setInterval(() => {
+        setCallDuration((prev) => prev + 1);
+      }, 1000);
+    } else {
+      setCallDuration(0);
+    }
+    return () => {
+      if (interval) clearInterval(interval);
+    };
+  }, [callStatus]);
+
+  function formatDuration(sec) {
+    const m = Math.floor(sec / 60).toString().padStart(2, '0');
+    const s = (sec % 60).toString().padStart(2, '0');
+    return `${m}:${s}`;
+  }
+
+  // Peer Connection Factory
+  const makePeer = useCallback(async (targetUserId, stream) => {
+    const iceServers = await getIceServers();
+    const peer = new RTCPeerConnection({ iceServers });
+    peerRef.current = peer;
+
+    if (stream) {
+      stream.getTracks().forEach((track) => peer.addTrack(track, stream));
+    }
+
+    peer.ontrack = (event) => {
+      if (event.streams && event.streams[0]) {
+        setRemoteStream(event.streams[0]);
+      }
+    };
+
+    peer.onconnectionstatechange = () => {
+      if (peer.connectionState === 'connected') {
+        setCallStatus('Terhubung');
+      } else if (peer.connectionState === 'failed') {
+        setCallStatus('Koneksi gagal');
+        setMediaError('Koneksi WebRTC gagal. Periksa jaringan atau izin perangkat.');
+      } else if (peer.connectionState === 'disconnected' || peer.connectionState === 'closed') {
+        setCallStatus('Terputus');
+      }
+    };
+
+    peer.onicecandidate = ({ candidate }) => {
+      if (candidate) {
+        supabase.from('call_signals').insert({
+          sender_id: user.id,
+          recipient_id: targetUserId,
+          kind: 'candidate',
+          payload: candidate.toJSON()
+        }).then(() => {}).catch(console.warn);
+      }
+    };
+
+    return peer;
+  }, [user?.id]);
+
+  const endCall = useCallback((notifyPeer = true) => {
+    const targetId = activeRef.current?.id || incomingOffer?.sender_id;
+    if (notifyPeer && targetId && (peerRef.current || incomingOffer)) {
+      supabase.from('call_signals').insert({
+        sender_id: user.id,
+        recipient_id: targetId,
+        kind: 'hangup',
+        payload: null
+      }).then(() => {}).catch(console.warn);
+    }
+    peerRef.current?.close();
+    peerRef.current = null;
+    mediaRef.current?.getTracks().forEach((track) => track.stop());
+    mediaRef.current = null;
+    setRemoteStream(null);
+    setIncomingOffer(null);
+    setCallStatus('');
+    setMediaOpen(false);
+    setCallMinimized(false);
+    setMicMuted(false);
+    setCameraOff(false);
+    setCallDuration(0);
+    pendingCandidatesRef.current = [];
+  }, [user?.id, incomingOffer]);
+
+  // Global Call Signal Receiver (handles incoming calls regardless of active chat selection)
+  useEffect(() => {
+    if (!user || user.isGuest) return undefined;
+
+    async function handleSignal(row) {
+      if (row.recipient_id !== user.id) return;
+
+      if (row.kind === 'offer') {
+        // Find caller info
+        let caller = friends.find((f) => f.id === row.sender_id);
+        if (!caller) {
+          const { data } = await supabase.from('profiles').select('id, username, avatar_url, rating').eq('id', row.sender_id).single();
+          caller = data || { id: row.sender_id, username: 'Player' };
+        }
+        setIncomingOffer({ ...row, caller });
+        setCallType(row.payload?.callType || 'video');
+        setCallStatus('Panggilan masuk');
+        return;
+      }
+
+      if (row.kind === 'answer') {
+        if (peerRef.current) {
+          const sdpData = row.payload?.sdp || row.payload;
+          await peerRef.current.setRemoteDescription(new RTCSessionDescription(sdpData));
+          while (pendingCandidatesRef.current.length > 0) {
+            const candidate = pendingCandidatesRef.current.shift();
+            await peerRef.current.addIceCandidate(candidate).catch(console.warn);
+          }
+          setCallStatus('Terhubung');
+        }
+        return;
+      }
+
+      if (row.kind === 'candidate') {
+        if (row.payload) {
+          const candidate = new RTCIceCandidate(row.payload);
+          if (peerRef.current?.remoteDescription?.type) {
+            await peerRef.current.addIceCandidate(candidate).catch(console.warn);
+          } else {
+            pendingCandidatesRef.current.push(candidate);
+          }
+        }
+        return;
+      }
+
+      if (row.kind === 'hangup') {
+        endCall(false);
+        toast('Panggilan diakhiri oleh lawan bicara');
+      }
+    }
+
+    const channel = supabase
+      .channel(`user_calls:${user.id}`)
+      .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'call_signals', filter: `recipient_id=eq.${user.id}` }, ({ new: row }) => {
+        handleSignal(row).catch((err) => setMediaError(err.message));
+      })
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [user?.id, friends, endCall]);
+
+  // Messages & active chat loader
   useEffect(() => {
     if (!active) { setMessages([]); return undefined; }
     let alive = true;
     async function loadMessages() {
-      const { data, error } = await supabase.from('chat_messages').select('id, sender_id, recipient_id, body, created_at').or(`and(sender_id.eq.${user.id},recipient_id.eq.${active.id}),and(sender_id.eq.${active.id},recipient_id.eq.${user.id})`).order('created_at', { ascending: true }).limit(100);
+      const { data, error } = await supabase
+        .from('chat_messages')
+        .select('id, sender_id, recipient_id, body, created_at')
+        .or(`and(sender_id.eq.${user.id},recipient_id.eq.${active.id}),and(sender_id.eq.${active.id},recipient_id.eq.${user.id})`)
+        .order('created_at', { ascending: true })
+        .limit(100);
       if (!alive) return;
       if (error) toast.error(`Chat belum siap: ${error.message}`);
       setMessages(data || []);
     }
     loadMessages();
-    async function receiveSignal(row) {
-      if (row.recipient_id !== user.id || row.sender_id !== active.id) return;
-      if (row.kind === 'offer') { setIncomingOffer(row); setCallStatus('Panggilan masuk'); setMediaOpen(true); return; }
-      if (row.kind === 'answer' && peerRef.current) {
-        await peerRef.current.setRemoteDescription(row.payload);
-        for (const candidate of pendingCandidatesRef.current) await peerRef.current.addIceCandidate(candidate);
-        pendingCandidatesRef.current = [];
-        setCallStatus('Menyambungkan media…');
-      }
-      if (row.kind === 'candidate' && row.payload) {
-        const candidate = new RTCIceCandidate(row.payload);
-        if (peerRef.current?.remoteDescription) await peerRef.current.addIceCandidate(candidate);
-        else pendingCandidatesRef.current.push(candidate);
-      }
-      if (row.kind === 'hangup') endCall(false);
-    }
+
     const channel = supabase.channel(`chat:${[user.id, active.id].sort().join(':')}`)
       .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'chat_messages' }, (payload) => {
         const row = payload.new;
@@ -79,18 +234,28 @@ export default function Social({ user, profile, onNavigate, onEditProfile, onLog
           setMessages((old) => old.some((m) => m.id === row.id) ? old : [...old, row]);
         }
       })
-      .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'call_signals' }, ({ new: row }) => { receiveSignal(row).catch((error) => setMediaError(error.message)); })
       .subscribe();
+
     return () => { alive = false; supabase.removeChannel(channel); };
   }, [active?.id, user?.id]);
 
+  // Video element binding
   useEffect(() => {
-    if (!mediaOpen || !videoRef.current || !mediaRef.current) return;
-    videoRef.current.srcObject = mediaRef.current;
-    return undefined;
-  }, [mediaOpen, callStatus]);
-  useEffect(() => { if (remoteVideoRef.current) remoteVideoRef.current.srcObject = remoteStream; }, [remoteStream, mediaOpen]);
-  useEffect(() => () => { peerRef.current?.close(); mediaRef.current?.getTracks().forEach((track) => track.stop()); }, []);
+    if (!mediaOpen) return;
+    if (videoRef.current && mediaRef.current) {
+      videoRef.current.srcObject = mediaRef.current;
+      videoRef.current.play().catch(() => {});
+    }
+    if (remoteVideoRef.current && remoteStream) {
+      remoteVideoRef.current.srcObject = remoteStream;
+      remoteVideoRef.current.play().catch(() => {});
+    }
+  }, [mediaOpen, remoteStream, callMinimized, callType]);
+
+  useEffect(() => () => {
+    peerRef.current?.close();
+    mediaRef.current?.getTracks().forEach((track) => track.stop());
+  }, []);
 
   async function searchPlayers(e) {
     e?.preventDefault();
@@ -100,15 +265,18 @@ export default function Social({ user, profile, onNavigate, onEditProfile, onLog
     if (error) toast.error(error.message);
     setResults(data || []);
   }
+
   async function sendRequest(player) {
     const { error } = await supabase.from('friendships').insert({ requester_id: user.id, addressee_id: player.id });
     if (error) toast.error(error.code === '23505' ? 'Permintaan pertemanan sudah ada.' : error.message);
     else { toast.success(`Permintaan dikirim ke ${player.username}`); loadFriends(); }
   }
+
   async function respond(request, status) {
     const { error } = await supabase.from('friendships').update({ status }).eq('id', request.id).eq('addressee_id', user.id);
     if (error) toast.error(error.message); else loadFriends();
   }
+
   async function sendMessage(e) {
     e.preventDefault();
     const body = draft.trim();
@@ -118,76 +286,132 @@ export default function Social({ user, profile, onNavigate, onEditProfile, onLog
     if (error) { setDraft(body); toast.error(error.message); return; }
     setMessages((old) => old.some((m) => m.id === data.id) ? old : [...old, data]);
   }
-  async function makePeer(friendId, stream) {
-    const peer = new RTCPeerConnection({ iceServers: await getIceServers() });
-    peerRef.current = peer;
-    stream.getTracks().forEach((track) => peer.addTrack(track, stream));
-    peer.ontrack = (event) => setRemoteStream(event.streams[0]);
-    peer.onconnectionstatechange = () => {
-      if (peer.connectionState === 'connected') setCallStatus('Terhubung');
-      else if (peer.connectionState === 'failed') {
-        setCallStatus('Koneksi gagal');
-        setMediaError('Koneksi gagal. Pastikan TURN server dan firewall mengizinkan relay.');
-      }
-    };
-    peer.onicecandidate = ({ candidate }) => {
-      if (candidate) supabase.from('call_signals').insert({ sender_id: user.id, recipient_id: friendId, kind: 'candidate', payload: candidate.toJSON() });
-    };
-    return peer;
-  }
-  async function openMedia() {
+
+  // Start Call (Voice Talk or Video Talk)
+  async function startCall(type = 'video') {
+    if (!active) {
+      toast.error('Pilih teman terlebih dahulu untuk memulai panggilan');
+      return;
+    }
     setMediaError('');
+    setCallType(type);
+    setCallMinimized(false);
     try {
-      if (!navigator.mediaDevices?.getUserMedia) throw new Error('Browser ini tidak mendukung akses kamera/mikrofon. Gunakan HTTPS dan periksa izin perangkat.');
-      mediaRef.current = await navigator.mediaDevices.getUserMedia({ audio: true, video: true });
+      if (!navigator.mediaDevices?.getUserMedia) {
+        throw new Error('Browser ini tidak mendukung akses kamera/mikrofon. Pastikan menggunakan HTTPS.');
+      }
+      const stream = await navigator.mediaDevices.getUserMedia({
+        audio: true,
+        video: type === 'video' ? { width: { ideal: 1280 }, height: { ideal: 720 } } : false
+      });
+      mediaRef.current = stream;
       setMicMuted(false);
-      setCameraOff(false);
+      setCameraOff(type === 'voice');
       setMediaOpen(true);
-      const peer = await makePeer(active.id, mediaRef.current);
-      const offer = await peer.createOffer();
-      await peer.setLocalDescription(offer);
-      const { error } = await supabase.from('call_signals').insert({ sender_id: user.id, recipient_id: active.id, kind: 'offer', payload: peer.localDescription.toJSON() });
-      if (error) throw error;
       setCallStatus('Memanggil…');
-    } catch (error) { setMediaError(error.message); }
+
+      const peer = await makePeer(active.id, stream);
+      const offer = await peer.createOffer({
+        offerToReceiveAudio: true,
+        offerToReceiveVideo: type === 'video'
+      });
+      await peer.setLocalDescription(offer);
+
+      const { error } = await supabase.from('call_signals').insert({
+        sender_id: user.id,
+        recipient_id: active.id,
+        kind: 'offer',
+        payload: {
+          type: offer.type,
+          sdp: offer.sdp,
+          callType: type
+        }
+      });
+      if (error) throw error;
+    } catch (error) {
+      setMediaError(error.message);
+      toast.error(error.message || 'Gagal memulai panggilan');
+    }
   }
+
+  // Accept Incoming Call
   async function acceptCall() {
-    if (!incomingOffer || !active) return;
+    if (!incomingOffer) return;
+    const callerId = incomingOffer.sender_id;
+    const type = incomingOffer.payload?.callType || 'video';
+    setCallType(type);
+    setCallStatus('Menghubungkan…');
+    setCallMinimized(false);
     try {
-      mediaRef.current = await navigator.mediaDevices.getUserMedia({ audio: true, video: true });
+      if (!navigator.mediaDevices?.getUserMedia) {
+        throw new Error('Browser ini tidak mendukung akses media.');
+      }
+      const stream = await navigator.mediaDevices.getUserMedia({
+        audio: true,
+        video: type === 'video' ? { width: { ideal: 1280 }, height: { ideal: 720 } } : false
+      });
+      mediaRef.current = stream;
       setMicMuted(false);
-      setCameraOff(false);
+      setCameraOff(type === 'voice');
       setMediaOpen(true);
-      const peer = await makePeer(active.id, mediaRef.current);
-      await peer.setRemoteDescription(incomingOffer.payload);
-      for (const candidate of pendingCandidatesRef.current) await peer.addIceCandidate(candidate);
-      pendingCandidatesRef.current = [];
+
+      // Switch active chat to caller if needed
+      if (!active || active.id !== callerId) {
+        const callerFriend = friends.find((f) => f.id === callerId) || incomingOffer.caller;
+        if (callerFriend) setActive(callerFriend);
+      }
+
+      const peer = await makePeer(callerId, stream);
+      const offerData = incomingOffer.payload?.sdp ? incomingOffer.payload : incomingOffer.payload;
+      await peer.setRemoteDescription(new RTCSessionDescription(offerData));
+
+      while (pendingCandidatesRef.current.length > 0) {
+        const candidate = pendingCandidatesRef.current.shift();
+        await peer.addIceCandidate(candidate).catch(console.warn);
+      }
+
       const answer = await peer.createAnswer();
       await peer.setLocalDescription(answer);
-      const { error } = await supabase.from('call_signals').insert({ sender_id: user.id, recipient_id: active.id, kind: 'answer', payload: peer.localDescription.toJSON() });
+
+      const { error } = await supabase.from('call_signals').insert({
+        sender_id: user.id,
+        recipient_id: callerId,
+        kind: 'answer',
+        payload: {
+          type: answer.type,
+          sdp: answer.sdp,
+          callType: type
+        }
+      });
       if (error) throw error;
       setIncomingOffer(null);
-      setCallStatus('Menghubungkan…');
-    } catch (error) { setMediaError(error.message); }
+    } catch (error) {
+      setMediaError(error.message);
+      toast.error(error.message || 'Gagal menerima panggilan');
+    }
   }
-  function endCall(notifyPeer = true) {
-    if (notifyPeer && active && peerRef.current) supabase.from('call_signals').insert({ sender_id: user.id, recipient_id: active.id, kind: 'hangup', payload: null });
-    peerRef.current?.close();
-    peerRef.current = null;
-    mediaRef.current?.getTracks().forEach((track) => track.stop());
-    mediaRef.current = null;
-    setRemoteStream(null);
-    setIncomingOffer(null);
-    setCallStatus('');
-    setMediaOpen(false);
-    setMicMuted(false);
-    setCameraOff(false);
+
+  // Reject Incoming Call
+  async function rejectCall() {
+    if (incomingOffer) {
+      await supabase.from('call_signals').insert({
+        sender_id: user.id,
+        recipient_id: incomingOffer.sender_id,
+        kind: 'hangup',
+        payload: null
+      }).catch(console.warn);
+      setIncomingOffer(null);
+      setCallStatus('');
+      toast('Panggilan ditolak');
+    }
   }
+
   function toggleMicrophone() {
     const nextMuted = !micMuted;
     mediaRef.current?.getAudioTracks().forEach((track) => { track.enabled = !nextMuted; });
     setMicMuted(nextMuted);
   }
+
   function toggleCamera() {
     const nextOff = !cameraOff;
     mediaRef.current?.getVideoTracks().forEach((track) => { track.enabled = !nextOff; });
@@ -219,7 +443,7 @@ export default function Social({ user, profile, onNavigate, onEditProfile, onLog
           <div>
             <p className="text-xs uppercase tracking-[.25em] text-gold/70">GS-ChessX / Community</p>
             <h1 className="mt-2 font-cinzel text-3xl font-bold text-gold">Friends & messages</h1>
-            <p className="mt-1 text-sm text-gray-400">Temukan lawan, terima permintaan, dan ngobrol langsung.</p>
+            <p className="mt-1 text-sm text-gray-400">Temukan lawan, terima permintaan, dan ngobrol langsung dengan voice & video talk.</p>
           </div>
           <span className="rounded-full border border-emerald/30 bg-emerald/10 px-3 py-1 text-xs text-emerald">Akun terhubung</span>
         </div>
@@ -291,8 +515,8 @@ export default function Social({ user, profile, onNavigate, onEditProfile, onLog
           <section className={`flex flex-col h-[580px] sm:h-[640px] overflow-hidden rounded-2xl border border-gold/20 bg-graphite shadow-xl ${!active ? 'hidden lg:flex' : 'flex'}`}>
             {active ? (
               <>
-                <header className="flex items-center justify-between border-b border-white/5 bg-slate/20 p-4">
-                  <div className="flex items-center gap-3">
+                <header className="flex items-center justify-between border-b border-white/5 bg-slate/20 p-3.5 sm:p-4">
+                  <div className="flex items-center gap-3 min-w-0">
                     <button
                       type="button"
                       onClick={() => setActive(null)}
@@ -301,14 +525,33 @@ export default function Social({ user, profile, onNavigate, onEditProfile, onLog
                       ← Kontak
                     </button>
                     <Avatar name={active.username} url={active.avatar_url} size="w-10 h-10"/>
-                    <div>
-                      <h2 className="font-semibold text-white">{active.username}</h2>
+                    <div className="min-w-0">
+                      <h2 className="truncate font-semibold text-white">{active.username}</h2>
                       <p className="text-xs text-gray-400">Rating {active.rating} · kontak teman</p>
                     </div>
                   </div>
-                  <button type="button" onClick={openMedia} className="rounded-lg border border-gold/30 px-3 py-2 text-sm text-gold hover:bg-gold/10 transition">
-                    Video / voice
-                  </button>
+
+                  {/* Dual Voice Talk & Video Talk Selection Buttons */}
+                  <div className="flex items-center gap-2 shrink-0">
+                    <button
+                      type="button"
+                      onClick={() => startCall('voice')}
+                      title="Mulai Panggilan Suara (Voice Talk)"
+                      className="flex items-center gap-1.5 rounded-xl border border-gold/30 bg-gold/10 px-3 py-2 text-xs sm:text-sm font-semibold text-gold hover:bg-gold hover:text-obsidian transition shadow-sm"
+                    >
+                      <span>📞</span>
+                      <span className="hidden sm:inline">Voice Talk</span>
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => startCall('video')}
+                      title="Mulai Panggilan Video (Video Talk)"
+                      className="flex items-center gap-1.5 rounded-xl border border-gold/40 bg-gold/20 px-3 py-2 text-xs sm:text-sm font-semibold text-gold hover:bg-gold hover:text-obsidian transition shadow-sm"
+                    >
+                      <span>📹</span>
+                      <span className="hidden sm:inline">Video Talk</span>
+                    </button>
+                  </div>
                 </header>
 
                 <div className="flex-1 space-y-3 overflow-y-auto p-4 sm:p-5">
@@ -347,7 +590,7 @@ export default function Social({ user, profile, onNavigate, onEditProfile, onLog
                 <div>
                   <div className="text-5xl text-gold/30">♟</div>
                   <h2 className="mt-4 font-cinzel text-2xl text-gold">Pilih teman untuk memulai</h2>
-                  <p className="mt-2 text-sm text-gray-400">Pilih salah satu teman di daftar kontak untuk membuka percakapan.</p>
+                  <p className="mt-2 text-sm text-gray-400">Pilih salah satu teman di daftar kontak untuk membuka percakapan, voice talk, atau video talk.</p>
                 </div>
               </div>
             )}
@@ -356,8 +599,224 @@ export default function Social({ user, profile, onNavigate, onEditProfile, onLog
         </div>
       </main>
 
+      {/* Floating Bottom Navigation */}
       <FooterNav active="social" onNavigate={onNavigate} onEditProfile={onEditProfile} />
-      {mediaOpen && <div className="fixed inset-0 z-50 grid place-items-center bg-black/80 p-4"><div className="w-full max-w-3xl rounded-2xl border border-gold/30 bg-graphite p-5"><div className="mb-3 flex items-start justify-between"><div><h2 className="font-cinzel text-xl text-gold">Panggilan dengan {active?.username}</h2><p className="mt-1 text-xs text-emerald-300">{callStatus || 'Menyiapkan media…'} · WebRTC peer-to-peer</p></div><button onClick={() => endCall()} aria-label="Akhiri panggilan" className="text-gray-400">✕</button></div><div className="grid gap-3 sm:grid-cols-2"><video ref={remoteVideoRef} autoPlay playsInline className="aspect-video w-full rounded-xl bg-black object-cover"/><video ref={videoRef} autoPlay muted playsInline className="aspect-video w-full rounded-xl bg-black object-cover"/></div>{incomingOffer && <div className="mt-3 flex items-center justify-between rounded-lg bg-slate p-3"><span className="text-sm">{active?.username} menelepon Anda.</span><button onClick={acceptCall} className="rounded-lg bg-emerald px-4 py-2 font-semibold text-obsidian">Terima</button></div>}<div className="mt-4 flex flex-wrap justify-center gap-3">{mediaRef.current && <><button onClick={toggleMicrophone} aria-pressed={micMuted} className={`rounded-lg px-4 py-2 font-semibold ${micMuted ? 'bg-rose-600 text-white' : 'bg-slate text-white'}`}>{micMuted ? 'Unmute microphone' : 'Mute microphone'}</button><button onClick={toggleCamera} aria-pressed={cameraOff} className={`rounded-lg px-4 py-2 font-semibold ${cameraOff ? 'bg-amber-500 text-obsidian' : 'bg-slate text-white'}`}>{cameraOff ? 'Turn camera on' : 'Turn camera off'}</button></>}<button onClick={() => endCall()} className="rounded-lg bg-rose-600 px-4 py-2 font-semibold text-white">Akhiri panggilan</button></div></div></div>}
+
+      {/* Incoming Call Notification Popup */}
+      {incomingOffer && (
+        <aside aria-label="Pemberitahuan panggilan masuk" className="fixed top-20 right-4 sm:right-8 z-50 flex items-center gap-3.5 rounded-2xl border border-gold/50 bg-[#0e111a]/95 p-4 shadow-2xl backdrop-blur-2xl ring-1 ring-white/15 max-w-sm">
+          <div className="relative">
+            <Avatar name={incomingOffer.caller?.username || 'Teman'} url={incomingOffer.caller?.avatar_url} size="w-12 h-12" />
+            <span className="absolute -bottom-1 -right-1 h-3.5 w-3.5 rounded-full bg-emerald ring-2 ring-[#0e111a] animate-pulse" />
+          </div>
+          <div className="min-w-0 flex-1">
+            <h3 className="truncate font-semibold text-white">{incomingOffer.caller?.username || 'Teman'}</h3>
+            <p className="text-xs text-gold flex items-center gap-1">
+              <span>{incomingOffer.payload?.callType === 'voice' ? '📞 Panggilan Suara Masuk' : '📹 Panggilan Video Masuk'}</span>
+            </p>
+          </div>
+          <div className="flex items-center gap-1.5 shrink-0">
+            <button
+              type="button"
+              onClick={acceptCall}
+              className="rounded-xl bg-emerald px-3.5 py-1.5 text-xs font-bold text-obsidian hover:bg-emerald/80 transition shadow-md"
+            >
+              Terima
+            </button>
+            <button
+              type="button"
+              onClick={rejectCall}
+              className="rounded-xl bg-rose-600 px-3 py-1.5 text-xs font-bold text-white hover:bg-rose-700 transition"
+            >
+              Tolak
+            </button>
+          </div>
+        </aside>
+      )}
+
+      {/* Floating Call Widget / Screen (Minimizable) */}
+      {mediaOpen && (
+        <>
+          {callMinimized ? (
+            /* Minimized Floating Status Pill */
+            <aside aria-label="Status panggilan melayang" className="fixed bottom-20 right-4 sm:bottom-24 sm:right-6 z-50 flex items-center gap-3 rounded-full border border-gold/50 bg-[#0e111a]/95 px-4 py-2.5 shadow-2xl backdrop-blur-2xl ring-1 ring-white/15">
+              <div className="relative">
+                <Avatar name={active?.username} url={active?.avatar_url} size="w-8 h-8 text-xs" />
+                <span className="absolute -bottom-0.5 -right-0.5 h-2.5 w-2.5 rounded-full bg-emerald ring-2 ring-[#0e111a] animate-pulse" />
+              </div>
+              <div className="min-w-0 pr-1">
+                <p className="max-w-[100px] sm:max-w-[140px] truncate text-xs font-semibold text-white">{active?.username}</p>
+                <p className="text-[10px] text-emerald-400 font-mono flex items-center gap-1">
+                  <span>{callType === 'voice' ? '📞 Voice' : '📹 Video'}</span>
+                  <span>•</span>
+                  <span>{callStatus === 'Terhubung' ? formatDuration(callDuration) : (callStatus || 'Aktif')}</span>
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={toggleMicrophone}
+                aria-label={micMuted ? 'Unmute microphone' : 'Mute microphone'}
+                className={`rounded-full p-2 text-xs transition ${micMuted ? 'bg-rose-600 text-white' : 'bg-white/10 text-gray-200 hover:text-white'}`}
+                title={micMuted ? 'Unmute' : 'Mute'}
+              >
+                {micMuted ? '🔇' : '🎙️'}
+              </button>
+              <button
+                type="button"
+                onClick={() => setCallMinimized(false)}
+                aria-label="Perbesar layar panggilan"
+                className="rounded-full bg-gold/20 p-2 text-xs text-gold hover:bg-gold/30 transition font-bold"
+                title="Perbesar layar panggilan"
+              >
+                ⛶
+              </button>
+              <button
+                type="button"
+                onClick={() => endCall()}
+                aria-label="Akhiri panggilan"
+                className="rounded-full bg-rose-600 p-2 text-xs text-white hover:bg-rose-700 transition"
+                title="Akhiri"
+              >
+                ✕
+              </button>
+            </aside>
+          ) : (
+            /* Expanded Floating Call Screen */
+            <aside aria-label="Layar panggilan mengambang" className="fixed bottom-20 right-4 sm:bottom-24 sm:right-6 z-50 w-[94vw] sm:w-[440px] md:w-[480px] max-h-[85vh] rounded-3xl border border-gold/40 bg-[#0c0e16]/95 p-4 sm:p-5 shadow-2xl backdrop-blur-2xl ring-1 ring-white/10 overflow-hidden flex flex-col">
+              {/* Floating Header */}
+              <div className="mb-3 flex items-center justify-between border-b border-white/10 pb-3">
+                <div className="flex items-center gap-3 min-w-0">
+                  <Avatar name={active?.username} url={active?.avatar_url} size="w-10 h-10" />
+                  <div className="min-w-0">
+                    <h3 className="truncate font-cinzel text-base font-bold text-gold">{active?.username}</h3>
+                    <p className="text-xs text-emerald-400 font-medium flex items-center gap-1.5">
+                      <span className="inline-block h-2 w-2 rounded-full bg-emerald animate-pulse" />
+                      <span>{callType === 'voice' ? 'Voice Talk' : 'Video Talk'}</span>
+                      <span>·</span>
+                      <span className="font-mono">{callStatus === 'Terhubung' ? formatDuration(callDuration) : (callStatus || 'Menyiapkan…')}</span>
+                    </p>
+                  </div>
+                </div>
+                <div className="flex items-center gap-1.5">
+                  <button
+                    type="button"
+                    onClick={() => setCallMinimized(true)}
+                    aria-label="Minimize layar status panggilan"
+                    className="rounded-xl border border-white/10 bg-white/5 p-2 text-xs text-gray-300 hover:bg-white/10 hover:text-white transition"
+                    title="Minimize / Sembunyikan Layar"
+                  >
+                    🗕
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => endCall()}
+                    aria-label="Akhiri panggilan"
+                    className="rounded-xl border border-rose-500/30 bg-rose-500/10 p-2 text-xs text-rose-300 hover:bg-rose-500 hover:text-white transition"
+                    title="Akhiri"
+                  >
+                    ✕
+                  </button>
+                </div>
+              </div>
+
+              {/* Media Display Area */}
+              <div className="relative flex-1 min-h-[220px] sm:min-h-[260px] rounded-2xl bg-black/80 overflow-hidden border border-white/5 flex items-center justify-center">
+                {callType === 'video' ? (
+                  <>
+                    <video
+                      ref={remoteVideoRef}
+                      autoPlay
+                      playsInline
+                      className="h-full w-full object-cover"
+                    />
+                    {/* Local PIP Preview */}
+                    <div className="absolute bottom-3 right-3 w-28 sm:w-36 aspect-video rounded-xl border border-gold/40 shadow-2xl overflow-hidden bg-black/90">
+                      <video
+                        ref={videoRef}
+                        autoPlay
+                        muted
+                        playsInline
+                        className="h-full w-full object-cover"
+                      />
+                      {cameraOff && (
+                        <div className="absolute inset-0 flex items-center justify-center bg-black/80 text-[10px] text-gray-400">
+                          Kamera Mati
+                        </div>
+                      )}
+                    </div>
+                  </>
+                ) : (
+                  /* Voice Talk Visualizer */
+                  <div className="flex flex-col items-center justify-center p-6 text-center">
+                    <div className="relative">
+                      <div className="absolute -inset-4 rounded-full bg-gold/20 blur-md animate-pulse" />
+                      <div className="absolute -inset-8 rounded-full border border-gold/20 animate-ping opacity-25" />
+                      <Avatar name={active?.username} url={active?.avatar_url} size="w-24 h-24 text-2xl ring-4 ring-gold/40" />
+                    </div>
+                    <h4 className="mt-4 font-semibold text-white">{active?.username}</h4>
+                    <p className="mt-1 text-xs text-emerald-400 font-mono">
+                      {callStatus === 'Terhubung' ? `Suara 2 Arah Aktif (${formatDuration(callDuration)})` : (callStatus || 'Menghubungkan suara…')}
+                    </p>
+                    <div className="mt-4 flex items-center gap-1">
+                      <span className="h-3 w-1 bg-gold/60 rounded-full animate-pulse" />
+                      <span className="h-6 w-1 bg-gold rounded-full animate-pulse" />
+                      <span className="h-8 w-1 bg-gold rounded-full animate-pulse" />
+                      <span className="h-5 w-1 bg-gold rounded-full animate-pulse" />
+                      <span className="h-3 w-1 bg-gold/60 rounded-full animate-pulse" />
+                    </div>
+                    {/* Hidden video element to play incoming audio stream */}
+                    <video ref={remoteVideoRef} autoPlay playsInline className="hidden" />
+                  </div>
+                )}
+              </div>
+
+              {/* Controls Footer */}
+              <div className="mt-4 flex flex-wrap items-center justify-center gap-2.5 sm:gap-3">
+                <button
+                  type="button"
+                  onClick={toggleMicrophone}
+                  aria-pressed={micMuted}
+                  className={`flex items-center gap-1.5 rounded-xl px-3.5 py-2 text-xs font-semibold transition ${
+                    micMuted ? 'bg-rose-600 text-white' : 'bg-slate text-white hover:bg-slate/80'
+                  }`}
+                >
+                  <span>{micMuted ? '🔇' : '🎙️'}</span>
+                  <span>{micMuted ? 'Nyalakan Mic' : 'Matikan Mic'}</span>
+                </button>
+                {callType === 'video' && (
+                  <button
+                    type="button"
+                    onClick={toggleCamera}
+                    aria-pressed={cameraOff}
+                    className={`flex items-center gap-1.5 rounded-xl px-3.5 py-2 text-xs font-semibold transition ${
+                      cameraOff ? 'bg-amber-500 text-obsidian' : 'bg-slate text-white hover:bg-slate/80'
+                    }`}
+                  >
+                    <span>{cameraOff ? '📷' : '📹'}</span>
+                    <span>{cameraOff ? 'Nyalakan Kamera' : 'Matikan Kamera'}</span>
+                  </button>
+                )}
+                <button
+                  type="button"
+                  onClick={() => setCallMinimized(true)}
+                  className="flex items-center gap-1.5 rounded-xl border border-white/10 bg-white/5 px-3 py-2 text-xs font-semibold text-gray-300 hover:bg-white/10 hover:text-white transition"
+                >
+                  <span>🗕</span>
+                  <span>Minimize</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => endCall()}
+                  className="flex items-center gap-1.5 rounded-xl bg-rose-600 px-4 py-2 text-xs font-bold text-white hover:bg-rose-700 transition shadow-lg shadow-rose-900/30"
+                >
+                  <span>📞</span>
+                  <span>Akhiri</span>
+                </button>
+              </div>
+            </aside>
+          )}
+        </>
+      )}
     </div>
   );
 }

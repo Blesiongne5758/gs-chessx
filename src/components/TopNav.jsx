@@ -114,16 +114,15 @@ export default function TopNav({ active, onNavigate, profile, onEditProfile, onL
 
 export function FooterNav({ active, onNavigate, onEditProfile }) {
   return (
-    <footer className="mt-auto w-full border-t border-white/10 bg-[#08090d]/95 px-4 py-4 backdrop-blur-xl" aria-label="Footer navigation">
-      <nav className="mx-auto flex max-w-xl items-center justify-around rounded-[1.5rem] border border-white/15 bg-[#12141c]/95 px-3 py-2.5 shadow-xl shadow-black/50" aria-label="Bottom navigation">
-        <BottomNavItem active={active === 'lobby'} icon="⌂" label="Home" onClick={() => onNavigate('lobby')} />
-        <BottomNavItem active={active === 'quick-match' || active === 'game'} icon="♟" label="Play" onClick={() => onNavigate('quick-match')} />
-        <BottomNavItem active={active === 'tournaments' || active === 'admin'} icon="♜" label="Tournaments" onClick={() => onNavigate('tournaments')} />
-        <BottomNavItem active={active === 'social'} icon="☁" label="Chat" onClick={() => onNavigate('social')} />
-        <BottomNavItem active={active === 'profile'} icon="●" label="Profile" onClick={onEditProfile} />
-      </nav>
-      <div className="mt-3 text-center text-[11px] text-gray-500 font-cinzel tracking-wider">
-        GS-ChessX · The Battle of Ideologies
+    <footer className="sticky bottom-3 z-30 mt-auto w-full px-4 pointer-events-none pb-2 pt-4" aria-label="Footer navigation">
+      <div className="mx-auto max-w-lg">
+        <nav className="pointer-events-auto flex items-center justify-around rounded-full border border-gold/30 bg-[#0e1017]/90 px-4 py-2 shadow-[0_8px_32px_rgba(0,0,0,0.7)] backdrop-blur-2xl ring-1 ring-white/10 transition-all hover:border-gold/50" aria-label="Bottom navigation">
+          <BottomNavItem active={active === 'lobby'} icon="⌂" label="Home" onClick={() => onNavigate('lobby')} />
+          <BottomNavItem active={active === 'quick-match' || active === 'game'} icon="♟" label="Play" onClick={() => onNavigate('quick-match')} />
+          <BottomNavItem active={active === 'tournaments' || active === 'admin'} icon="♜" label="Tournaments" onClick={() => onNavigate('tournaments')} />
+          <BottomNavItem active={active === 'social'} icon="☁" label="Chat" onClick={() => onNavigate('social')} />
+          <BottomNavItem active={active === 'profile'} icon="●" label="Profile" onClick={onEditProfile} />
+        </nav>
       </div>
     </footer>
   );
