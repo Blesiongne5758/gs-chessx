@@ -11,9 +11,9 @@ import { toTournamentRow } from './tournamentForm';
 
 export const FORMAT_LABEL = { swiss: 'Swiss', knockout: 'Knockout', arena: 'Arena' };
 export const FORMAT_DESC = {
-  swiss: 'Lawan dipasangkan berdasarkan skor setiap ronde.',
-  knockout: 'Sistem gugur — kalah sekali langsung tersingkir.',
-  arena: 'Main sebanyak mungkin dalam waktu yang ditentukan.',
+  swiss: 'Opponents are paired based on scores each round.',
+  knockout: 'Single elimination — lose once and you are out.',
+  arena: 'Play as many games as possible within the allotted time.',
 };
 
 // ---------------- Demo data (guest mode / Supabase not configured) ----------------
@@ -46,36 +46,36 @@ function demoPlayers(n, seed, withScores) {
 const DEMO = [
   {
     id: 'demo-1', name: 'Holy Kingdom Blitz Arena', format: 'arena', status: 'upcoming', time_control: '3+2',
-    max_players: 128, rounds: null, prize_pool: '5.000 Gems', is_pro_only: false,
-    description: 'Arena 60 menit — main sebanyak mungkin, setiap kemenangan beruntun dapat bonus poin.',
+    max_players: 128, rounds: null, prize_pool: '5,000 Gems', is_pro_only: false,
+    description: '60-minute Arena — play as many games as possible, streak wins grant bonus points.',
     starts_at: new Date(t0 + 2.25 * H).toISOString(), ends_at: new Date(t0 + 3.25 * H).toISOString(),
     _players: demoPlayers(12, 0, false),
   },
   {
     id: 'demo-2', name: 'Anarchy Rebellion Swiss', format: 'swiss', status: 'upcoming', time_control: '10+0',
-    max_players: 64, rounds: 7, prize_pool: 'Skin Eksklusif + 3.000 Gems', is_pro_only: false,
-    description: 'Swiss untuk semua level. Lawan tiap ronde dipasangkan otomatis berdasarkan skor.',
+    max_players: 64, rounds: 7, prize_pool: 'Exclusive Skin + 3,000 Gems', is_pro_only: false,
+    description: 'Swiss for all skill levels. Opponents each round are paired automatically by score.',
     starts_at: new Date(t0 + 24 * H).toISOString(), ends_at: new Date(t0 + 28 * H).toISOString(),
     _players: demoPlayers(8, 3, false),
   },
   {
     id: 'demo-3', name: 'Grandmaster Knockout', format: 'knockout', status: 'upcoming', time_control: '5+3',
-    max_players: 32, rounds: 5, prize_pool: 'Pro 1 Tahun', is_pro_only: true,
-    description: 'Sistem gugur 32 pemain. Kalah sekali langsung tersingkir.',
+    max_players: 32, rounds: 5, prize_pool: 'Pro 1 Year', is_pro_only: true,
+    description: '32-player single elimination. Lose once and you are out.',
     starts_at: new Date(t0 + 72 * H).toISOString(), ends_at: new Date(t0 + 77 * H).toISOString(),
     _players: demoPlayers(5, 5, false),
   },
   {
     id: 'demo-4', name: 'Bullet Mayhem', format: 'arena', status: 'running', time_control: '1+0',
-    max_players: 256, rounds: null, prize_pool: '1.000 Gems', is_pro_only: false,
-    description: 'Arena bullet 30 menit. Cepat, brutal, menyenangkan.',
+    max_players: 256, rounds: null, prize_pool: '1,000 Gems', is_pro_only: false,
+    description: '30-minute bullet arena. Fast, intense, fun.',
     starts_at: new Date(t0 - 10 * 60_000).toISOString(), ends_at: new Date(t0 + 20 * 60_000).toISOString(),
     _players: demoPlayers(12, 1, true),
   },
   {
     id: 'demo-5', name: 'Weekly Rapid Swiss #47', format: 'swiss', status: 'finished', time_control: '10+5',
-    max_players: 64, rounds: 5, prize_pool: '2.000 Gems', is_pro_only: false,
-    description: 'Swiss mingguan 5 ronde.',
+    max_players: 64, rounds: 5, prize_pool: '2,000 Gems', is_pro_only: false,
+    description: 'Weekly 5-round Swiss tournament.',
     starts_at: new Date(t0 - 72 * H).toISOString(), ends_at: new Date(t0 - 69 * H).toISOString(),
     _players: demoPlayers(10, 2, true),
   },
@@ -281,13 +281,13 @@ export async function joinTournament(user, tournament) {
     .from('tournament_participants')
     .insert({ tournament_id: tournament.id, player_id: user.id });
   if (error) {
-    if (error.code === '23505') throw new Error('Anda sudah terdaftar di turnamen ini.');
+    if (error.code === '23505') throw new Error('You are already registered for this tournament.');
     throw new Error(error.message);
   }
 }
 
 export async function leaveTournament(user, tournament) {
-  if (tournament.status !== 'upcoming') throw new Error('Tidak bisa batal setelah turnamen dimulai.');
+  if (tournament.status !== 'upcoming') throw new Error('Cannot withdraw after tournament has started.');
 
   if (user.isGuest) {
     const set = demoJoined();
@@ -426,13 +426,13 @@ export { isRoundComplete };
 // ---------------- Admin: create / edit / delete ----------------
 
 function friendlyDbError(error) {
-  const msg = error?.message || 'Gagal menyimpan turnamen.';
+  const msg = error?.message || 'Failed to save tournament.';
   if (error?.code === '42501' || /row-level security|permission denied/i.test(msg))
-    return new Error('Hanya admin yang boleh mengelola turnamen, dan hanya sebelum turnamen dimulai.');
-  if (/tournaments_name_len/.test(msg)) return new Error('Nama turnamen harus 3–80 karakter.');
-  if (/tournaments_time_control_fmt/.test(msg)) return new Error('Format waktu harus menit+detik, mis. 10+5.');
-  if (/tournaments_rounds_range/.test(msg)) return new Error('Jumlah ronde harus 1–30.');
-  if (/tournaments_ends_after_start/.test(msg)) return new Error('Waktu selesai harus setelah waktu mulai.');
+    return new Error('Only administrators can manage tournaments, and only before tournament begins.');
+  if (/tournaments_name_len/.test(msg)) return new Error('Tournament name must be 3–80 characters.');
+  if (/tournaments_time_control_fmt/.test(msg)) return new Error('Time control format must be minutes+seconds, e.g. 10+5.');
+  if (/tournaments_rounds_range/.test(msg)) return new Error('Number of rounds must be 1–30.');
+  if (/tournaments_ends_after_start/.test(msg)) return new Error('End time must be after start time.');
   return new Error(msg);
 }
 
@@ -463,7 +463,7 @@ export async function createTournament(user, form, { bots = 0 } = {}) {
 }
 
 export async function updateTournament(user, tournament, form) {
-  if (tournament.status !== 'upcoming') throw new Error('Turnamen yang sudah dimulai tidak bisa diubah.');
+  if (tournament.status !== 'upcoming') throw new Error('Tournaments that have already started cannot be edited.');
   // Keep the auto-estimated end aligned with the current field size.
   const row = toTournamentRow(form, Math.max(2, tournament.player_count || form.max_players));
   // eslint-disable-next-line no-unused-vars
@@ -471,7 +471,7 @@ export async function updateTournament(user, tournament, form) {
   if (user.isGuest) {
     const list = loadCreated();
     const i = list.findIndex((c) => c.id === tournament.id);
-    if (i < 0) throw new Error('Turnamen contoh bawaan tidak bisa diubah.');
+    if (i < 0) throw new Error('Built-in sample tournaments cannot be edited.');
     list[i] = { ...list[i], ...patch };
     saveCreated(list);
     return list[i];
@@ -484,15 +484,15 @@ export async function updateTournament(user, tournament, form) {
     .select()
     .maybeSingle();
   if (error) throw friendlyDbError(error);
-  if (!data) throw new Error('Turnamen sudah dimulai atau Anda bukan admin.');
+  if (!data) throw new Error('Tournament has already started or you are not an administrator.');
   return data;
 }
 
 export async function deleteTournament(user, tournament) {
-  if (tournament.status !== 'upcoming') throw new Error('Turnamen yang sudah dimulai tidak bisa dihapus.');
+  if (tournament.status !== 'upcoming') throw new Error('Tournaments that have already started cannot be deleted.');
   if (user.isGuest) {
     const list = loadCreated();
-    if (!list.some((c) => c.id === tournament.id)) throw new Error('Turnamen contoh bawaan tidak bisa dihapus.');
+    if (!list.some((c) => c.id === tournament.id)) throw new Error('Built-in sample tournaments cannot be deleted.');
     saveCreated(list.filter((c) => c.id !== tournament.id));
     demoResetSwiss(tournament);
     const joined = demoJoined();

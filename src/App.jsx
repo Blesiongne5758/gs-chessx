@@ -67,7 +67,7 @@ function App() {
 
   function openAuth(mode) {
     if (!isSupabaseConfigured) {
-      toast('Supabase belum dikonfigurasi — bermain sebagai tamu.');
+      toast('Supabase is not configured — playing as guest.');
       setUser(GUEST);
       setPage('lobby');
       return;
@@ -96,9 +96,9 @@ function App() {
         <main className="grid min-h-screen place-items-center bg-obsidian px-4 text-center">
           <section role="status" aria-live="polite" className="max-w-lg rounded-2xl border border-gold/40 bg-graphite p-8 shadow-xl shadow-gold/10">
             <div className="text-5xl text-emerald-400" aria-hidden="true">✓</div>
-            <h1 className="mt-5 font-cinzel text-2xl font-bold text-gold">Selamat akun anda sudah dapat digunakan, Happy Chess Game</h1>
-            <p className="mt-3 text-sm text-gray-300">Email berhasil dikonfirmasi. Anda akan diarahkan ke halaman login.</p>
-            <button onClick={() => { setPage('landing'); setAuthMode('login'); }} className="mt-6 rounded-lg bg-gold px-6 py-3 font-bold text-obsidian hover:bg-champagne">Lanjut ke login</button>
+            <h1 className="mt-5 font-cinzel text-2xl font-bold text-gold">Your account is ready! Welcome to GS-ChessX</h1>
+            <p className="mt-3 text-sm text-gray-300">Email confirmed successfully. You will be redirected to the login page.</p>
+            <button onClick={() => { setPage('landing'); setAuthMode('login'); }} className="mt-6 rounded-lg bg-gold px-6 py-3 font-bold text-obsidian hover:bg-champagne">Continue to Login</button>
           </section>
         </main>
       )}
@@ -116,7 +116,7 @@ function App() {
                 mode: 'ai',
                 aiLevel: tc.aiLevel || 10,
                 color: assignedColor,
-                opponent: { username: 'Komputer' },
+                opponent: { username: 'Computer' },
               });
               setPage('game');
             } else {

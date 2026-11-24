@@ -17,8 +17,8 @@ export default function LearningHub({ user, onNavigate, onEditProfile, onLogout 
       <main className="mx-auto w-full max-w-5xl flex-1 px-4 py-8 pb-24 sm:pb-20 sm:px-6 lg:px-8">
         <section className="mb-6 rounded-2xl border border-gold/25 bg-gradient-to-br from-graphite to-[#11141c] p-6 shadow-xl shadow-black/20">
           <p className="text-[10px] uppercase tracking-[0.24em] text-gold/80">Chess Academy</p>
-          <h1 className="mt-2 font-cinzel text-3xl font-bold text-gold">Asah strategi sebelum kembali ke papan</h1>
-          <p className="mt-3 max-w-2xl text-sm leading-6 text-gray-300">Pilih puzzle untuk melatih prinsip posisi, atau selesaikan quiz untuk menguji ingatan sejarah dan keputusan strategis. Materi ini berada di luar permainan agar fokus tetap utuh saat pertandingan berlangsung.</p>
+          <h1 className="mt-2 font-cinzel text-3xl font-bold text-gold">Sharpen your strategy before returning to the board</h1>
+          <p className="mt-3 max-w-2xl text-sm leading-6 text-gray-300">Solve puzzles to master positional principles, or complete quizzes to test your chess history and strategic decision-making.</p>
         </section>
         <div className="max-w-2xl">
           <ChessLearningPanel />

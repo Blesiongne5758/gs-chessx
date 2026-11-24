@@ -15,11 +15,11 @@ export const isSupabaseConfigured = Boolean(
 );
 
 export const supabaseConfigError = !supabaseUrl || !supabaseAnonKey
-  ? 'Supabase belum dikonfigurasi. Isi VITE_SUPABASE_URL dan VITE_SUPABASE_ANON_KEY.'
+  ? 'Supabase is not configured. Please set VITE_SUPABASE_URL and VITE_SUPABASE_ANON_KEY.'
   : !isValidSupabaseUrl
-    ? 'VITE_SUPABASE_URL tidak valid. Gunakan URL Project Supabase dari Settings → API.'
+    ? 'Invalid VITE_SUPABASE_URL. Use your Supabase Project URL from Settings → API.'
     : isPlaceholderKey
-      ? 'VITE_SUPABASE_ANON_KEY masih berupa placeholder. Gunakan anon/publishable key, bukan service-role key.'
+      ? 'VITE_SUPABASE_ANON_KEY is still a placeholder. Use the anon/publishable key, not the service-role key.'
       : null;
 
 // createClient() throws on an empty URL, so fall back to a placeholder that

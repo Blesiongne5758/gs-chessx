@@ -4,9 +4,9 @@ import Avatar from './Avatar';
 import { fetchPairings, reportResult, demoFillRandomRound } from '../lib/tournaments';
 
 const RESULT_BUTTONS = [
-  { value: '1-0', label: '1-0', title: 'Putih menang' },
-  { value: '1/2-1/2', label: '½-½', title: 'Remis' },
-  { value: '0-1', label: '0-1', title: 'Hitam menang' },
+  { value: '1-0', label: '1-0', title: 'White wins' },
+  { value: '1/2-1/2', label: '½-½', title: 'Draw' },
+  { value: '0-1', label: '0-1', title: 'Black wins' },
 ];
 
 function resultLabel(r) {
@@ -56,8 +56,8 @@ export default function SwissPanel({ user, t, isAdmin, scores, onChanged, refres
     setBusy(pairing.id);
     try {
       const res = await reportResult(user, t, pairing, result);
-      if (res?.finished) toast.success('Turnamen selesai. Juara sudah ditentukan.', { icon: '🏆' });
-      else if (res?.newRound) toast.success(`Ronde ${res.round} sudah dipasangkan otomatis.`);
+      if (res?.finished) toast.success('Tournament completed. Champion decided.', { icon: '🏆' });
+      else if (res?.newRound) toast.success(`Round ${res.round} paired automatically.`);
       await onChanged();
     } catch (e) {
       toast.error(e.message);
@@ -68,34 +68,34 @@ export default function SwissPanel({ user, t, isAdmin, scores, onChanged, refres
 
   async function fillRandom() {
     const res = demoFillRandomRound(t);
-    if (res?.finished) toast.success('Turnamen selesai.', { icon: '🏆' });
-    else if (res?.newRound) toast.success(`Ronde ${res.round} sudah dipasangkan otomatis.`);
+    if (res?.finished) toast.success('Tournament completed.', { icon: '🏆' });
+    else if (res?.newRound) toast.success(`Round ${res.round} paired automatically.`);
     await onChanged();
   }
 
   if (error) return <div className="text-red-400 text-sm">{error}</div>;
-  if (pairings === null) return <div className="text-gray-400 py-6 text-center">Memuat pairing...</div>;
+  if (pairings === null) return <div className="text-gray-400 py-6 text-center">Loading pairings...</div>;
   if (rounds.length === 0)
-    return <div className="text-gray-400 py-6 text-center">Pairing dibuat otomatis saat turnamen dimulai.</div>;
+    return <div className="text-gray-400 py-6 text-center">Pairings will be generated automatically when tournament begins.</div>;
 
   return (
     <div>
       {myBoard && t.status === 'running' && (
         <div className="bg-emerald/10 border border-emerald/40 rounded-lg p-3 mb-3 text-sm" data-testid="my-board">
-          <span className="text-emerald font-bold">Ronde {t.current_round}: </span>
+          <span className="text-emerald font-bold">Round {t.current_round}: </span>
           {myBoard.black_id ? (
             <span className="text-gray-200">
-              Papan {myBoard.board} — Anda bermain {myBoard.white_id === user.id ? 'Putih' : 'Hitam'} melawan{' '}
+              Board {myBoard.board} — You play {myBoard.white_id === user.id ? 'White' : 'Black'} vs{' '}
               <b>{myBoard.white_id === user.id ? myBoard.black?.username : myBoard.white?.username}</b>
-              {myBoard.result ? ` (hasil: ${resultLabel(myBoard.result)})` : ''}
+              {myBoard.result ? ` (result: ${resultLabel(myBoard.result)})` : ''}
             </span>
           ) : (
-            <span className="text-gray-200">Anda mendapat bye (+1 poin) ronde ini.</span>
+            <span className="text-gray-200">You received a bye (+1 point) this round.</span>
           )}
         </div>
       )}
 
-      <div className="flex flex-wrap items-center gap-2 mb-3" role="tablist" aria-label="Pilih ronde">
+      <div className="flex flex-wrap items-center gap-2 mb-3" role="tablist" aria-label="Select round">
         {rounds.map((r) => (
           <button
             key={r}
@@ -112,9 +112,9 @@ export default function SwissPanel({ user, t, isAdmin, scores, onChanged, refres
         <span className="text-xs text-gray-400 ml-auto">
           {isCurrent
             ? pending > 0
-              ? `Menunggu ${pending} hasil — ronde berikutnya dipasangkan otomatis`
-              : 'Semua hasil masuk'
-            : `Ronde ${round} selesai`}
+              ? `Waiting for ${pending} results — next round pairs automatically`
+              : 'All results submitted'
+            : `Round ${round} completed`}
         </span>
       </div>
 
@@ -164,7 +164,7 @@ export default function SwissPanel({ user, t, isAdmin, scores, onChanged, refres
                 {p.black_id ? (
                   <PlayerCell player={p.black} score={scores.get(p.black_id)} color="b" alignRight />
                 ) : (
-                  <span className="block sm:text-right text-gray-500 text-xs">+1 poin</span>
+                  <span className="block sm:text-right text-gray-500 text-xs">+1 point</span>
                 )}
               </div>
             </div>
@@ -177,7 +177,7 @@ export default function SwissPanel({ user, t, isAdmin, scores, onChanged, refres
           onClick={fillRandom}
           className="mt-3 w-full py-2 bg-slate text-gray-300 rounded hover:bg-gray-700 text-sm"
         >
-          🎲 Demo: isi hasil acak untuk ronde ini
+          🎲 Demo: fill random results for this round
         </button>
       )}
     </div>
@@ -189,7 +189,7 @@ function PlayerCell({ player, score, color, alignRight }) {
     <div className={`flex items-center gap-2 min-w-0 ${alignRight ? 'sm:flex-row-reverse sm:text-right' : ''}`}>
       <span
         className={`w-3 h-3 rounded-sm border shrink-0 ${color === 'w' ? 'bg-white border-gray-400' : 'bg-black border-gray-500'}`}
-        title={color === 'w' ? 'Putih' : 'Hitam'}
+        title={color === 'w' ? 'White' : 'Black'}
       />
       <Avatar name={player?.username} url={player?.avatar_url} size="w-6 h-6 text-xs shrink-0" />
       <span className="text-white truncate">{player?.username ?? '—'}</span>

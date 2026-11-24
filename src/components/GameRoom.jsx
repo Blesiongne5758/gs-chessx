@@ -28,11 +28,11 @@ const DEFAULT_CUSTOMIZATION = {
 const AI_VALUES = { p: 100, n: 320, b: 330, r: 500, q: 900, k: 20000 };
 
 function checkGameOverPosition(g) {
-  if (g.isCheckmate()) return `Skakmat — ${g.turn() === 'w' ? 'Hitam' : 'Putih'} menang`;
-  if (g.isStalemate()) return 'Remis — stalemate';
-  if (g.isThreefoldRepetition()) return 'Remis — pengulangan tiga kali';
-  if (g.isInsufficientMaterial()) return 'Remis — material tidak cukup';
-  if (g.isDraw()) return 'Remis — aturan 50 langkah';
+  if (g.isCheckmate()) return `Checkmate — ${g.turn() === 'w' ? 'Black' : 'White'} wins`;
+  if (g.isStalemate()) return 'Draw — stalemate';
+  if (g.isThreefoldRepetition()) return 'Draw — threefold repetition';
+  if (g.isInsufficientMaterial()) return 'Draw — insufficient material';
+  if (g.isDraw()) return 'Draw — 50-move rule';
   return null;
 }
 
@@ -87,8 +87,8 @@ export default function GameRoom({ user, timeControl, match, onBack, onSocial, o
     }
     toast.success(
       side === 'b'
-        ? 'Bidak Hitam (Atheist) aktif — bidak Anda kini berada di bawah.'
-        : 'Bidak Putih (Religion) aktif — bidak Anda kini berada di bawah.'
+        ? 'Atheist (Black) pieces active — your pieces are now at the bottom.'
+        : 'Religion (White) pieces active — your pieces are now at the bottom.'
     );
   }
 
@@ -113,7 +113,7 @@ export default function GameRoom({ user, timeControl, match, onBack, onSocial, o
         setWhiteTime(payload.whiteTime);
         setBlackTime(payload.blackTime);
         if (payload.result) setResult(payload.result);
-      } catch { toast.error('Langkah dari lawan tidak dapat dimuat.'); }
+      } catch { toast.error('Could not process opponent move.'); }
     });
     channel.on('broadcast', { event: 'result' }, ({ payload }) => setResult(payload.result));
     channel.on('broadcast', { event: 'draw-offer' }, ({ payload }) => {
@@ -122,8 +122,8 @@ export default function GameRoom({ user, timeControl, match, onBack, onSocial, o
     channel.on('broadcast', { event: 'draw-response' }, ({ payload }) => {
       if (payload.to !== user.id) return;
       setDrawPending(false);
-      if (payload.accepted) setResult('Remis — disepakati');
-      else toast('Tawaran remis ditolak.');
+      if (payload.accepted) setResult('Draw — agreed');
+      else toast('Draw offer declined.');
     });
     channel.subscribe((status) => {
       if (status === 'SUBSCRIBED') setGameChannelReady(true);
@@ -169,8 +169,8 @@ export default function GameRoom({ user, timeControl, match, onBack, onSocial, o
   // Flag fall
   useEffect(() => {
     if (result) return;
-    if (whiteTime === 0) finishGame('Waktu Putih habis — Hitam menang');
-    else if (blackTime === 0) finishGame('Waktu Hitam habis — Putih menang');
+    if (whiteTime === 0) finishGame('White time out — Black wins');
+    else if (blackTime === 0) finishGame('Black time out — White wins');
   }, [whiteTime, blackTime, result, finishGame]);
 
   useEffect(() => {
@@ -192,11 +192,11 @@ export default function GameRoom({ user, timeControl, match, onBack, onSocial, o
   }, [history]);
 
   function checkGameOver(g) {
-    if (g.isCheckmate()) return `Skakmat — ${g.turn() === 'w' ? 'Hitam' : 'Putih'} menang`;
-    if (g.isStalemate()) return 'Remis — stalemate';
-    if (g.isThreefoldRepetition()) return 'Remis — pengulangan tiga kali';
-    if (g.isInsufficientMaterial()) return 'Remis — material tidak cukup';
-    if (g.isDraw()) return 'Remis — aturan 50 langkah';
+    if (g.isCheckmate()) return `Checkmate — ${g.turn() === 'w' ? 'Black' : 'White'} wins`;
+    if (g.isStalemate()) return 'Draw — stalemate';
+    if (g.isThreefoldRepetition()) return 'Draw — threefold repetition';
+    if (g.isInsufficientMaterial()) return 'Draw — insufficient material';
+    if (g.isDraw()) return 'Draw — 50-move rule';
     return null;
   }
 
@@ -227,7 +227,7 @@ export default function GameRoom({ user, timeControl, match, onBack, onSocial, o
       const over = checkGameOver(next);
       if (isMultiplayer) gameChannelRef.current?.send({ type: 'broadcast', event: 'move', payload: { playerId: user.id, pgn: next.pgn(), whiteTime: turn === 'w' ? whiteTime + inc : whiteTime, blackTime: turn === 'b' ? blackTime + inc : blackTime, result: over } });
       if (over) setResult(over);
-      else if (next.inCheck()) toast('Skak!', { icon: '⚠️' });
+      else if (next.inCheck()) toast('Check!', { icon: '⚠️' });
       return;
     }
 
@@ -250,15 +250,15 @@ export default function GameRoom({ user, timeControl, match, onBack, onSocial, o
   function resign() {
     if (result) return;
     const resigningColor = (isMultiplayer || isAiMatch) ? playerSide : turn;
-    finishGame(`${resigningColor === 'w' ? 'Religion (Putih)' : 'Atheist (Hitam)'} menyerah — ${resigningColor === 'w' ? 'Atheist (Hitam)' : 'Religion (Putih)'} menang`);
+    finishGame(`${resigningColor === 'w' ? 'Religion (White)' : 'Atheist (Black)'} resigned — ${resigningColor === 'w' ? 'Atheist (Black)' : 'Religion (White)'} wins`);
   }
 
   function offerDraw(accept = false) {
-    if (isMultiplayer && !gameChannelReady) { toast.error('Menghubungkan ke lawan. Coba lagi sebentar.'); return; }
-    if (!isMultiplayer) { setResult('Remis — disepakati'); return; }
+    if (isMultiplayer && !gameChannelReady) { toast.error('Connecting to opponent. Please try again shortly.'); return; }
+    if (!isMultiplayer) { setResult('Draw — agreed'); return; }
     if (incomingDraw) {
       setIncomingDraw(false);
-      if (accept) finishGame('Remis — disepakati');
+      if (accept) finishGame('Draw — agreed');
       else gameChannelRef.current?.send({ type: 'broadcast', event: 'draw-response', payload: { to: match.opponent?.id, accepted: false } });
       return;
     }
@@ -275,7 +275,7 @@ export default function GameRoom({ user, timeControl, match, onBack, onSocial, o
       : null;
     if (skinMode === '3d') {
       return (
-        <Suspense fallback={<div className="grid h-full place-items-center rounded-xl border border-gold/30 bg-graphite text-sm text-gold">Memuat papan 3D…</div>}>
+        <Suspense fallback={<div className="grid h-full place-items-center rounded-xl border border-gold/30 bg-graphite text-sm text-gold">Loading 3D board…</div>}>
           <ChessBoard3D
             board={board}
             selectedSquare={selectedSquare}
@@ -343,11 +343,11 @@ export default function GameRoom({ user, timeControl, match, onBack, onSocial, o
 
   const sans = history.map((m) => m.san);
   const youName = user?.isGuest ? 'You (Guest)' : user?.user_metadata?.username || user?.email?.split('@')[0] || 'You';
-  const opponentName = isAiMatch ? 'Komputer' : match?.opponent?.username || 'Lawan';
+  const opponentName = isAiMatch ? 'Computer' : match?.opponent?.username || 'Opponent';
 
   const isPlayerBlack = playerSide === 'b';
-  const youLabel = isPlayerBlack ? `${youName} (Atheist / Hitam)` : `${youName} (Religion / Putih)`;
-  const oppLabel = isPlayerBlack ? `${opponentName} (Religion / Putih)` : `${opponentName} (Atheist / Hitam)`;
+  const youLabel = isPlayerBlack ? `${youName} (Atheist / Black)` : `${youName} (Religion / White)`;
+  const oppLabel = isPlayerBlack ? `${opponentName} (Religion / White)` : `${opponentName} (Atheist / Black)`;
   const youTime = isPlayerBlack ? blackTime : whiteTime;
   const oppTime = isPlayerBlack ? whiteTime : blackTime;
   const youTurn = isPlayerBlack ? turn === 'b' : turn === 'w';
@@ -372,12 +372,12 @@ export default function GameRoom({ user, timeControl, match, onBack, onSocial, o
               icon={isPlayerBlack ? '♔' : '♚'}
               iconClass={isPlayerBlack ? 'bg-gold text-obsidian' : 'bg-black text-white'}
               name={oppLabel}
-              sub={isMultiplayer ? 'Quick Match' : isAiMatch ? `Komputer · Level ${match?.aiLevel || 10}` : 'Local hot-seat'}
+              sub={isMultiplayer ? 'Quick Match' : isAiMatch ? `Computer · Level ${match?.aiLevel || 10}` : 'Local hot-seat'}
               time={oppTime}
               active={oppTurn && !result}
             />
             <div className="bg-graphite border border-gold/30 rounded-lg p-4">
-              <h3 className="text-gold font-bold mb-2">{isPlayerBlack ? '♔ Dimakan oleh Putih' : '♟ Dimakan oleh Hitam'}</h3>
+              <h3 className="text-gold font-bold mb-2">{isPlayerBlack ? '♔ Captured by White' : '♟ Captured by Black'}</h3>
               <div className="text-2xl min-h-8">{oppCaptured.join('') || '—'}</div>
             </div>
           </div>
@@ -387,8 +387,8 @@ export default function GameRoom({ user, timeControl, match, onBack, onSocial, o
             {/* Faction / Side Switcher */}
             <div className="flex flex-wrap items-center justify-between gap-2 rounded-xl border border-gold/30 bg-[#12141c] p-2.5 shadow-md">
               <div className="flex items-center gap-1.5">
-                <span className="text-xs font-semibold text-gray-300">Pilih Bidak:</span>
-                <span className="text-[11px] text-gray-400 hidden sm:inline">(bidak di bawah)</span>
+                <span className="text-xs font-semibold text-gray-300">Choose Side:</span>
+                <span className="text-[11px] text-gray-400 hidden sm:inline">(pieces at bottom)</span>
               </div>
               <div className="flex items-center gap-1.5">
                 <button
@@ -399,10 +399,10 @@ export default function GameRoom({ user, timeControl, match, onBack, onSocial, o
                       ? 'bg-gradient-to-r from-gold to-champagne text-obsidian shadow-md shadow-gold/25'
                       : 'bg-white/[.05] text-gray-300 hover:bg-white/10 hover:text-white'
                   }`}
-                  title="Pilih Religion / Putih (Bidak Putih di bawah)"
+                  title="Choose Religion / White (White pieces at bottom)"
                 >
                   <span>🕊️</span>
-                  <span>Religion (Putih)</span>
+                  <span>Religion (White)</span>
                 </button>
                 <button
                   type="button"
@@ -412,17 +412,17 @@ export default function GameRoom({ user, timeControl, match, onBack, onSocial, o
                       ? 'bg-gradient-to-r from-rose-700 via-rose-900 to-graphite text-white border border-rose-400/40 shadow-md shadow-rose-900/30'
                       : 'bg-white/[.05] text-gray-300 hover:bg-white/10 hover:text-white'
                   }`}
-                  title="Pilih Atheist / Hitam (Bidak Hitam di bawah)"
+                  title="Choose Atheist / Black (Black pieces at bottom)"
                 >
                   <span>🏴</span>
-                  <span>Atheist (Hitam)</span>
+                  <span>Atheist (Black)</span>
                 </button>
               </div>
             </div>
 
-            <div className="space-y-2"><div className="flex items-center justify-between gap-3"><div><div className="text-xs uppercase tracking-widest text-gray-500">Skin bidak</div><div className="mt-1 text-[11px] text-gray-500">{CHESS_SKIN_LIST.find((skin) => skin.id === skinId)?.description}</div></div><div className="flex shrink-0 rounded-lg border border-gold/25 bg-graphite p-1"><button onClick={() => setSkinMode('3d')} aria-pressed={skinMode === '3d'} className={`rounded-md px-3 py-1.5 text-xs font-semibold ${skinMode === '3d' ? 'bg-gold text-obsidian' : 'text-gray-300'}`}>3D</button><button onClick={() => setSkinMode('2d')} aria-pressed={skinMode === '2d'} className={`rounded-md px-3 py-1.5 text-xs font-semibold ${skinMode === '2d' ? 'bg-gold text-obsidian' : 'text-gray-300'}`}>2D</button></div></div><div className="grid grid-cols-2 gap-1.5 sm:grid-cols-3">{CHESS_SKIN_LIST.map((skin) => <button key={skin.id} onClick={() => setSkinId(skin.id)} aria-pressed={skinId === skin.id} className={`rounded-md border px-2 py-1.5 text-[11px] font-semibold transition ${skinId === skin.id ? 'border-gold bg-gold text-obsidian shadow-[0_0_14px_rgba(212,175,55,.24)]' : 'border-white/10 bg-graphite text-gray-300 hover:border-gold/50'}`}>{skin.shortLabel}</button>)}</div>{skinId === 'custom' && <CustomNeonControls value={customization} onChange={setCustomization} />}</div>
-            {isMultiplayer && !gameChannelReady && <p role="status" className="rounded border border-amber-400/40 bg-amber-400/10 p-2 text-center text-xs text-amber-200">Menghubungkan ke pertandingan. Langkah akan aktif setelah tersambung.</p>}
-            {isAiMatch && aiThinking && <p role="status" className="rounded border border-gold/40 bg-gold/10 p-2 text-center text-xs text-gold">Komputer sedang berpikir…</p>}
+            <div className="space-y-2"><div className="flex items-center justify-between gap-3"><div><div className="text-xs uppercase tracking-widest text-gray-500">Piece skins</div><div className="mt-1 text-[11px] text-gray-500">{CHESS_SKIN_LIST.find((skin) => skin.id === skinId)?.description}</div></div><div className="flex shrink-0 rounded-lg border border-gold/25 bg-graphite p-1"><button onClick={() => setSkinMode('3d')} aria-pressed={skinMode === '3d'} className={`rounded-md px-3 py-1.5 text-xs font-semibold ${skinMode === '3d' ? 'bg-gold text-obsidian' : 'text-gray-300'}`}>3D</button><button onClick={() => setSkinMode('2d')} aria-pressed={skinMode === '2d'} className={`rounded-md px-3 py-1.5 text-xs font-semibold ${skinMode === '2d' ? 'bg-gold text-obsidian' : 'text-gray-300'}`}>2D</button></div></div><div className="grid grid-cols-2 gap-1.5 sm:grid-cols-3">{CHESS_SKIN_LIST.map((skin) => <button key={skin.id} onClick={() => setSkinId(skin.id)} aria-pressed={skinId === skin.id} className={`rounded-md border px-2 py-1.5 text-[11px] font-semibold transition ${skinId === skin.id ? 'border-gold bg-gold text-obsidian shadow-[0_0_14px_rgba(212,175,55,.24)]' : 'border-white/10 bg-graphite text-gray-300 hover:border-gold/50'}`}>{skin.shortLabel}</button>)}</div>{skinId === 'custom' && <CustomNeonControls value={customization} onChange={setCustomization} />}</div>
+            {isMultiplayer && !gameChannelReady && <p role="status" className="rounded border border-amber-400/40 bg-amber-400/10 p-2 text-center text-xs text-amber-200">Connecting to match. Moves will activate once connected.</p>}
+            {isAiMatch && aiThinking && <p role="status" className="rounded border border-gold/40 bg-gold/10 p-2 text-center text-xs text-gold">Computer is thinking…</p>}
             <div className="aspect-square">
               {skinMode === '3d' ? renderBoard() : <div className="w-full h-full grid grid-cols-8 grid-rows-8 rounded-lg overflow-hidden border-4 shadow-2xl" style={{ borderColor: toCssColor(activeSkin.board.frame) }}>{renderBoard()}</div>}
             </div>
@@ -430,7 +430,7 @@ export default function GameRoom({ user, timeControl, match, onBack, onSocial, o
               <div className="bg-gold/10 border border-gold rounded-lg p-4 text-center">
                 <div className="text-gold font-cinzel font-bold text-xl mb-2">{result}</div>
                 <button onClick={resetGame} className="px-6 py-2 bg-gold text-obsidian font-bold rounded hover:bg-champagne">
-                  {isMultiplayer ? 'Kembali ke Lobby' : 'Main Lagi'}
+                  {isMultiplayer ? 'Back to Lobby' : 'Play Again'}
                 </button>
               </div>
             )}
@@ -442,12 +442,12 @@ export default function GameRoom({ user, timeControl, match, onBack, onSocial, o
               icon={isPlayerBlack ? '♚' : '♔'}
               iconClass={isPlayerBlack ? 'bg-black text-white' : 'bg-gold text-obsidian'}
               name={youLabel}
-              sub="Bidak Anda (Sisi Bawah Papan)"
+              sub="Your pieces (Bottom side of board)"
               time={youTime}
               active={youTurn && !result}
             />
             <div className="bg-graphite border border-gold/30 rounded-lg p-4">
-              <h3 className="text-gold font-bold mb-2">{isPlayerBlack ? '♟ Dimakan oleh Hitam' : '♙ Dimakan oleh Putih'}</h3>
+              <h3 className="text-gold font-bold mb-2">{isPlayerBlack ? '♟ Captured by Black' : '♙ Captured by White'}</h3>
               <div className="text-2xl min-h-8">{youCaptured.join('') || '—'}</div>
             </div>
             <div className="bg-graphite border border-gold/30 rounded-lg p-4">
@@ -481,9 +481,9 @@ export default function GameRoom({ user, timeControl, match, onBack, onSocial, o
             disabled={Boolean(result) || drawPending}
             className="px-6 py-2 bg-slate text-gray-300 rounded hover:bg-gray-700 disabled:opacity-50"
           >
-            {drawPending ? 'Menunggu jawaban remis…' : '🤝 Tawarkan remis'}
+            {drawPending ? 'Waiting for draw response…' : '🤝 Offer Draw'}
           </button>
-          {incomingDraw && <><span className="self-center text-sm text-amber-200">Lawan menawarkan remis</span><button onClick={() => offerDraw(true)} className="rounded bg-emerald px-4 py-2 font-semibold text-obsidian">Terima remis</button><button onClick={() => offerDraw(false)} className="rounded bg-slate px-4 py-2">Tolak remis</button></>}
+          {incomingDraw && <><span className="self-center text-sm text-amber-200">Opponent offered a draw</span><button onClick={() => offerDraw(true)} className="rounded bg-emerald px-4 py-2 font-semibold text-obsidian">Accept draw</button><button onClick={() => offerDraw(false)} className="rounded bg-slate px-4 py-2">Decline draw</button></>}
           <button onClick={resign} className="px-6 py-2 bg-red-600 text-white rounded hover:bg-red-700">
             🏳️ Resign
           </button>
@@ -523,7 +523,7 @@ function MultiplayerVoice({ roomId, userId, opponentName }) {
         if (candidate) channel.send({ type: 'broadcast', event: 'signal', payload: { from: userId, kind: 'candidate', candidate: candidate.toJSON() } });
       };
       peer.onconnectionstatechange = () => setConnected(peer.connectionState === 'connected');
-      peer.oniceconnectionstatechange = () => { if (peer.iceConnectionState === 'failed') toast.error('Koneksi suara gagal; jaringan mungkin memerlukan TURN.'); };
+      peer.oniceconnectionstatechange = () => { if (peer.iceConnectionState === 'failed') toast.error('Voice connection failed; network may require TURN.'); };
       setActive(true);
       return peer;
     }
@@ -551,7 +551,7 @@ function MultiplayerVoice({ roomId, userId, opponentName }) {
         } else if (payload.kind === 'hangup') {
           peer.close(); peerRef.current = null; streamRef.current?.getTracks().forEach((track) => track.stop()); streamRef.current = null; setActive(false); setConnected(false);
         }
-      } catch (error) { toast.error(error.message || 'Tidak dapat menyambungkan voice talk.'); }
+      } catch (error) { toast.error(error.message || 'Could not connect voice talk.'); }
     });
     channel.subscribe((status) => setChannelReady(status === 'SUBSCRIBED'));
     return () => {
@@ -564,14 +564,14 @@ function MultiplayerVoice({ roomId, userId, opponentName }) {
   }, [roomId, userId]);
 
   async function startVoice() {
-    if (!channelReady) { toast.error('Menghubungkan kanal suara. Coba lagi sebentar.'); return; }
+    if (!channelReady) { toast.error('Connecting voice channel. Please try again shortly.'); return; }
     try {
       const peer = await createPeerRef.current();
       setActive(true);
       if (peer.signalingState !== 'stable') return;
       await peer.setLocalDescription(await peer.createOffer());
       await channelRef.current.send({ type: 'broadcast', event: 'signal', payload: { from: userId, kind: 'offer', description: peer.localDescription } });
-    } catch (error) { toast.error(error.name === 'NotAllowedError' ? 'Izinkan akses mikrofon untuk voice talk.' : (error.message || 'Mikrofon tidak tersedia.')); }
+    } catch (error) { toast.error(error.name === 'NotAllowedError' ? 'Please allow microphone access for voice talk.' : (error.message || 'Microphone unavailable.')); }
   }
   function toggleMute() {
     const next = !muted;
@@ -585,19 +585,19 @@ function MultiplayerVoice({ roomId, userId, opponentName }) {
     pendingCandidates.current = [];
     setActive(false); setConnected(false); setMuted(false);
   }
-  const status = active ? (connected ? `Tersambung · ${opponentName}` : 'Menghubungkan suara…') : channelReady ? 'Siap bicara 2 arah' : 'Menghubungkan kanal…';
+  const status = active ? (connected ? `Connected · ${opponentName}` : 'Connecting voice…') : channelReady ? 'Ready for 2-way talk' : 'Connecting channel…';
   return (
     <div className="fixed bottom-4 right-4 z-40 w-[min(22rem,calc(100vw-2rem))] rounded-xl border border-gold/50 bg-graphite/95 p-3 shadow-2xl backdrop-blur">
       <audio ref={remoteAudioRef} autoPlay />
       <div className="flex items-center gap-2">
         <span className={`h-2.5 w-2.5 rounded-full ${connected ? 'bg-emerald' : active ? 'bg-amber-400' : 'bg-gray-500'}`} />
         <span className="min-w-0 flex-1 truncate text-sm font-semibold text-white">TalkVoice <span className="font-normal text-gray-400">{status}</span></span>
-        <button onClick={() => setMinimized((value) => !value)} className="rounded px-2 py-1 text-gray-300 hover:bg-slate" aria-label={minimized ? 'Buka panel voice' : 'Kecilkan panel voice'}>{minimized ? '□' : '—'}</button>
+        <button onClick={() => setMinimized((value) => !value)} className="rounded px-2 py-1 text-gray-300 hover:bg-slate" aria-label={minimized ? 'Expand voice panel' : 'Minimize voice panel'}>{minimized ? '□' : '—'}</button>
       </div>
       {!minimized && <div className="mt-3 flex flex-wrap gap-2">
-        {!active ? <button onClick={startVoice} disabled={!channelReady} className="rounded bg-gold px-3 py-2 text-sm font-bold text-obsidian disabled:opacity-50">🎙️ Mulai bicara</button> : <>
-          <button onClick={toggleMute} className="rounded bg-slate px-3 py-2 text-sm text-white">{muted ? 'Aktifkan mikrofon' : 'Bisukan'}</button>
-          <button onClick={hangup} className="rounded bg-red-700 px-3 py-2 text-sm text-white">Akhiri suara</button>
+        {!active ? <button onClick={startVoice} disabled={!channelReady} className="rounded bg-gold px-3 py-2 text-sm font-bold text-obsidian disabled:opacity-50">🎙️ Start Talking</button> : <>
+          <button onClick={toggleMute} className="rounded bg-slate px-3 py-2 text-sm text-white">{muted ? 'Unmute' : 'Mute'}</button>
+          <button onClick={hangup} className="rounded bg-red-700 px-3 py-2 text-sm text-white">End Voice</button>
         </>}
       </div>}
     </div>

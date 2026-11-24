@@ -63,7 +63,7 @@ export default function AdminTournaments({ user, onNavigate, onEditProfile, onLo
     () =>
       (setRefreshKey((k) => k + 1), fetchTournaments(user))
         .then((all) => setList(all.filter((t) => t.format === 'swiss')))
-        .catch((e) => toast.error(`Gagal memuat turnamen: ${e.message}`)),
+        .catch((e) => toast.error(`Failed to load tournaments: ${e.message}`)),
     [user],
   );
 
@@ -89,7 +89,7 @@ export default function AdminTournaments({ user, onNavigate, onEditProfile, onLo
     try {
       if (t.joined) await leaveTournament(user, t);
       else await joinTournament(user, t);
-      toast.success(t.joined ? `Batal ikut ${t.name}` : `Terdaftar di ${t.name}`);
+      toast.success(t.joined ? `Left ${t.name}` : `Registered for ${t.name}`);
       await reload();
     } catch (e) {
       toast.error(e.message);
@@ -180,7 +180,7 @@ export default function AdminTournaments({ user, onNavigate, onEditProfile, onLo
   }
 
   if (!profileLoaded) {
-    return <Shell {...{ user, profile, onNavigate, onEditProfile, onLogout }}><div className="text-gray-400 text-center py-16">Memuat...</div></Shell>;
+    return <Shell {...{ user, profile, onNavigate, onEditProfile, onLogout }}><div className="text-gray-400 text-center py-16">Loading...</div></Shell>;
   }
 
   if (!isAdmin) {
@@ -188,16 +188,16 @@ export default function AdminTournaments({ user, onNavigate, onEditProfile, onLo
       <Shell {...{ user, profile, onNavigate, onEditProfile, onLogout }}>
         <div className="max-w-xl mx-auto bg-graphite border border-crimson/50 rounded-xl p-6 text-center">
           <div className="text-4xl mb-2">🔒</div>
-          <h1 className="text-2xl font-cinzel font-bold text-gold mb-2">Khusus Admin</h1>
-          <p className="text-gray-300 mb-4">Halaman ini hanya untuk admin turnamen.</p>
+          <h1 className="text-2xl font-cinzel font-bold text-gold mb-2">Admin Only</h1>
+          <p className="text-gray-300 mb-4">This page is restricted to tournament administrators.</p>
           <p className="text-sm text-gray-500">
-            Pemilik proyek dapat menjadikan akun admin lewat Supabase SQL Editor:
+            Project owners can grant admin privileges via Supabase SQL Editor:
           </p>
           <code className="block mt-2 bg-obsidian rounded p-2 text-xs text-champagne text-left overflow-x-auto">
-            update profiles set is_admin = true where username = &apos;{profile?.username || 'nama_anda'}&apos;;
+            update profiles set is_admin = true where username = &apos;{profile?.username || 'your_username'}&apos;;
           </code>
           <button onClick={() => onNavigate('tournaments')} className="mt-5 px-4 py-2 bg-gold text-obsidian font-bold rounded">
-            Ke Tournaments
+            To Tournaments
           </button>
         </div>
       </Shell>
@@ -208,14 +208,14 @@ export default function AdminTournaments({ user, onNavigate, onEditProfile, onLo
     <Shell {...{ user, profile, onNavigate, onEditProfile, onLogout }} isAdmin>
       <div ref={topRef} className="max-w-7xl mx-auto space-y-6 scroll-mt-6">
         <div>
-          <h1 className="text-4xl font-cinzel font-bold text-gold mb-2">🛠 Admin Turnamen</h1>
+          <h1 className="text-4xl font-cinzel font-bold text-gold mb-2">🛠 Tournament Admin</h1>
           <p className="text-gray-400">
-            Buat turnamen Swiss baru. Pemain bisa mendaftar sampai waktu mulai; setelah Anda menekan Mulai, ronde 1 dan
-            seterusnya dipasangkan otomatis.
+            Create a new Swiss tournament. Players can register until the start time; once you press Start, Round 1 and
+            subsequent rounds are paired automatically.
           </p>
           {user.isGuest && (
             <p className="mt-2 text-xs text-amber">
-              Mode tamu — turnamen disimpan di browser ini dan diisi pemain contoh agar bisa langsung dicoba.
+              Guest mode — tournaments are stored in this browser and filled with sample players for testing.
             </p>
           )}
         </div>
@@ -226,14 +226,14 @@ export default function AdminTournaments({ user, onNavigate, onEditProfile, onLo
             data-testid="created-banner"
           >
             <div className="flex-1 text-sm text-gray-200">
-              <span className="font-bold text-emerald">✓ {lastCreated.name}</span> dibuat · mulai{' '}
-              {formatDateTime(lastCreated.starts_at)}. Pendaftaran sudah dibuka.
+              <span className="font-bold text-emerald">✓ {lastCreated.name}</span> created · starts{' '}
+              {formatDateTime(lastCreated.starts_at)}. Registration is open.
             </div>
             <button
               onClick={() => openDetail(lastCreated.id, 'standings')}
               className="px-4 py-2 bg-emerald text-obsidian font-bold rounded whitespace-nowrap"
             >
-              Lihat Turnamen →
+              View Tournament →
             </button>
           </div>
         )}
@@ -244,20 +244,20 @@ export default function AdminTournaments({ user, onNavigate, onEditProfile, onLo
             onSubmit={handleSubmit}
             noValidate
             className="lg:col-span-2 bg-graphite border border-gold/20 rounded-xl p-6 space-y-5"
-            aria-label={editing ? 'Ubah turnamen' : 'Buat turnamen Swiss'}
+            aria-label={editing ? 'Edit tournament' : 'Create Swiss tournament'}
           >
             <div className="flex items-center justify-between gap-3">
               <h2 className="text-xl font-bold text-white">
-                {editing ? `✏️ Ubah: ${editing.name}` : '＋ Turnamen Swiss Baru'}
+                {editing ? `✏️ Edit: ${editing.name}` : '＋ New Swiss Tournament'}
               </h2>
               {editing && (
                 <button type="button" onClick={resetForm} className="text-sm text-gray-400 hover:text-white">
-                  Batal ubah
+                  Cancel edit
                 </button>
               )}
             </div>
 
-            <Field label="Nama turnamen" error={show('name')} counter={`${form.name.length}/${LIMITS.nameMax}`}>
+            <Field label="Tournament name" error={show('name')} counter={`${form.name.length}/${LIMITS.nameMax}`}>
               <input
                 className={`${inputCls} ${show('name') ? 'border-crimson' : 'border-gray-700'}`}
                 value={form.name}
@@ -286,7 +286,7 @@ export default function AdminTournaments({ user, onNavigate, onEditProfile, onLo
               />
             </Field>
 
-            <Field label="Kontrol waktu (menit + detik increment)" error={show('time_control')}>
+            <Field label="Time control (minutes + increment seconds)" error={show('time_control')}>
               <div className="flex flex-wrap gap-2 mb-2">
                 {TIME_PRESETS.map((p) => (
                   <Chip key={p.value} active={form.time_control === p.value} onClick={() => set('time_control')(p.value)}>
@@ -301,12 +301,12 @@ export default function AdminTournaments({ user, onNavigate, onEditProfile, onLo
                 onBlur={touch('time_control')}
                 placeholder="10+5"
                 name="time_control"
-                aria-label="Kontrol waktu kustom"
+                aria-label="Custom time control"
               />
             </Field>
 
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
-              <Field label="Kuota pemain" error={show('max_players')}>
+              <Field label="Player quota" error={show('max_players')}>
                 <div className="flex flex-wrap gap-2 mb-2">
                   {PLAYER_PRESETS.map((n) => (
                     <Chip key={n} active={Number(form.max_players) === n} onClick={() => set('max_players')(n)}>
@@ -323,23 +323,23 @@ export default function AdminTournaments({ user, onNavigate, onEditProfile, onLo
                   onChange={(e) => set('max_players')(e.target.value === '' ? '' : Number(e.target.value))}
                   onBlur={touch('max_players')}
                   name="max_players"
-                  aria-label="Kuota pemain"
+                  aria-label="Player quota"
                 />
                 {editing && registered > 0 && (
-                  <p className="text-xs text-gray-500 mt-1">{registered} pemain sudah terdaftar.</p>
+                  <p className="text-xs text-gray-500 mt-1">{registered} players already registered.</p>
                 )}
               </Field>
 
-              <Field label="Jumlah ronde" error={show('rounds')}>
+              <Field label="Number of rounds" error={show('rounds')}>
                 <div className="flex gap-2 mb-2">
                   <Chip active={form.rounds === null} onClick={() => set('rounds')(null)}>
-                    Otomatis
+                    Automatic
                   </Chip>
                   <Chip
                     active={form.rounds !== null}
                     onClick={() => set('rounds')(form.rounds ?? plannedRounds(null, fieldSize))}
                   >
-                    Tentukan
+                    Custom
                   </Chip>
                 </div>
                 {form.rounds !== null ? (
@@ -354,18 +354,18 @@ export default function AdminTournaments({ user, onNavigate, onEditProfile, onLo
                   />
                 ) : (
                   <p className="text-sm text-gray-300">
-                    ⌈log₂ pemain⌉ — untuk {fieldSize} pemain: <b className="text-gold">{plannedRounds(null, fieldSize)} ronde</b>
+                    ⌈log₂ players⌉ — for {fieldSize} players: <b className="text-gold">{plannedRounds(null, fieldSize)} rounds</b>
                   </p>
                 )}
                 <p className="text-xs text-gray-500 mt-1">
-                  Maks. {maxRounds(fieldSize)} ronde untuk {fieldSize} pemain. Bila yang ikut lebih sedikit, ronde dipotong
-                  otomatis agar tidak ada pertemuan ulang.
+                  Max {maxRounds(fieldSize)} rounds for {fieldSize} players. If fewer players join, rounds are automatically capped
+                  to prevent rematches.
                 </p>
               </Field>
             </div>
 
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
-              <Field label="Waktu mulai" error={show('starts_at')}>
+              <Field label="Start time" error={show('starts_at')}>
                 <input
                   type="datetime-local"
                   className={`${inputCls} ${show('starts_at') ? 'border-crimson' : 'border-gray-700'} [color-scheme:dark]`}
@@ -375,7 +375,7 @@ export default function AdminTournaments({ user, onNavigate, onEditProfile, onLo
                   name="starts_at"
                 />
               </Field>
-              <Field label="Perkiraan selesai" optional error={show('ends_at')}>
+              <Field label="Estimated end time" optional error={show('ends_at')}>
                 <input
                   type="datetime-local"
                   className={`${inputCls} ${show('ends_at') ? 'border-crimson' : 'border-gray-700'} [color-scheme:dark]`}
@@ -387,27 +387,27 @@ export default function AdminTournaments({ user, onNavigate, onEditProfile, onLo
                 <p className="text-xs text-gray-500 mt-1">
                   {form.ends_at ? (
                     <button type="button" className="text-gold hover:underline" onClick={() => set('ends_at')('')}>
-                      Hitung otomatis
+                      Use automatic estimate
                     </button>
                   ) : endEstimate ? (
                     <>
-                      Otomatis: <span className="text-gray-300">{formatDateTime(endEstimate)}</span> (±{perRound} mnt/ronde)
+                      Automatic: <span className="text-gray-300">{formatDateTime(endEstimate)}</span> (±{perRound} min/round)
                     </>
                   ) : (
-                    'Dihitung dari kontrol waktu × ronde.'
+                    'Calculated from time control × rounds.'
                   )}
                 </p>
               </Field>
             </div>
 
-            <Field label="Hadiah" optional error={show('prize_pool')} counter={`${form.prize_pool.length}/${LIMITS.prizeMax}`}>
+            <Field label="Prize pool" optional error={show('prize_pool')} counter={`${form.prize_pool.length}/${LIMITS.prizeMax}`}>
               <input
                 className={`${inputCls} ${show('prize_pool') ? 'border-crimson' : 'border-gray-700'}`}
                 value={form.prize_pool}
                 maxLength={LIMITS.prizeMax}
                 onChange={(e) => set('prize_pool')(e.target.value)}
                 onBlur={touch('prize_pool')}
-                placeholder="mis. 2.000 Gems"
+                placeholder="e.g. 2,000 Gems"
                 name="prize_pool"
               />
             </Field>
@@ -421,13 +421,13 @@ export default function AdminTournaments({ user, onNavigate, onEditProfile, onLo
                 name="is_pro_only"
               />
               <span>
-                <span className="text-white font-medium">Khusus pemain Pro</span>
-                <span className="block text-xs text-gray-500">Hanya akun Pro yang bisa mendaftar.</span>
+                <span className="text-white font-medium">Pro players only</span>
+                <span className="block text-xs text-gray-500">Only verified Pro accounts can register.</span>
               </span>
             </label>
 
             {user.isGuest && !editing && (
-              <Field label={`Pemain contoh (demo): ${bots}`}>
+              <Field label={`Sample bot players (demo): ${bots}`}>
                 <input
                   type="range"
                   min={0}
@@ -435,35 +435,35 @@ export default function AdminTournaments({ user, onNavigate, onEditProfile, onLo
                   value={Math.min(bots, Math.max(0, fieldSize - 1))}
                   onChange={(e) => setBots(Number(e.target.value))}
                   className="w-full accent-[#D4AF37]"
-                  aria-label="Jumlah pemain contoh"
+                  aria-label="Sample players count"
                 />
               </Field>
             )}
 
             <div className="flex flex-col-reverse sm:flex-row sm:justify-end gap-3 pt-2 border-t border-gray-800">
               <button type="button" onClick={resetForm} className="px-4 py-2 text-gray-400 hover:text-white">
-                {editing ? 'Batal' : 'Kosongkan'}
+                {editing ? 'Cancel' : 'Clear'}
               </button>
               <button
                 type="submit"
                 disabled={saving}
                 className="px-6 py-2 bg-gold text-obsidian font-bold rounded hover:bg-champagne disabled:opacity-50"
               >
-                {saving ? 'Menyimpan...' : editing ? 'Simpan Perubahan' : 'Buat Turnamen'}
+                {saving ? 'Saving...' : editing ? 'Save Changes' : 'Create Tournament'}
               </button>
             </div>
           </form>
 
           {/* ---------------- Preview ---------------- */}
           <aside className="space-y-4 lg:sticky lg:top-6">
-            <div className="text-xs uppercase tracking-widest text-gray-500">Pratinjau kartu</div>
+            <div className="text-xs uppercase tracking-widest text-gray-500">Card preview</div>
             <Preview form={form} fieldSize={fieldSize} endEstimate={endEstimate} />
             <div className="bg-graphite border border-gray-800 rounded-xl p-4 text-xs text-gray-400 space-y-1">
-              <div className="text-gray-300 font-bold mb-1">Setelah dibuat</div>
-              <p>1. Turnamen muncul di tab Akan Datang dan pemain bisa mendaftar.</p>
-              <p>2. Buka detailnya lalu tekan ▶ Mulai &amp; Pairing R1 (atau otomatis via cron).</p>
-              <p>3. Isi hasil tiap papan; ronde berikutnya dipasangkan otomatis.</p>
-              <p className="pt-1 text-gray-500">Turnamen hanya bisa diubah atau dihapus sebelum dimulai.</p>
+              <div className="text-gray-300 font-bold mb-1">After creation</div>
+              <p>1. Tournament appears in the Upcoming tab and players can register.</p>
+              <p>2. Open its details and click ▶ Start &amp; Pair R1 (or automated via cron).</p>
+              <p>3. Enter results for each board; the next round pairs automatically.</p>
+              <p className="pt-1 text-gray-500">Tournaments can only be edited or deleted before they begin.</p>
             </div>
           </aside>
         </div>
@@ -472,23 +472,23 @@ export default function AdminTournaments({ user, onNavigate, onEditProfile, onLo
         <section className="bg-graphite border border-gold/20 rounded-xl p-6">
           <div className="flex flex-col md:flex-row md:items-end md:justify-between gap-3 mb-4">
             <div>
-              <h2 className="text-xl font-bold text-white mb-1">Kelola Turnamen Swiss</h2>
+              <h2 className="text-xl font-bold text-white mb-1">Manage Swiss Tournaments</h2>
               <p className="text-sm text-gray-500">
-                Jumlah pendaftar diperbarui otomatis. Ubah atau hapus hanya bisa sebelum turnamen dimulai.
+                Registration counts update in real-time. Editing or deletion is only allowed before the tournament starts.
                 {list && (
                   <span className="text-gray-400" data-testid="total-registered">
                     {' '}
-                    Total {totalRegistered} pendaftar di turnamen aktif.
+                    Total {totalRegistered} registered across active tournaments.
                   </span>
                 )}
               </p>
             </div>
             <div className="flex flex-wrap gap-2" role="tablist" aria-label="Filter status">
               {[
-                { key: 'all', label: 'Semua' },
-                { key: 'upcoming', label: 'Akan Datang' },
-                { key: 'running', label: 'Berlangsung' },
-                { key: 'finished', label: 'Selesai' },
+                { key: 'all', label: 'All' },
+                { key: 'upcoming', label: 'Upcoming' },
+                { key: 'running', label: 'Live' },
+                { key: 'finished', label: 'Completed' },
               ].map((f) => (
                 <Chip key={f.key} active={statusFilter === f.key} onClick={() => setStatusFilter(f.key)}>
                   {f.label} <span className="opacity-60">({statusCounts[f.key] || 0})</span>
@@ -497,10 +497,10 @@ export default function AdminTournaments({ user, onNavigate, onEditProfile, onLo
             </div>
           </div>
           {list === null ? (
-            <div className="text-gray-400 py-6 text-center">Memuat...</div>
+            <div className="text-gray-400 py-6 text-center">Loading...</div>
           ) : manageList.length === 0 ? (
             <div className="text-gray-500 py-6 text-center">
-              {list.length === 0 ? 'Belum ada. Buat yang pertama di atas.' : 'Tidak ada turnamen dengan status ini.'}
+              {list.length === 0 ? 'None yet. Create the first one above.' : 'No tournaments with this status.'}
             </div>
           ) : (
             <ul className="divide-y divide-gray-800" data-testid="manage-list">
@@ -614,7 +614,7 @@ function Stepper({ value, min, max, onChange }) {
         onClick={() => onChange(Math.max(min, v - 1))}
         disabled={v <= min}
         className="px-3 py-2 bg-obsidian text-gray-300 hover:text-white disabled:opacity-30"
-        aria-label="Kurangi ronde"
+        aria-label="Decrease rounds"
       >
         −
       </button>
@@ -626,7 +626,7 @@ function Stepper({ value, min, max, onChange }) {
         onClick={() => onChange(Math.min(max, v + 1))}
         disabled={v >= max}
         className="px-3 py-2 bg-obsidian text-gray-300 hover:text-white disabled:opacity-30"
-        aria-label="Tambah ronde"
+        aria-label="Increase rounds"
       >
         +
       </button>
@@ -642,21 +642,21 @@ function Preview({ form, fieldSize, endEstimate }) {
     <div className="bg-graphite border border-gold/40 rounded-xl p-5" data-testid="preview-card">
       <div className="flex items-start justify-between gap-2 mb-2">
         <h3 className="text-lg font-bold text-white leading-snug break-words min-w-0">
-          {form.name.trim() || <span className="text-gray-600">Nama turnamen</span>}
+          {form.name.trim() || <span className="text-gray-600">Tournament name</span>}
         </h3>
         {form.is_pro_only && <span className="px-2 py-0.5 rounded bg-gold text-obsidian text-xs font-bold shrink-0">PRO</span>}
       </div>
       <div className="flex flex-wrap items-center gap-3 text-sm text-gray-300 mb-3">
         <span className="px-2 py-0.5 rounded border text-xs font-bold bg-azure/15 text-azure border-azure/40">Swiss</span>
         <span>⏱ {form.time_control || '—'}</span>
-        <span>{form.rounds === null ? `±${rounds}` : rounds} ronde</span>
+        <span>{form.rounds === null ? `±${rounds}` : rounds} rounds</span>
       </div>
       {form.description.trim() && <p className="text-sm text-gray-400 mb-2 line-clamp-3 break-words">{form.description}</p>}
       <div className="text-sm text-gray-400">📅 {start && !Number.isNaN(start.getTime()) ? formatDateTime(start) : '—'}</div>
       {end && <div className="text-sm text-gray-500">🏁 {formatDateTime(end)}</div>}
       {form.prize_pool.trim() && <div className="text-sm text-gray-400 mt-1 break-words">🎁 {form.prize_pool}</div>}
       <div className="flex justify-between text-xs text-gray-400 mt-3 mb-1">
-        <span>Pemain</span>
+        <span>Players</span>
         <span>0/{form.max_players || '—'}</span>
       </div>
       <div className="h-2 bg-obsidian rounded-full" />
@@ -665,9 +665,9 @@ function Preview({ form, fieldSize, endEstimate }) {
 }
 
 const STATUS_BADGE = {
-  upcoming: { label: 'Akan Datang', cls: 'bg-gold/15 text-gold border-gold/40' },
-  running: { label: 'Berlangsung', cls: 'bg-emerald/15 text-emerald border-emerald/40' },
-  finished: { label: 'Selesai', cls: 'bg-gray-700/40 text-gray-400 border-gray-600' },
+  upcoming: { label: 'Upcoming', cls: 'bg-gold/15 text-gold border-gold/40' },
+  running: { label: 'Live', cls: 'bg-emerald/15 text-emerald border-emerald/40' },
+  finished: { label: 'Completed', cls: 'bg-gray-700/40 text-gray-400 border-gray-600' },
 };
 
 function StatusBadge({ t }) {
@@ -683,10 +683,10 @@ function StatusBadge({ t }) {
 function statusDetail(t, now) {
   if (t.status === 'upcoming') {
     const ms = new Date(t.starts_at).getTime() - now;
-    return ms > 0 ? `Mulai dalam ${formatCountdown(ms)}` : 'Menunggu dimulai admin';
+    return ms > 0 ? `Starts in ${formatCountdown(ms)}` : 'Waiting for admin to start';
   }
-  if (t.status === 'running') return t.rounds ? `Ronde ${t.current_round || 1} dari ${t.rounds}` : 'Sedang berjalan';
-  return `Selesai ${formatDateTime(t.ends_at || t.starts_at)}`;
+  if (t.status === 'running') return t.rounds ? `Round ${t.current_round || 1} of ${t.rounds}` : 'Running';
+  return `Completed ${formatDateTime(t.ends_at || t.starts_at)}`;
 }
 
 function ManageRow({ t, now, editable, builtIn, isEditing, onEdit, onOpen, onOpenPairings, onDelete }) {
@@ -713,19 +713,19 @@ function ManageRow({ t, now, editable, builtIn, isEditing, onEdit, onOpen, onOpe
         </div>
         <div className="text-xs text-gray-500">
           {statusDetail(t, now)} · 📅 {formatDateTime(t.starts_at)} · ⏱ {t.time_control} ·{' '}
-          {t.rounds ? `${t.rounds} ronde` : 'ronde otomatis'}
+          {t.rounds ? `${t.rounds} rounds` : 'auto rounds'}
         </div>
       </button>
 
       <div data-testid="registrations">
         <div className="flex justify-between items-baseline text-xs mb-1">
-          <span className="text-gray-400">{t.status === 'upcoming' ? 'Pendaftar' : 'Peserta'}</span>
+          <span className="text-gray-400">{t.status === 'upcoming' ? 'Registrations' : 'Participants'}</span>
           <span className="font-mono">
             <b className={full && t.status !== 'finished' ? 'text-crimson' : 'text-white'}>{count}</b>
             <span className="text-gray-500">/{t.max_players}</span>
             {t.status === 'upcoming' && (
               <span className={`ml-2 ${full ? 'text-crimson font-bold' : 'text-gray-500'}`}>
-                {full ? 'Penuh' : `sisa ${t.max_players - count}`}
+                {full ? 'Full' : `${t.max_players - count} spots left`}
               </span>
             )}
           </span>
@@ -733,27 +733,27 @@ function ManageRow({ t, now, editable, builtIn, isEditing, onEdit, onOpen, onOpe
         <div className="h-2 bg-obsidian rounded-full overflow-hidden">
           <div className={`h-full ${barCls} transition-all`} style={{ width: `${pct}%` }} />
         </div>
-        {tooFew && <div className="text-[11px] text-amber mt-1">Butuh minimal 2 pemain untuk dimulai</div>}
+        {tooFew && <div className="text-[11px] text-amber mt-1">Needs at least 2 players to start</div>}
       </div>
 
       <div className="flex md:justify-end">
         {builtIn ? (
-          <span className="text-xs text-gray-600">Contoh bawaan</span>
+          <span className="text-xs text-gray-600">Built-in sample</span>
         ) : !editable ? (
           <button
             onClick={onOpenPairings}
-            title="Buka papan pairing turnamen"
+            title="Open tournament pairings board"
             className={`px-3 py-1 rounded border text-sm whitespace-nowrap ${
               t.status === 'running'
                 ? 'border-emerald/50 text-emerald hover:bg-emerald/10'
                 : 'border-gray-600 text-gray-300 hover:text-white hover:bg-white/5'
             }`}
           >
-            {t.status === 'running' ? '♟ Pantau' : '♟ Lihat hasil'}
+            {t.status === 'running' ? '♟ Monitor' : '♟ View results'}
           </button>
         ) : confirming ? (
           <div className="flex flex-wrap items-center gap-2 text-sm">
-            <span className="text-gray-300">Hapus{count > 0 ? ` (${count} pendaftar)` : ''}?</span>
+            <span className="text-gray-300">Delete{count > 0 ? ` (${count} registered)` : ''}?</span>
             <button
               onClick={async () => {
                 setBusy(true);
@@ -764,22 +764,22 @@ function ManageRow({ t, now, editable, builtIn, isEditing, onEdit, onOpen, onOpe
               disabled={busy}
               className="px-3 py-1 bg-crimson text-white rounded font-bold disabled:opacity-50"
             >
-              {busy ? '...' : 'Ya, hapus'}
+              {busy ? '...' : 'Yes, delete'}
             </button>
             <button onClick={() => setConfirming(false)} className="px-3 py-1 text-gray-400 hover:text-white">
-              Batal
+              Cancel
             </button>
           </div>
         ) : (
           <div className="flex gap-2">
             <button onClick={onEdit} className="px-3 py-1 rounded border border-gold/40 text-gold text-sm hover:bg-gold/10">
-              Ubah
+              Edit
             </button>
             <button
               onClick={() => setConfirming(true)}
               className="px-3 py-1 rounded border border-crimson/40 text-crimson text-sm hover:bg-crimson/10"
             >
-              Hapus
+              Delete
             </button>
           </div>
         )}

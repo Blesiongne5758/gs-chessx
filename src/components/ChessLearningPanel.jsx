@@ -16,7 +16,7 @@ const PIECE_GLYPHS = { K: '♔', Q: '♕', R: '♖', B: '♗', N: '♘', P: '♙
 
 function PuzzleBoard({ position }) {
   return (
-    <div className="mx-auto mt-4 max-w-[15rem] overflow-hidden rounded-lg border-2 border-gold/40 shadow-[0_0_22px_rgba(212,175,55,.12)]" role="img" aria-label="Diagram posisi puzzle catur">
+    <div className="mx-auto mt-4 max-w-[15rem] overflow-hidden rounded-lg border-2 border-gold/40 shadow-[0_0_22px_rgba(212,175,55,.12)]" role="img" aria-label="Chess puzzle position diagram">
       <div className="grid grid-cols-8">
         {position.flatMap((row, rowIndex) => [...row].map((piece, colIndex) => {
           const light = (rowIndex + colIndex) % 2 === 0;
@@ -72,14 +72,14 @@ export default function ChessLearningPanel({ mode = 'all' }) {
     <section className="rounded-xl border border-gold/25 bg-graphite p-4 shadow-lg shadow-black/10" aria-labelledby="learning-title">
       <div className="flex items-start justify-between gap-3">
         <div>
-          <p className="text-[10px] uppercase tracking-[0.22em] text-gold/80">Ruang belajar</p>
-          <h3 id="learning-title" className="mt-1 font-cinzel text-lg font-bold text-gold">Satu langkah, satu warisan</h3>
-          <p className="mt-1 text-xs text-gray-400">Cerita sejarah, strategi praktis, dan quiz singkat untuk melatih keputusan sebelum bertanding.</p>
+          <p className="text-[10px] uppercase tracking-[0.22em] text-gold/80">Academy</p>
+          <h3 id="learning-title" className="mt-1 font-cinzel text-lg font-bold text-gold">One Move, One Legacy</h3>
+          <p className="mt-1 text-xs text-gray-400">Historical stories, practical strategies, and quick quizzes to sharpen decisions before battle.</p>
         </div>
-        <span className="rounded-full border border-gold/25 bg-gold/10 px-2 py-1 text-[10px] font-semibold text-gold">Di luar permainan</span>
+        <span className="rounded-full border border-gold/25 bg-gold/10 px-2 py-1 text-[10px] font-semibold text-gold">Outside Active Games</span>
       </div>
 
-      {mode !== 'story' && <div className="mt-4 grid grid-cols-3 gap-1 rounded-lg border border-white/10 bg-obsidian/60 p-1" role="tablist" aria-label="Materi belajar catur">
+      {mode !== 'story' && <div className="mt-4 grid grid-cols-3 gap-1 rounded-lg border border-white/10 bg-obsidian/60 p-1" role="tablist" aria-label="Chess learning materials">
         {[
           ['story', '📜 Story'],
           ['puzzle', '♞ Puzzle'],
@@ -94,15 +94,15 @@ export default function ChessLearningPanel({ mode = 'all' }) {
       {activeTab === 'story' && (
         <div className="mt-4" role="tabpanel">
           <div className="flex items-center justify-between text-[10px] uppercase tracking-[0.18em] text-gray-500">
-            <span>Bab {String(storyIndex + 1).padStart(2, '0')} / {String(STORIES.length).padStart(2, '0')}</span>
+            <span>Chapter {String(storyIndex + 1).padStart(2, '0')} / {String(STORIES.length).padStart(2, '0')}</span>
             <span className="font-mono text-gold">{story.year}</span>
           </div>
           <h4 className="mt-2 text-base font-bold text-white">{story.title}</h4>
           <p className="mt-2 text-xs leading-5 text-gray-300">{story.text}</p>
           <div className="mt-3 rounded-lg border-l-2 border-gold bg-gold/10 px-3 py-2 text-xs leading-5 text-gold/90">{story.lesson}</div>
           <div className="mt-4 flex justify-between gap-2">
-            <button type="button" onClick={() => setStoryIndex((index) => (index - 1 + STORIES.length) % STORIES.length)} className="rounded-md border border-white/10 px-3 py-2 text-xs text-gray-300 hover:border-gold/50 hover:text-white">← Sebelumnya</button>
-            <button type="button" onClick={() => setStoryIndex((index) => (index + 1) % STORIES.length)} className="rounded-md bg-gold px-3 py-2 text-xs font-bold text-obsidian hover:bg-champagne">Lanjut cerita →</button>
+            <button type="button" onClick={() => setStoryIndex((index) => (index - 1 + STORIES.length) % STORIES.length)} className="rounded-md border border-white/10 px-3 py-2 text-xs text-gray-300 hover:border-gold/50 hover:text-white">← Previous</button>
+            <button type="button" onClick={() => setStoryIndex((index) => (index + 1) % STORIES.length)} className="rounded-md bg-gold px-3 py-2 text-xs font-bold text-obsidian hover:bg-champagne">Next Story →</button>
           </div>
         </div>
       )}
@@ -114,7 +114,7 @@ export default function ChessLearningPanel({ mode = 'all' }) {
             <span className="text-emerald">{puzzle.label}</span>
           </div>
           <PuzzleBoard position={puzzle.position} />
-          <p className="mt-2 text-center text-[10px] uppercase tracking-[0.18em] text-gray-500">Baca posisi sebelum memilih rencana</p>
+          <p className="mt-2 text-center text-[10px] uppercase tracking-[0.18em] text-gray-500">Evaluate position before choosing a plan</p>
           <h4 className="mt-2 text-sm font-bold leading-5 text-white">{puzzle.prompt}</h4>
           <div className="mt-3 space-y-2">
             {puzzle.options.map((option, index) => (
@@ -125,10 +125,10 @@ export default function ChessLearningPanel({ mode = 'all' }) {
           </div>
           {puzzleAnswer !== null && (
             <div className={`mt-3 rounded-lg border p-3 text-xs leading-5 ${puzzleAnswer === puzzle.answer ? 'border-emerald/50 bg-emerald/10 text-emerald-100' : 'border-crimson/50 bg-crimson/10 text-red-100'}`} role="status">
-              <strong>{puzzleAnswer === puzzle.answer ? 'Tepat.' : 'Belum tepat.'}</strong> {puzzle.explanation}
+              <strong>{puzzleAnswer === puzzle.answer ? 'Correct.' : 'Not quite.'}</strong> {puzzle.explanation}
             </div>
           )}
-          <button type="button" onClick={nextPuzzle} disabled={puzzleAnswer === null} className="mt-4 w-full rounded-md border border-gold/40 px-3 py-2 text-xs font-semibold text-gold hover:bg-gold/10 disabled:cursor-not-allowed disabled:opacity-40">Puzzle berikutnya</button>
+          <button type="button" onClick={nextPuzzle} disabled={puzzleAnswer === null} className="mt-4 w-full rounded-md border border-gold/40 px-3 py-2 text-xs font-semibold text-gold hover:bg-gold/10 disabled:cursor-not-allowed disabled:opacity-40">Next Puzzle</button>
         </div>
       )}
 
@@ -136,7 +136,7 @@ export default function ChessLearningPanel({ mode = 'all' }) {
         <div className="mt-4" role="tabpanel">
           <div className="flex items-center justify-between text-[10px] uppercase tracking-[0.18em] text-gray-500">
             <span>Quiz {quizIndex + 1} / {QUIZ.length}</span>
-            <span className="font-mono text-gold">Skor {quizScore}</span>
+            <span className="font-mono text-gold">Score {quizScore}</span>
           </div>
           <h4 className="mt-2 text-sm font-bold leading-5 text-white">{quiz.question}</h4>
           <div className="mt-3 space-y-2">
@@ -148,10 +148,10 @@ export default function ChessLearningPanel({ mode = 'all' }) {
           </div>
           {quizAnswer !== null && (
             <div className={`mt-3 rounded-lg border p-3 text-xs leading-5 ${quizAnswer === quiz.answer ? 'border-emerald/50 bg-emerald/10 text-emerald-100' : 'border-crimson/50 bg-crimson/10 text-red-100'}`} role="status">
-              <strong>{quizAnswer === quiz.answer ? 'Benar.' : 'Coba ingat lagi.'}</strong> {quiz.explanation}
+              <strong>{quizAnswer === quiz.answer ? 'Correct.' : 'Review and try again.'}</strong> {quiz.explanation}
             </div>
           )}
-          <button type="button" onClick={nextQuiz} disabled={quizAnswer === null} className="mt-4 w-full rounded-md border border-gold/40 px-3 py-2 text-xs font-semibold text-gold hover:bg-gold/10 disabled:cursor-not-allowed disabled:opacity-40">{quizIndex === QUIZ.length - 1 ? 'Ulangi quiz' : 'Pertanyaan berikutnya'}</button>
+          <button type="button" onClick={nextQuiz} disabled={quizAnswer === null} className="mt-4 w-full rounded-md border border-gold/40 px-3 py-2 text-xs font-semibold text-gold hover:bg-gold/10 disabled:cursor-not-allowed disabled:opacity-40">{quizIndex === QUIZ.length - 1 ? 'Restart Quiz' : 'Next Question'}</button>
         </div>
       )}
     </section>

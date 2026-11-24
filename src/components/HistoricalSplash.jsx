@@ -2,44 +2,44 @@ import { useState } from 'react';
 
 const MOMENTS = [
   {
-    id: 'immortal', year: '1851', kicker: 'The Immortal Game', title: 'Anderssen menyalakan api pengorbanan',
-    text: 'Adolf Anderssen dan Lionel Kieseritzky memainkan partai legendaris di London. Pengorbanan beberapa bidak berat membuka jalan menuju serangan yang tak terlupakan.',
-    lesson: 'Pengorbanan hanya epik jika membuka garis, tempo, atau mat yang benar-benar terhitung.',
+    id: 'immortal', year: '1851', kicker: 'The Immortal Game', title: 'Anderssen sparks the sacrifice flame',
+    text: 'Adolf Anderssen and Lionel Kieseritzky played a legendary game in London. Sacrificing multiple major pieces paved the way for an unforgettable king hunt.',
+    lesson: 'Sacrifices are only glorious when they open lines, gain tempo, or deliver a calculated mate.',
   },
   {
-    id: 'steinitz', year: '1886', kicker: 'The First World Championship', title: 'Steinitz mengubah seni bertahan',
-    text: 'Dalam duel Steinitz–Zukertort, keunggulan kecil mulai dihargai sebagai fondasi serangan besar dan lahirlah kejuaraan dunia resmi pertama.',
-    lesson: 'Bangun tekanan perlahan: ruang, struktur, lalu taktik.',
+    id: 'steinitz', year: '1886', kicker: 'The First World Championship', title: 'Steinitz transforms defensive art',
+    text: 'In the Steinitz–Zukertort match, small advantages were first valued as the foundation for larger attacks, establishing the first official World Championship.',
+    lesson: 'Build pressure systematically: space, structure, then tactics.',
   },
   {
-    id: 'capablanca', year: '1921', kicker: 'The Cuban Crystal', title: 'Capablanca merebut mahkota dengan kejernihan',
-    text: 'José Raúl Capablanca menaklukkan Lasker dalam pertandingan yang memperlihatkan kekuatan endgame, kesederhanaan, dan teknik nyaris tanpa cela.',
-    lesson: 'Posisi yang bersih membuat rencana terbaik lebih mudah terlihat.',
+    id: 'capablanca', year: '1921', kicker: 'The Cuban Crystal', title: 'Capablanca claims the crown with clarity',
+    text: 'José Raúl Capablanca dethroned Lasker in a contest showcasing endgame mastery, simplicity, and near-flawless technique.',
+    lesson: 'Clean positions make the best plans crystal clear.',
   },
   {
-    id: 'reykjavik', year: '1972', kicker: 'The Match of the Century', title: 'Reykjavík menyalakan papan dunia',
-    text: 'Bobby Fischer dan Boris Spassky menjadikan setiap langkah terasa seperti duel keberanian, persiapan, dan ketahanan mental.',
-    lesson: 'Mainkan posisi dengan kepala dingin sebelum mengejar momen epik.',
+    id: 'reykjavik', year: '1972', kicker: 'The Match of the Century', title: 'Reykjavík ignites the world chess stage',
+    text: 'Bobby Fischer and Boris Spassky turned every move into a duel of courage, deep preparation, and psychological stamina.',
+    lesson: 'Play the position with composure before hunting for dramatic brilliance.',
   },
   {
-    id: 'kasparov', year: '1985', kicker: 'The Youngest World Champion', title: 'Kasparov menembus badai Karpov',
-    text: 'Garry Kasparov merebut gelar dari Anatoly Karpov dalam duel panjang yang menguji energi, teori pembukaan, dan keberanian bermain aktif.',
-    lesson: 'Aktivitas bidak sering lebih berharga daripada keunggulan materi yang pasif.',
+    id: 'kasparov', year: '1985', kicker: 'The Youngest World Champion', title: 'Kasparov breaks through the Karpov storm',
+    text: 'Garry Kasparov captured the title from Anatoly Karpov in an epic clash testing energy, opening theory, and fearless dynamic initiative.',
+    lesson: 'Active piece play is often more valuable than passive material advantage.',
   },
   {
-    id: 'deepblue', year: '1997', kicker: 'Human vs Machine', title: 'Deep Blue menantang intuisi manusia',
-    text: 'Kasparov melawan mesin yang menghitung jutaan variasi, menandai babak baru hubungan manusia dan teknologi catur.',
-    lesson: 'Pilih kandidat utama, hitung konkret, lalu percaya pada evaluasi posisi.',
+    id: 'deepblue', year: '1997', kicker: 'Human vs Machine', title: 'Deep Blue challenges human intuition',
+    text: 'Kasparov faced a machine calculating millions of variations per second, marking a new chapter in chess and technology.',
+    lesson: 'Identify key candidate moves, calculate concrete lines, and trust positional evaluation.',
   },
   {
-    id: 'carlsen', year: '2013', kicker: 'The Universal Champion', title: 'Carlsen membuat endgame terasa hidup',
-    text: 'Magnus Carlsen mengalahkan Viswanathan Anand dengan tekanan panjang, fleksibilitas, dan kemampuan mengubah posisi kecil menjadi kemenangan.',
-    lesson: 'Jangan buru-buru menyerah pada posisi yang tampak datar; cari target baru.',
+    id: 'carlsen', year: '2013', kicker: 'The Universal Champion', title: 'Carlsen brings the endgame to life',
+    text: 'Magnus Carlsen defeated Viswanathan Anand with relentless pressure, flexibility, and the ability to squeeze wins from tiny edges.',
+    lesson: 'Never give up on seemingly equal positions; keep creating new problems.',
   },
   {
-    id: 'ding', year: '2023', kicker: 'A New Crown', title: 'Ding Liren menulis babak baru',
-    text: 'Ding Liren menjadi juara dunia catur klasik putra pertama dari Tiongkok setelah duel dramatis melawan Ian Nepomniachtchi.',
-    lesson: 'Ketahanan mental dan keberanian mengambil keputusan menentukan akhir pertandingan besar.',
+    id: 'ding', year: '2023', kicker: 'A New Crown', title: 'Ding Liren scripts a historic chapter',
+    text: 'Ding Liren became the first classical World Chess Champion from China following a dramatic duel against Ian Nepomniachtchi.',
+    lesson: 'Mental resilience and courage under pressure decide the greatest contests.',
   },
 ];
 
@@ -74,9 +74,9 @@ export default function HistoricalSplash({ onContinue }) {
   return (
     <div className="fixed inset-0 z-[80] grid place-items-center overflow-y-auto bg-[#07090d]/95 p-4 backdrop-blur-md sm:p-8" role="dialog" aria-modal="true" aria-labelledby="historical-splash-title">
       <div className="my-auto w-full max-w-2xl rounded-3xl border border-gold/35 bg-[#11141c] p-4 shadow-[0_25px_100px_rgba(0,0,0,.65)] sm:p-6">
-        <div className="mb-4 flex items-center justify-between gap-3"><div><p className="text-[10px] uppercase tracking-[0.3em] text-gold/80">Historical opening · random moment</p><p className="mt-1 font-mono text-xs text-gray-500">ARCHIVE {moment.year}</p></div><button type="button" onClick={onContinue} className="rounded-lg border border-white/10 px-3 py-2 text-xs text-gray-400 hover:border-gold/50 hover:text-white">Lewati</button></div>
+        <div className="mb-4 flex items-center justify-between gap-3"><div><p className="text-[10px] uppercase tracking-[0.3em] text-gold/80">Historical opening · random moment</p><p className="mt-1 font-mono text-xs text-gray-500">ARCHIVE {moment.year}</p></div><button type="button" onClick={onContinue} className="rounded-lg border border-white/10 px-3 py-2 text-xs text-gray-400 hover:border-gold/50 hover:text-white">Skip</button></div>
         <HistoricalVisual id={moment.id} />
-        <div className="mt-5 grid gap-4 sm:grid-cols-[1fr_auto] sm:items-end"><div><p className="text-xs font-semibold uppercase tracking-[0.2em] text-gold">{moment.kicker}</p><h2 id="historical-splash-title" className="mt-2 font-cinzel text-2xl font-bold leading-tight text-white sm:text-3xl">{moment.title}</h2><p className="mt-3 text-sm leading-6 text-gray-300">{moment.text}</p><p className="mt-3 border-l-2 border-gold pl-3 text-xs leading-5 text-gold/90">{moment.lesson}</p></div><button type="button" onClick={onContinue} className="rounded-xl bg-gold px-5 py-3 text-sm font-bold text-obsidian transition hover:bg-champagne">Masuk ke papan →</button></div>
+        <div className="mt-5 grid gap-4 sm:grid-cols-[1fr_auto] sm:items-end"><div><p className="text-xs font-semibold uppercase tracking-[0.2em] text-gold">{moment.kicker}</p><h2 id="historical-splash-title" className="mt-2 font-cinzel text-2xl font-bold leading-tight text-white sm:text-3xl">{moment.title}</h2><p className="mt-3 text-sm leading-6 text-gray-300">{moment.text}</p><p className="mt-3 border-l-2 border-gold pl-3 text-xs leading-5 text-gold/90">{moment.lesson}</p></div><button type="button" onClick={onContinue} className="rounded-xl bg-gold px-5 py-3 text-sm font-bold text-obsidian transition hover:bg-champagne">Enter the Board →</button></div>
       </div>
     </div>
   );

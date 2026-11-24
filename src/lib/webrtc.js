@@ -14,7 +14,7 @@ let turnWarningShown = false;
 function warnTurnUnavailable() {
   if (turnWarningShown) return;
   turnWarningShown = true;
-  toast('Server TURN belum dikonfigurasi. Panggilan mungkin gagal pada NAT/firewall ketat.');
+  toast('TURN server is not configured. Calls may fail behind strict NAT/firewalls.');
 }
 
 /** Fetches short-lived TURN credentials from the authenticated Edge Function. */

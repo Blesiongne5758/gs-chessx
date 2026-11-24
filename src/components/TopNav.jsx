@@ -15,7 +15,7 @@ export default function TopNav({ active, onNavigate, profile, onEditProfile, onL
   const items = isAdmin ? [...ITEMS, { key: 'admin', label: 'Admin' }] : ITEMS;
 
   function go(item) {
-    if (item.soon) toast(`${item.label} segera hadir`);
+    if (item.soon) toast(`${item.label} coming soon`);
     else onNavigate(item.key);
     setMenuOpen(false);
   }
@@ -53,7 +53,7 @@ export default function TopNav({ active, onNavigate, profile, onEditProfile, onL
           <div className="flex items-center gap-2">
             <button
               type="button"
-              onClick={() => toast('Belum ada notifikasi baru')}
+              onClick={() => toast('No new notifications')}
               className="relative grid h-10 w-10 place-items-center rounded-full border border-white/15 bg-white/[.04] text-xl text-gray-200 transition hover:border-gold/50 hover:text-gold"
               aria-label="Notifications"
             >

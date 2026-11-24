@@ -19,9 +19,9 @@ import {
 } from '../lib/tournaments';
 
 const TABS = [
-  { key: 'upcoming', label: 'Akan Datang' },
-  { key: 'running', label: 'Berlangsung' },
-  { key: 'finished', label: 'Selesai' },
+  { key: 'upcoming', label: 'Upcoming' },
+  { key: 'running', label: 'Live' },
+  { key: 'finished', label: 'Completed' },
 ];
 const FORMATS = ['all', 'arena', 'swiss', 'knockout'];
 
@@ -89,10 +89,10 @@ export default function Tournaments({ user, onNavigate, onEditProfile, onLogout,
     try {
       if (t.joined) {
         await leaveTournament(user, t);
-        toast.success(`Batal ikut ${t.name}`);
+        toast.success(`Left ${t.name}`);
       } else {
         await joinTournament(user, t);
-        toast.success(`Terdaftar di ${t.name}`);
+        toast.success(`Registered for ${t.name}`);
       }
       reload();
     } catch (e) {
@@ -119,17 +119,17 @@ export default function Tournaments({ user, onNavigate, onEditProfile, onLogout,
           <div className="lg:col-span-1">
             <h1 className="text-4xl font-cinzel font-bold text-gold mb-2">🏆 Tournaments</h1>
             <p className="text-gray-400">
-              Bertanding melawan pemain lain dalam format Arena, Swiss, atau Knockout. Daftar sebelum turnamen dimulai.
+              Compete against other players in Arena, Swiss, or Knockout formats. Register before the tournament starts.
             </p>
             {user.isGuest && (
-              <p className="mt-3 text-xs text-amber">Mode tamu — data turnamen adalah contoh dan pendaftaran disimpan di browser ini.</p>
+              <p className="mt-3 text-xs text-amber">Guest mode — tournament data is sample data and registrations are saved in this browser.</p>
             )}
             {isAdmin && (
               <button
                 onClick={() => onNavigate('admin')}
                 className="mt-4 px-4 py-2 border border-gold/60 text-gold rounded font-bold hover:bg-gold/10"
               >
-                ＋ Buat Turnamen Swiss
+                ＋ Create Swiss Tournament
               </button>
             )}
           </div>
@@ -192,13 +192,13 @@ export default function Tournaments({ user, onNavigate, onEditProfile, onLogout,
         {/* List */}
         {error ? (
           <div className="bg-red-600/20 border border-red-600 text-red-400 px-4 py-3 rounded">
-            Gagal memuat turnamen: {error}
+            Failed to load tournaments: {error}
           </div>
         ) : tournaments === null ? (
-          <div className="text-gray-400 text-center py-16">Memuat turnamen...</div>
+          <div className="text-gray-400 text-center py-16">Loading tournaments...</div>
         ) : visible.length === 0 ? (
           <div className="bg-graphite border border-gold/20 rounded-xl text-gray-400 text-center py-16">
-            Belum ada turnamen di kategori ini.
+            No tournaments found in this category.
           </div>
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
@@ -257,7 +257,7 @@ function JoinButton({ t, busy, onClick, className = '' }) {
         t.joined ? 'bg-slate text-gray-200 hover:bg-gray-700' : 'bg-gold text-obsidian hover:bg-champagne'
       } ${className}`}
     >
-      {busy ? 'Memproses...' : t.joined ? 'Batal Ikut' : full ? 'Penuh' : 'Daftar'}
+      {busy ? 'Processing...' : t.joined ? 'Leave' : full ? 'Full' : 'Join'}
     </button>
   );
 }
@@ -271,10 +271,10 @@ function StatusLine({ t, now }) {
     return (
       <span className="text-emerald font-medium flex items-center gap-2">
         <span className="w-2 h-2 rounded-full bg-emerald animate-pulse" />
-        LIVE{end ? ` · sisa ${formatCountdown(end - now)}` : ''}
+        LIVE{end ? ` · ${formatCountdown(end - now)} left` : ''}
       </span>
     );
-  return <span className="text-gray-400">Selesai {formatDateTime(t.ends_at || t.starts_at)}</span>;
+  return <span className="text-gray-400">Completed {formatDateTime(t.ends_at || t.starts_at)}</span>;
 }
 
 function TournamentCard({ t, now, busy, onOpen, onToggleJoin }) {
@@ -293,7 +293,7 @@ function TournamentCard({ t, now, busy, onOpen, onToggleJoin }) {
         <h3 className="text-lg font-bold text-white leading-snug">{t.name}</h3>
         <div className="flex gap-1 shrink-0">
           {t.is_pro_only && <span className="px-2 py-0.5 rounded bg-gold text-obsidian text-xs font-bold">PRO</span>}
-          {t.joined && <span className="px-2 py-0.5 rounded bg-emerald/20 text-emerald text-xs font-bold">Terdaftar</span>}
+          {t.joined && <span className="px-2 py-0.5 rounded bg-emerald/20 text-emerald text-xs font-bold">Registered</span>}
         </div>
       </div>
 
@@ -302,7 +302,7 @@ function TournamentCard({ t, now, busy, onOpen, onToggleJoin }) {
         <span>⏱ {t.time_control}</span>
         {t.rounds && (
           <span>
-            {t.status === 'running' && t.current_round ? `Ronde ${t.current_round}/${t.rounds}` : `${t.rounds} ronde`}
+            {t.status === 'running' && t.current_round ? `Round ${t.current_round}/${t.rounds}` : `${t.rounds} rounds`}
           </span>
         )}
       </div>
@@ -312,7 +312,7 @@ function TournamentCard({ t, now, busy, onOpen, onToggleJoin }) {
 
       <div className="mt-auto">
         <div className="flex justify-between text-xs text-gray-400 mb-1">
-          <span>Pemain</span>
+          <span>Players</span>
           <span>
             {t.player_count}/{t.max_players}
           </span>
@@ -358,7 +358,7 @@ export function TournamentDetail({ user, t, now, busy, onToggleJoin, onClose, is
     setStarting(true);
     try {
       const res = await startSwiss(user, t);
-      toast.success(`Turnamen dimulai. Ronde 1: ${res?.boards ?? ''} papan dipasangkan.`);
+      toast.success(`Tournament started. Round 1: ${res?.boards ?? ''} boards paired.`);
       setView('pairings');
       await onChanged();
     } catch (e) {
@@ -401,7 +401,7 @@ export function TournamentDetail({ user, t, now, busy, onToggleJoin, onClose, is
               <StatusLine t={t} now={now} />
             </div>
           </div>
-          <button onClick={onClose} className="text-gray-400 hover:text-white text-2xl" aria-label="Tutup">
+          <button onClick={onClose} className="text-gray-400 hover:text-white text-2xl" aria-label="Close">
             ✕
           </button>
         </div>
@@ -410,16 +410,16 @@ export function TournamentDetail({ user, t, now, busy, onToggleJoin, onClose, is
 
         <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 mb-4 text-sm">
           <Info label="Format" value={<FormatBadge format={t.format} />} hint={FORMAT_DESC[t.format]} />
-          <Info label="Waktu" value={t.time_control} />
+          <Info label="Time" value={t.time_control} />
           <Info
-            label="Ronde"
-            value={t.status === 'running' && t.current_round ? `${t.current_round} dari ${t.rounds}` : (t.rounds ?? '—')}
+            label="Rounds"
+            value={t.status === 'running' && t.current_round ? `${t.current_round} of ${t.rounds}` : (t.rounds ?? '—')}
           />
-          <Info label="Mulai" value={formatDateTime(t.starts_at)} />
-          <Info label="Selesai" value={formatDateTime(t.ends_at)} />
-          <Info label="Pemain" value={`${t.player_count}/${t.max_players}`} />
-          {t.prize_pool && <Info label="Hadiah" value={t.prize_pool} />}
-          {t.is_pro_only && <Info label="Akses" value={<span className="text-gold font-bold">Khusus Pro</span>} />}
+          <Info label="Starts" value={formatDateTime(t.starts_at)} />
+          <Info label="Ends" value={formatDateTime(t.ends_at)} />
+          <Info label="Players" value={`${t.player_count}/${t.max_players}`} />
+          {t.prize_pool && <Info label="Prize" value={t.prize_pool} />}
+          {t.is_pro_only && <Info label="Access" value={<span className="text-gold font-bold">Pro Only</span>} />}
         </div>
 
         {winner && (
@@ -427,9 +427,9 @@ export function TournamentDetail({ user, t, now, busy, onToggleJoin, onClose, is
             <span className="text-3xl">🏆</span>
             <Avatar name={winner.player?.username} url={winner.player?.avatar_url} size="w-10 h-10" />
             <div>
-              <div className="text-xs text-gray-400">Juara</div>
+              <div className="text-xs text-gray-400">Champion</div>
               <div className="text-gold font-bold">
-                {winner.player?.username} · {winner.score} poin
+                {winner.player?.username} · {winner.score} pts
               </div>
             </div>
           </div>
@@ -438,16 +438,15 @@ export function TournamentDetail({ user, t, now, busy, onToggleJoin, onClose, is
         {isSwiss && isAdmin && t.status === 'upcoming' && (
           <div className="bg-azure/10 border border-azure/40 rounded-lg p-4 mb-4 flex flex-col sm:flex-row sm:items-center gap-3">
             <div className="flex-1 text-sm text-gray-300">
-              <div className="font-bold text-azure">Admin turnamen</div>
-              Menutup pendaftaran dan membuat pairing Ronde 1 otomatis. Ronde berikutnya dipasangkan otomatis begitu semua
-              hasil masuk.
+              <div className="font-bold text-azure">Tournament Director</div>
+              Closes registration and generates Round 1 pairings automatically. Subsequent rounds are paired automatically once all results are submitted.
             </div>
             <button
               onClick={handleStart}
               disabled={starting || t.player_count < 2}
               className="px-4 py-2 bg-azure text-white font-bold rounded hover:brightness-110 disabled:opacity-50 whitespace-nowrap"
             >
-              {starting ? 'Memulai...' : '▶ Mulai & Pairing R1'}
+              {starting ? 'Starting...' : '▶ Start & Pair R1'}
             </button>
           </div>
         )}
@@ -455,8 +454,8 @@ export function TournamentDetail({ user, t, now, busy, onToggleJoin, onClose, is
         {isSwiss && started ? (
           <div ref={boardRef} className="flex gap-2 mb-3 scroll-mt-4" role="tablist">
             {[
-              { key: 'pairings', label: '♟ Pairing' },
-              { key: 'standings', label: '📊 Klasemen' },
+              { key: 'pairings', label: '♟ Pairings' },
+              { key: 'standings', label: '📊 Standings' },
             ].map((v) => (
               <button
                 key={v.key}
@@ -472,7 +471,7 @@ export function TournamentDetail({ user, t, now, busy, onToggleJoin, onClose, is
             ))}
           </div>
         ) : (
-          <h3 className="text-lg font-bold text-gold mb-2">{showScores ? '📊 Klasemen' : '👥 Peserta Terdaftar'}</h3>
+          <h3 className="text-lg font-bold text-gold mb-2">{showScores ? '📊 Standings' : '👥 Registered Players'}</h3>
         )}
 
         {isSwiss && started && view === 'pairings' ? (
@@ -488,26 +487,26 @@ export function TournamentDetail({ user, t, now, busy, onToggleJoin, onClose, is
         ) : error ? (
           <div className="text-red-400 text-sm">{error}</div>
         ) : standings === null ? (
-          <div className="text-gray-400 py-6 text-center">Memuat...</div>
+          <div className="text-gray-400 py-6 text-center">Loading...</div>
         ) : standings.length === 0 ? (
-          <div className="text-gray-400 py-6 text-center">Belum ada peserta. Jadilah yang pertama.</div>
+          <div className="text-gray-400 py-6 text-center">No participants yet. Be the first to join.</div>
         ) : (
           <div className="overflow-x-auto">
             <table className="w-full text-sm">
               <thead>
                 <tr className="text-left text-gray-400 border-b border-gray-700">
                   <th className="py-2 w-10">#</th>
-                  <th className="py-2">Pemain</th>
+                  <th className="py-2">Player</th>
                   <th className="py-2 text-right">Rating</th>
                   {showScores && (
                     <>
-                      <th className="py-2 text-right">M/S/K</th>
+                      <th className="py-2 text-right">W/D/L</th>
                       {isSwiss && (
-                        <th className="py-2 text-right" title="Buchholz: jumlah poin semua lawan">
+                        <th className="py-2 text-right" title="Buchholz: sum of all opponents' scores">
                           BH
                         </th>
                       )}
-                      <th className="py-2 text-right">Poin</th>
+                      <th className="py-2 text-right">Points</th>
                     </>
                   )}
                 </tr>
@@ -554,7 +553,7 @@ export function TournamentDetail({ user, t, now, busy, onToggleJoin, onClose, is
             </button>
           )}
           <button onClick={onClose} className="px-4 py-2 bg-slate text-gray-300 rounded hover:bg-gray-700">
-            Tutup
+            Close
           </button>
           <JoinButton t={t} busy={busy} onClick={onToggleJoin} />
         </div>

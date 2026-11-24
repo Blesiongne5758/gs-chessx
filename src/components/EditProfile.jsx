@@ -90,7 +90,7 @@ export default function EditProfile({ user, onBack, onNavigate, onEditProfile, o
       setAvatarBlob(null);
       setPreviewUrl(null);
       setRemoveAvatar(false);
-      toast.success('Profil berhasil disimpan.');
+      toast.success('Profile saved successfully.');
     } catch (ex) {
       setError(ex.message);
     } finally {
@@ -100,17 +100,17 @@ export default function EditProfile({ user, onBack, onNavigate, onEditProfile, o
 
   async function handlePasswordSubmit(e) {
     e.preventDefault();
-    if (newPassword.length < 8) return toast.error('Password minimal 8 karakter.');
-    if (newPassword !== confirmPassword) return toast.error('Konfirmasi password tidak cocok.');
+    if (newPassword.length < 8) return toast.error('Password must be at least 8 characters.');
+    if (newPassword !== confirmPassword) return toast.error('Password confirmation does not match.');
     setPasswordSaving(true);
     try {
       const { error: passwordError } = await supabase.auth.updateUser({ password: newPassword });
       if (passwordError) throw passwordError;
       setNewPassword('');
       setConfirmPassword('');
-      toast.success('Password berhasil diperbarui.');
+      toast.success('Password updated successfully.');
     } catch (ex) {
-      toast.error(ex.message || 'Gagal memperbarui password.');
+      toast.error(ex.message || 'Failed to update password.');
     } finally {
       setPasswordSaving(false);
     }
@@ -127,12 +127,12 @@ export default function EditProfile({ user, onBack, onNavigate, onEditProfile, o
         <div className="bg-graphite border border-gold/30 rounded-xl p-6 sm:p-8 shadow-xl">
         <h1 className="text-2xl font-cinzel font-bold text-gold mb-1">Edit Profile</h1>
         <p className="text-sm text-gray-400 mb-6">
-          {user.isGuest ? 'Mode tamu — perubahan disimpan di browser ini saja.' : 'Ubah username dan foto profil Anda.'}
+          {user.isGuest ? 'Guest mode — changes are saved in this browser only.' : 'Update your username and profile picture.'}
         </p>
-        {profile && <div className="mb-6 flex items-center justify-between rounded-xl border border-gold/25 bg-obsidian p-4"><div><div className="text-xs uppercase tracking-widest text-gray-500">Peringkat pemain</div><div className="mt-1 font-cinzel text-lg font-bold text-gold">{rank}</div></div><div className="text-right"><div className="text-xs text-gray-500">Rating</div><div className="text-2xl font-bold text-white">{rating}</div></div></div>}
+        {profile && <div className="mb-6 flex items-center justify-between rounded-xl border border-gold/25 bg-obsidian p-4"><div><div className="text-xs uppercase tracking-widest text-gray-500">Player Rank</div><div className="mt-1 font-cinzel text-lg font-bold text-gold">{rank}</div></div><div className="text-right"><div className="text-xs text-gray-500">Rating</div><div className="text-2xl font-bold text-white">{rating}</div></div></div>}
 
         {!profile && !error ? (
-          <div className="text-gray-400 text-center py-12">Memuat profil...</div>
+          <div className="text-gray-400 text-center py-12">Loading profile...</div>
         ) : (
           <form onSubmit={handleSubmit} className="space-y-6">
             {/* Avatar */}
@@ -160,10 +160,10 @@ export default function EditProfile({ user, onBack, onNavigate, onEditProfile, o
                     onClick={handleRemove}
                     className="px-4 py-2 bg-slate text-gray-300 rounded hover:bg-gray-700"
                   >
-                    Hapus Avatar
+                    Remove Avatar
                   </button>
                 )}
-                <p className="text-xs text-gray-500">PNG, JPG, WEBP, atau GIF, maks. 2 MB. Dipotong persegi 256×256.</p>
+                <p className="text-xs text-gray-500">PNG, JPG, WEBP, or GIF, max 2 MB. Cropped square 256×256.</p>
               </div>
             </div>
 
@@ -181,11 +181,11 @@ export default function EditProfile({ user, onBack, onNavigate, onEditProfile, o
                 className={`w-full px-4 py-2 bg-obsidian border rounded text-white focus:outline-none ${
                   usernameError ? 'border-crimson' : 'border-gray-700 focus:border-gold'
                 }`}
-                placeholder="username_anda"
+                placeholder="your_username"
               />
               <div className="flex justify-between mt-1 text-xs">
                 <span className={usernameError ? 'text-crimson' : 'text-gray-500'}>
-                  {usernameError || 'Huruf, angka, dan underscore. 3–20 karakter.'}
+                  {usernameError || 'Letters, numbers, and underscores. 3–20 characters.'}
                 </span>
                 <span className="text-gray-500">{username.length}/20</span>
               </div>
@@ -201,7 +201,7 @@ export default function EditProfile({ user, onBack, onNavigate, onEditProfile, o
                 disabled={!dirty || !!usernameError || saving}
                 className="flex-1 py-3 bg-gold text-obsidian font-bold rounded hover:bg-champagne transition disabled:opacity-40 disabled:cursor-not-allowed"
               >
-                {saving ? 'Menyimpan...' : 'Simpan Perubahan'}
+                {saving ? 'Saving...' : 'Save Changes'}
               </button>
               <button
                 type="button"
@@ -209,12 +209,12 @@ export default function EditProfile({ user, onBack, onNavigate, onEditProfile, o
                 disabled={!dirty || saving}
                 className="px-6 py-3 bg-slate text-gray-300 rounded hover:bg-gray-700 disabled:opacity-40"
               >
-                Batal
+                Cancel
               </button>
             </div>
           </form>
         )}
-        {!user.isGuest && <section className="mt-8 border-t border-white/10 pt-6"><h2 className="font-cinzel text-lg font-bold text-gold">Keamanan akun</h2><p className="mb-4 mt-1 text-sm text-gray-400">Atur password baru untuk akun ini.</p><form onSubmit={handlePasswordSubmit} className="space-y-3"><label className="block text-sm text-gray-300">Password baru<input type="password" minLength={8} autoComplete="new-password" required value={newPassword} onChange={(e) => setNewPassword(e.target.value)} className="mt-1 w-full rounded border border-gray-700 bg-obsidian px-4 py-2 text-white outline-none focus:border-gold" placeholder="Minimal 8 karakter" /></label><label className="block text-sm text-gray-300">Ulangi password baru<input type="password" minLength={8} autoComplete="new-password" required value={confirmPassword} onChange={(e) => setConfirmPassword(e.target.value)} className="mt-1 w-full rounded border border-gray-700 bg-obsidian px-4 py-2 text-white outline-none focus:border-gold" placeholder="Konfirmasi password" /></label><button disabled={passwordSaving || !newPassword || !confirmPassword} className="w-full rounded bg-slate py-3 font-semibold text-white hover:bg-gray-700 disabled:opacity-40">{passwordSaving ? 'Memperbarui…' : 'Perbarui password'}</button></form></section>}
+        {!user.isGuest && <section className="mt-8 border-t border-white/10 pt-6"><h2 className="font-cinzel text-lg font-bold text-gold">Account Security</h2><p className="mb-4 mt-1 text-sm text-gray-400">Set a new password for this account.</p><form onSubmit={handlePasswordSubmit} className="space-y-3"><label className="block text-sm text-gray-300">New password<input type="password" minLength={8} autoComplete="new-password" required value={newPassword} onChange={(e) => setNewPassword(e.target.value)} className="mt-1 w-full rounded border border-gray-700 bg-obsidian px-4 py-2 text-white outline-none focus:border-gold" placeholder="Minimum 8 characters" /></label><label className="block text-sm text-gray-300">Confirm new password<input type="password" minLength={8} autoComplete="new-password" required value={confirmPassword} onChange={(e) => setConfirmPassword(e.target.value)} className="mt-1 w-full rounded border border-gray-700 bg-obsidian px-4 py-2 text-white outline-none focus:border-gold" placeholder="Confirm password" /></label><button disabled={passwordSaving || !newPassword || !confirmPassword} className="w-full rounded bg-slate py-3 font-semibold text-white hover:bg-gray-700 disabled:opacity-40">{passwordSaving ? 'Updating…' : 'Update Password'}</button></form></section>}
         </div>
       </main>
       <FooterNav active="profile" onNavigate={onNavigate} onEditProfile={onEditProfile} />

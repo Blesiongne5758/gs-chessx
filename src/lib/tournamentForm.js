@@ -104,39 +104,39 @@ export function formFromTournament(t) {
 export function validateTournament(f, { now = new Date(), minPlayers = 0 } = {}) {
   const e = {};
   const name = (f.name ?? '').trim();
-  if (name.length < LIMITS.nameMin) e.name = `Nama minimal ${LIMITS.nameMin} karakter.`;
-  else if (name.length > LIMITS.nameMax) e.name = `Nama maksimal ${LIMITS.nameMax} karakter.`;
+  if (name.length < LIMITS.nameMin) e.name = `Name must be at least ${LIMITS.nameMin} characters.`;
+  else if (name.length > LIMITS.nameMax) e.name = `Name must be at most ${LIMITS.nameMax} characters.`;
 
   if ((f.description ?? '').length > LIMITS.descriptionMax)
-    e.description = `Deskripsi maksimal ${LIMITS.descriptionMax} karakter.`;
-  if ((f.prize_pool ?? '').length > LIMITS.prizeMax) e.prize_pool = `Hadiah maksimal ${LIMITS.prizeMax} karakter.`;
+    e.description = `Description must be at most ${LIMITS.descriptionMax} characters.`;
+  if ((f.prize_pool ?? '').length > LIMITS.prizeMax) e.prize_pool = `Prize pool must be at most ${LIMITS.prizeMax} characters.`;
 
   const tc = parseTimeControl(f.time_control);
-  if (!tc) e.time_control = 'Format waktu harus menit+detik, mis. 10+5.';
-  else if (tc.base < 1 || tc.base > LIMITS.baseMax) e.time_control = `Waktu dasar 1–${LIMITS.baseMax} menit.`;
-  else if (tc.inc > LIMITS.incMax) e.time_control = `Increment maksimal ${LIMITS.incMax} detik.`;
+  if (!tc) e.time_control = 'Time control format must be minutes+seconds, e.g. 10+5.';
+  else if (tc.base < 1 || tc.base > LIMITS.baseMax) e.time_control = `Base time must be 1–${LIMITS.baseMax} minutes.`;
+  else if (tc.inc > LIMITS.incMax) e.time_control = `Increment must be at most ${LIMITS.incMax} seconds.`;
 
   const mp = Number(f.max_players);
   if (!Number.isInteger(mp) || mp < LIMITS.playersMin || mp > LIMITS.playersMax)
-    e.max_players = `Kuota pemain ${LIMITS.playersMin}–${LIMITS.playersMax}.`;
-  else if (mp < minPlayers) e.max_players = `Sudah ada ${minPlayers} pemain terdaftar; kuota tidak boleh lebih kecil.`;
+    e.max_players = `Player quota must be ${LIMITS.playersMin}–${LIMITS.playersMax}.`;
+  else if (mp < minPlayers) e.max_players = `${minPlayers} players already registered; quota cannot be smaller.`;
 
   if (f.rounds !== null && f.rounds !== '' && f.rounds !== undefined) {
     const r = Number(f.rounds);
     if (!Number.isInteger(r) || r < LIMITS.roundsMin || r > LIMITS.roundsMax)
-      e.rounds = `Jumlah ronde ${LIMITS.roundsMin}–${LIMITS.roundsMax}.`;
+      e.rounds = `Number of rounds must be ${LIMITS.roundsMin}–${LIMITS.roundsMax}.`;
     else if (!e.max_players && r > maxRounds(mp))
-      e.rounds = `Dengan kuota ${mp} pemain, maksimal ${maxRounds(mp)} ronde tanpa pertemuan ulang.`;
+      e.rounds = `With a quota of ${mp} players, maximum ${maxRounds(mp)} rounds without rematches.`;
   }
 
   const start = f.starts_at ? new Date(f.starts_at) : null;
-  if (!start || Number.isNaN(start.getTime())) e.starts_at = 'Waktu mulai wajib diisi.';
-  else if (start.getTime() <= now.getTime() + 60_000) e.starts_at = 'Waktu mulai harus di masa depan.';
+  if (!start || Number.isNaN(start.getTime())) e.starts_at = 'Start time is required.';
+  else if (start.getTime() <= now.getTime() + 60_000) e.starts_at = 'Start time must be in the future.';
 
   if (f.ends_at) {
     const end = new Date(f.ends_at);
-    if (Number.isNaN(end.getTime())) e.ends_at = 'Waktu selesai tidak valid.';
-    else if (start && !e.starts_at && end <= start) e.ends_at = 'Waktu selesai harus setelah waktu mulai.';
+    if (Number.isNaN(end.getTime())) e.ends_at = 'Invalid end time.';
+    else if (start && !e.starts_at && end <= start) e.ends_at = 'End time must be after start time.';
   }
   return e;
 }

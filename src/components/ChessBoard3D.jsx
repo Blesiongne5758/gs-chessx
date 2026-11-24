@@ -117,7 +117,7 @@ function squareName(row, col) {
   return `${FILES[col]}${8 - row}`;
 }
 
-export default function ChessBoard3D({ board, selectedSquare, validTargets = [], lastMove, kingInCheck, onSquareClick, skin = 'holy', customization, whiteName = 'Putih', blackName = 'Hitam', capturedByWhite = [], capturedByBlack = [], playerSide = 'w' }) {
+export default function ChessBoard3D({ board, selectedSquare, validTargets = [], lastMove, kingInCheck, onSquareClick, skin = 'holy', customization, whiteName = 'White', blackName = 'Black', capturedByWhite = [], capturedByBlack = [], playerSide = 'w' }) {
   const hostRef = useRef(null);
   const boardRef = useRef(null);
   const sceneRef = useRef(null);
@@ -483,10 +483,10 @@ export default function ChessBoard3D({ board, selectedSquare, validTargets = [],
       <div ref={boardRef} className={`relative isolate aspect-square w-full overflow-hidden rounded-xl border-4 border-[#6b4423] bg-[#171411] shadow-2xl ${isFullscreen ? 'h-screen max-h-screen rounded-none border-0' : ''}`} aria-label="Three-dimensional chessboard">
         <div ref={hostRef} className="absolute inset-0" />
         <div className="pointer-events-none absolute inset-x-2 top-2 z-20 flex justify-between gap-2 text-[10px] sm:text-xs">
-          <div className="max-w-[48%] rounded-lg border border-white/15 bg-black/65 px-2 py-1 text-white backdrop-blur"><span className="font-semibold text-gold">♚ {blackName}</span><div className="truncate text-gray-300">Dimakan: {capturedByBlack.join('') || '—'}</div></div>
-          <div className="max-w-[48%] rounded-lg border border-white/15 bg-black/65 px-2 py-1 text-right text-white backdrop-blur"><span className="font-semibold text-gold">♔ {whiteName}</span><div className="truncate text-gray-300">Dimakan: {capturedByWhite.join('') || '—'}</div></div>
+          <div className="max-w-[48%] rounded-lg border border-white/15 bg-black/65 px-2 py-1 text-white backdrop-blur"><span className="font-semibold text-gold">♚ {blackName}</span><div className="truncate text-gray-300">Captured: {capturedByBlack.join('') || '—'}</div></div>
+          <div className="max-w-[48%] rounded-lg border border-white/15 bg-black/65 px-2 py-1 text-right text-white backdrop-blur"><span className="font-semibold text-gold">♔ {whiteName}</span><div className="truncate text-gray-300">Captured: {capturedByWhite.join('') || '—'}</div></div>
         </div>
-        <div className="pointer-events-none absolute bottom-2 left-2 z-20 rounded-md border border-white/10 bg-black/55 px-2 py-1 text-[10px] text-gray-300 backdrop-blur">Drag untuk memutar · Cubit untuk zoom</div>
+        <div className="pointer-events-none absolute bottom-2 left-2 z-20 rounded-md border border-white/10 bg-black/55 px-2 py-1 text-[10px] text-gray-300 backdrop-blur">Drag to rotate · Pinch to zoom</div>
         <div className="sr-only" role="grid" aria-label="Chess board keyboard access">
           {Array.from({ length: 64 }, (_, index) => {
             const row = Math.floor(index / 8);
@@ -504,28 +504,28 @@ export default function ChessBoard3D({ board, selectedSquare, validTargets = [],
         </div>
       </div>
 
-      <div className="mt-3 rounded-xl border border-gold/20 bg-graphite p-3" aria-label="Kontrol perspektif papan 3D">
+      <div className="mt-3 rounded-xl border border-gold/20 bg-graphite p-3" aria-label="3D board perspective controls">
         <div className="flex flex-wrap items-center justify-between gap-3">
           <div>
-            <p className="text-[10px] uppercase tracking-[0.2em] text-gold/80">Kontrol perspektif</p>
-            <p className="mt-1 text-[11px] text-gray-400">Ubah sudut dari luar papan agar petak tetap terlihat jelas.</p>
+            <p className="text-[10px] uppercase tracking-[0.2em] text-gold/80">Perspective controls</p>
+            <p className="mt-1 text-[11px] text-gray-400">Adjust angle from outside the board for a clearer view.</p>
           </div>
           <span className="font-mono text-sm font-bold text-gold">{Math.round(zoom * 100)}%</span>
         </div>
-        <div className="mt-3 grid grid-cols-4 gap-2 sm:max-w-[15rem]" aria-label="Putar papan">
-          <button type="button" onClick={() => adjustYaw(-15)} className="rounded-lg border border-white/10 bg-obsidian px-3 py-2 text-sm text-gray-200 transition hover:border-gold/60 hover:text-gold" aria-label="Putar papan ke kiri">↶ <span className="sr-only">Kiri</span></button>
-          <button type="button" onClick={() => adjustPitch(-8)} className="rounded-lg border border-white/10 bg-obsidian px-3 py-2 text-sm text-gray-200 transition hover:border-gold/60 hover:text-gold" aria-label="Putar papan ke atas">↟ <span className="sr-only">Atas</span></button>
-          <button type="button" onClick={() => adjustPitch(8)} className="rounded-lg border border-white/10 bg-obsidian px-3 py-2 text-sm text-gray-200 transition hover:border-gold/60 hover:text-gold" aria-label="Putar papan ke bawah">↡ <span className="sr-only">Bawah</span></button>
-          <button type="button" onClick={() => adjustYaw(15)} className="rounded-lg border border-white/10 bg-obsidian px-3 py-2 text-sm text-gray-200 transition hover:border-gold/60 hover:text-gold" aria-label="Putar papan ke kanan">↷ <span className="sr-only">Kanan</span></button>
+        <div className="mt-3 grid grid-cols-4 gap-2 sm:max-w-[15rem]" aria-label="Rotate board">
+          <button type="button" onClick={() => adjustYaw(-15)} className="rounded-lg border border-white/10 bg-obsidian px-3 py-2 text-sm text-gray-200 transition hover:border-gold/60 hover:text-gold" aria-label="Rotate board left">↶ <span className="sr-only">Left</span></button>
+          <button type="button" onClick={() => adjustPitch(-8)} className="rounded-lg border border-white/10 bg-obsidian px-3 py-2 text-sm text-gray-200 transition hover:border-gold/60 hover:text-gold" aria-label="Tilt board up">↟ <span className="sr-only">Up</span></button>
+          <button type="button" onClick={() => adjustPitch(8)} className="rounded-lg border border-white/10 bg-obsidian px-3 py-2 text-sm text-gray-200 transition hover:border-gold/60 hover:text-gold" aria-label="Tilt board down">↡ <span className="sr-only">Down</span></button>
+          <button type="button" onClick={() => adjustYaw(15)} className="rounded-lg border border-white/10 bg-obsidian px-3 py-2 text-sm text-gray-200 transition hover:border-gold/60 hover:text-gold" aria-label="Rotate board right">↷ <span className="sr-only">Right</span></button>
         </div>
         <div className="mt-3 flex flex-wrap items-center gap-2">
-          <button type="button" onClick={() => adjustZoom(-0.1)} className="rounded-lg border border-white/10 bg-obsidian px-3 py-2 text-sm text-gray-200 hover:border-gold/60 hover:text-gold" aria-label="Perkecil papan">−</button>
-          <input type="range" min="0.4" max="1.2" step="0.01" value={zoom} onChange={(event) => setZoom(Number(event.target.value))} className="min-w-[10rem] flex-1 accent-gold" aria-label="Zoom papan dari 40 hingga 120 persen" />
-          <button type="button" onClick={() => adjustZoom(0.1)} className="rounded-lg border border-white/10 bg-obsidian px-3 py-2 text-sm text-gray-200 hover:border-gold/60 hover:text-gold" aria-label="Perbesar papan">+</button>
+          <button type="button" onClick={() => adjustZoom(-0.1)} className="rounded-lg border border-white/10 bg-obsidian px-3 py-2 text-sm text-gray-200 hover:border-gold/60 hover:text-gold" aria-label="Zoom out">−</button>
+          <input type="range" min="0.4" max="1.2" step="0.01" value={zoom} onChange={(event) => setZoom(Number(event.target.value))} className="min-w-[10rem] flex-1 accent-gold" aria-label="Board zoom from 40 to 120 percent" />
+          <button type="button" onClick={() => adjustZoom(0.1)} className="rounded-lg border border-white/10 bg-obsidian px-3 py-2 text-sm text-gray-200 hover:border-gold/60 hover:text-gold" aria-label="Zoom in">+</button>
           <button type="button" onClick={resetCamera} className="rounded-lg border border-gold/30 px-3 py-2 text-xs font-semibold text-gold hover:bg-gold/10">Reset</button>
-          <button type="button" onClick={toggleFullscreen} className="rounded-lg border border-white/10 bg-obsidian px-3 py-2 text-sm text-gray-200 hover:border-gold/60 hover:text-gold" aria-label={isFullscreen ? 'Keluar layar penuh' : 'Layar penuh'}>{isFullscreen ? '×' : '⛶'}</button>
+          <button type="button" onClick={toggleFullscreen} className="rounded-lg border border-white/10 bg-obsidian px-3 py-2 text-sm text-gray-200 hover:border-gold/60 hover:text-gold" aria-label={isFullscreen ? 'Exit fullscreen' : 'Fullscreen'}>{isFullscreen ? '×' : '⛶'}</button>
         </div>
-        <div className="mt-2 flex justify-between text-[10px] text-gray-500"><span>40%</span><span>Zoom papan</span><span>120%</span></div>
+        <div className="mt-2 flex justify-between text-[10px] text-gray-500"><span>40%</span><span>Board zoom</span><span>120%</span></div>
       </div>
     </>
   );

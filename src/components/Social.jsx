@@ -99,12 +99,12 @@ export default function Social({ user, profile, onNavigate, onEditProfile, onLog
 
     peer.onconnectionstatechange = () => {
       if (peer.connectionState === 'connected') {
-        setCallStatus('Terhubung');
+        setCallStatus('Connected');
       } else if (peer.connectionState === 'failed') {
-        setCallStatus('Koneksi gagal');
-        setMediaError('Koneksi WebRTC gagal. Periksa jaringan atau izin perangkat.');
+        setCallStatus('Connection failed');
+        setMediaError('WebRTC connection failed. Check your network or device permissions.');
       } else if (peer.connectionState === 'disconnected' || peer.connectionState === 'closed') {
-        setCallStatus('Terputus');
+        setCallStatus('Disconnected');
       }
     };
 
@@ -163,7 +163,7 @@ export default function Social({ user, profile, onNavigate, onEditProfile, onLog
         }
         setIncomingOffer({ ...row, caller });
         setCallType(row.payload?.callType || 'video');
-        setCallStatus('Panggilan masuk');
+        setCallStatus('Incoming call');
         return;
       }
 
@@ -175,7 +175,7 @@ export default function Social({ user, profile, onNavigate, onEditProfile, onLog
             const candidate = pendingCandidatesRef.current.shift();
             await peerRef.current.addIceCandidate(candidate).catch(console.warn);
           }
-          setCallStatus('Terhubung');
+          setCallStatus('Connected');
         }
         return;
       }
@@ -194,7 +194,7 @@ export default function Social({ user, profile, onNavigate, onEditProfile, onLog
 
       if (row.kind === 'hangup') {
         endCall(false);
-        toast('Panggilan diakhiri oleh lawan bicara');
+        toast('Call ended by peer');
       }
     }
 
@@ -222,7 +222,7 @@ export default function Social({ user, profile, onNavigate, onEditProfile, onLog
         .order('created_at', { ascending: true })
         .limit(100);
       if (!alive) return;
-      if (error) toast.error(`Chat belum siap: ${error.message}`);
+      if (error) toast.error(`Chat is not ready: ${error.message}`);
       setMessages(data || []);
     }
     loadMessages();
@@ -268,8 +268,8 @@ export default function Social({ user, profile, onNavigate, onEditProfile, onLog
 
   async function sendRequest(player) {
     const { error } = await supabase.from('friendships').insert({ requester_id: user.id, addressee_id: player.id });
-    if (error) toast.error(error.code === '23505' ? 'Permintaan pertemanan sudah ada.' : error.message);
-    else { toast.success(`Permintaan dikirim ke ${player.username}`); loadFriends(); }
+    if (error) toast.error(error.code === '23505' ? 'Friend request already sent.' : error.message);
+    else { toast.success(`Request sent to ${player.username}`); loadFriends(); }
   }
 
   async function respond(request, status) {
@@ -290,7 +290,7 @@ export default function Social({ user, profile, onNavigate, onEditProfile, onLog
   // Start Call (Voice Talk or Video Talk)
   async function startCall(type = 'video') {
     if (!active) {
-      toast.error('Pilih teman terlebih dahulu untuk memulai panggilan');
+      toast.error('Please select a friend first to start a call');
       return;
     }
     setMediaError('');
@@ -298,7 +298,7 @@ export default function Social({ user, profile, onNavigate, onEditProfile, onLog
     setCallMinimized(false);
     try {
       if (!navigator.mediaDevices?.getUserMedia) {
-        throw new Error('Browser ini tidak mendukung akses kamera/mikrofon. Pastikan menggunakan HTTPS.');
+        throw new Error('This browser does not support camera/microphone access. Make sure HTTPS is used.');
       }
       const stream = await navigator.mediaDevices.getUserMedia({
         audio: true,
@@ -308,7 +308,7 @@ export default function Social({ user, profile, onNavigate, onEditProfile, onLog
       setMicMuted(false);
       setCameraOff(type === 'voice');
       setMediaOpen(true);
-      setCallStatus('Memanggil…');
+      setCallStatus('Calling…');
 
       const peer = await makePeer(active.id, stream);
       const offer = await peer.createOffer({
@@ -330,7 +330,7 @@ export default function Social({ user, profile, onNavigate, onEditProfile, onLog
       if (error) throw error;
     } catch (error) {
       setMediaError(error.message);
-      toast.error(error.message || 'Gagal memulai panggilan');
+      toast.error(error.message || 'Failed to start call');
     }
   }
 
@@ -340,11 +340,11 @@ export default function Social({ user, profile, onNavigate, onEditProfile, onLog
     const callerId = incomingOffer.sender_id;
     const type = incomingOffer.payload?.callType || 'video';
     setCallType(type);
-    setCallStatus('Menghubungkan…');
+    setCallStatus('Connecting…');
     setCallMinimized(false);
     try {
       if (!navigator.mediaDevices?.getUserMedia) {
-        throw new Error('Browser ini tidak mendukung akses media.');
+        throw new Error('This browser does not support media access.');
       }
       const stream = await navigator.mediaDevices.getUserMedia({
         audio: true,
@@ -387,7 +387,7 @@ export default function Social({ user, profile, onNavigate, onEditProfile, onLog
       setIncomingOffer(null);
     } catch (error) {
       setMediaError(error.message);
-      toast.error(error.message || 'Gagal menerima panggilan');
+      toast.error(error.message || 'Failed to accept call');
     }
   }
 
@@ -402,7 +402,7 @@ export default function Social({ user, profile, onNavigate, onEditProfile, onLog
       }).catch(console.warn);
       setIncomingOffer(null);
       setCallStatus('');
-      toast('Panggilan ditolak');
+      toast('Call declined');
     }
   }
 
@@ -426,7 +426,7 @@ export default function Social({ user, profile, onNavigate, onEditProfile, onLog
           <button onClick={() => onNavigate('lobby')} className="text-gold text-sm hover:underline">← Lobby</button>
           <div className="mt-8 rounded-2xl border border-gold/30 bg-graphite p-8 text-center shadow-xl">
             <h1 className="font-cinzel text-3xl text-gold">Friends & chat</h1>
-            <p className="mt-3 text-gray-300">Masuk dengan akun Supabase untuk menggunakan kontak pertemanan dan chat.</p>
+            <p className="mt-3 text-gray-300">Sign in with a registered account to use friends list and chat.</p>
           </div>
         </main>
         <FooterNav active="social" onNavigate={onNavigate} onEditProfile={onEditProfile} />
@@ -443,18 +443,18 @@ export default function Social({ user, profile, onNavigate, onEditProfile, onLog
           <div>
             <p className="text-xs uppercase tracking-[.25em] text-gold/70">GS-ChessX / Community</p>
             <h1 className="mt-2 font-cinzel text-3xl font-bold text-gold">Friends & messages</h1>
-            <p className="mt-1 text-sm text-gray-400">Temukan lawan, terima permintaan, dan ngobrol langsung dengan voice & video talk.</p>
+            <p className="mt-1 text-sm text-gray-400">Find opponents, accept requests, and chat in real-time with voice & video talk.</p>
           </div>
-          <span className="rounded-full border border-emerald/30 bg-emerald/10 px-3 py-1 text-xs text-emerald">Akun terhubung</span>
+          <span className="rounded-full border border-emerald/30 bg-emerald/10 px-3 py-1 text-xs text-emerald">Connected</span>
         </div>
 
         <div className="grid gap-5 lg:grid-cols-[320px_minmax(0,1fr)]">
           <aside className={`space-y-5 ${active ? 'hidden lg:block' : 'block'}`}>
             <section className="rounded-2xl border border-gold/20 bg-graphite p-5">
-              <h2 className="mb-3 font-semibold text-white">Cari pemain</h2>
+              <h2 className="mb-3 font-semibold text-white">Find Players</h2>
               <form onSubmit={searchPlayers} className="flex gap-2">
                 <input value={query} onChange={(e) => setQuery(e.target.value)} placeholder="Username…" className="min-w-0 flex-1 rounded-lg border border-slate bg-obsidian px-3 py-2 text-sm text-white outline-none focus:border-gold"/>
-                <button type="submit" className="rounded-lg bg-gold px-3 font-semibold text-obsidian hover:bg-champagne transition">Cari</button>
+                <button type="submit" className="rounded-lg bg-gold px-3 font-semibold text-obsidian hover:bg-champagne transition">Search</button>
               </form>
               <div className="mt-3 space-y-2">
                 {results.map((p) => (
@@ -471,8 +471,8 @@ export default function Social({ user, profile, onNavigate, onEditProfile, onLog
             </section>
 
             <section className="rounded-2xl border border-gold/20 bg-graphite p-5">
-              <h2 className="mb-3 font-semibold text-white">Permintaan <span className="text-xs text-gray-400">({requests.length})</span></h2>
-              {requests.length === 0 && <p className="text-sm text-gray-500">Belum ada permintaan.</p>}
+              <h2 className="mb-3 font-semibold text-white">Requests <span className="text-xs text-gray-400">({requests.length})</span></h2>
+              {requests.length === 0 && <p className="text-sm text-gray-500">No pending requests.</p>}
               <div className="space-y-2">
                 {requests.map((r) => (
                   <div key={r.id} className="flex items-center gap-2 rounded-lg bg-slate/70 p-2">
@@ -484,7 +484,7 @@ export default function Social({ user, profile, onNavigate, onEditProfile, onLog
                         <button type="button" onClick={() => respond(r, 'blocked')} aria-label="Decline" className="rounded bg-rose-500/20 px-2 py-0.5 text-xs font-bold text-rose-400 hover:bg-rose-500/30">×</button>
                       </div>
                     ) : (
-                      <span className="text-xs text-amber-300">Menunggu</span>
+                      <span className="text-xs text-amber-300">Pending</span>
                     )}
                   </div>
                 ))}
@@ -492,9 +492,9 @@ export default function Social({ user, profile, onNavigate, onEditProfile, onLog
             </section>
 
             <section className="rounded-2xl border border-gold/20 bg-graphite p-5">
-              <h2 className="mb-3 font-semibold text-white">Kontak teman <span className="text-xs text-gray-400">({friends.length})</span></h2>
-              {loading && <p className="text-sm text-gray-500">Memuat…</p>}
-              {!loading && !friends.length && <p className="text-sm text-gray-500">Belum ada teman. Cari pemain untuk memulai.</p>}
+              <h2 className="mb-3 font-semibold text-white">Friends <span className="text-xs text-gray-400">({friends.length})</span></h2>
+              {loading && <p className="text-sm text-gray-500">Loading…</p>}
+              {!loading && !friends.length && <p className="text-sm text-gray-500">No friends yet. Search players to connect.</p>}
               <div className="space-y-2 max-h-80 overflow-y-auto">
                 {friends.map((f) => (
                   <button
@@ -522,12 +522,12 @@ export default function Social({ user, profile, onNavigate, onEditProfile, onLog
                       onClick={() => setActive(null)}
                       className="lg:hidden rounded-lg border border-gold/40 bg-gold/10 px-2.5 py-1 text-xs font-semibold text-gold hover:bg-gold hover:text-obsidian transition"
                     >
-                      ← Kontak
+                      ← Friends
                     </button>
                     <Avatar name={active.username} url={active.avatar_url} size="w-10 h-10"/>
                     <div className="min-w-0">
                       <h2 className="truncate font-semibold text-white">{active.username}</h2>
-                      <p className="text-xs text-gray-400">Rating {active.rating} · kontak teman</p>
+                      <p className="text-xs text-gray-400">Rating {active.rating} · Friend</p>
                     </div>
                   </div>
 
@@ -536,7 +536,7 @@ export default function Social({ user, profile, onNavigate, onEditProfile, onLog
                     <button
                       type="button"
                       onClick={() => startCall('voice')}
-                      title="Mulai Panggilan Suara (Voice Talk)"
+                      title="Start Voice Talk"
                       className="flex items-center gap-1.5 rounded-xl border border-gold/30 bg-gold/10 px-3 py-2 text-xs sm:text-sm font-semibold text-gold hover:bg-gold hover:text-obsidian transition shadow-sm"
                     >
                       <span>📞</span>
@@ -545,7 +545,7 @@ export default function Social({ user, profile, onNavigate, onEditProfile, onLog
                     <button
                       type="button"
                       onClick={() => startCall('video')}
-                      title="Mulai Panggilan Video (Video Talk)"
+                      title="Start Video Talk"
                       className="flex items-center gap-1.5 rounded-xl border border-gold/40 bg-gold/20 px-3 py-2 text-xs sm:text-sm font-semibold text-gold hover:bg-gold hover:text-obsidian transition shadow-sm"
                     >
                       <span>📹</span>
@@ -555,7 +555,7 @@ export default function Social({ user, profile, onNavigate, onEditProfile, onLog
                 </header>
 
                 <div className="flex-1 space-y-3 overflow-y-auto p-4 sm:p-5">
-                  {messages.length === 0 && <div className="mt-20 text-center text-sm text-gray-500">Belum ada pesan. Sapa temanmu!</div>}
+                  {messages.length === 0 && <div className="mt-20 text-center text-sm text-gray-500">No messages yet. Say hello!</div>}
                   {messages.map((m) => (
                     <div key={m.id} className={`flex ${m.sender_id === user.id ? 'justify-end' : 'justify-start'}`}>
                       <div className={`max-w-[80%] rounded-2xl px-4 py-2 text-sm ${m.sender_id === user.id ? 'rounded-br-sm bg-gold text-obsidian font-medium' : 'rounded-bl-sm bg-slate text-gray-100'}`}>
@@ -573,7 +573,7 @@ export default function Social({ user, profile, onNavigate, onEditProfile, onLog
                     value={draft}
                     maxLength={2000}
                     onChange={(e) => setDraft(e.target.value)}
-                    placeholder={`Pesan untuk ${active.username}…`}
+                    placeholder={`Message ${active.username}…`}
                     className="min-w-0 flex-1 rounded-xl border border-slate bg-obsidian px-4 py-3 text-sm text-white placeholder-gray-500 outline-none focus:border-gold"
                   />
                   <button
@@ -581,7 +581,7 @@ export default function Social({ user, profile, onNavigate, onEditProfile, onLog
                     disabled={!draft.trim()}
                     className="shrink-0 rounded-xl bg-gold px-5 py-3 font-semibold text-obsidian hover:bg-champagne transition disabled:opacity-40"
                   >
-                    Kirim
+                    Send
                   </button>
                 </form>
               </>
@@ -589,8 +589,8 @@ export default function Social({ user, profile, onNavigate, onEditProfile, onLog
               <div className="grid flex-1 place-items-center p-8 text-center">
                 <div>
                   <div className="text-5xl text-gold/30">♟</div>
-                  <h2 className="mt-4 font-cinzel text-2xl text-gold">Pilih teman untuk memulai</h2>
-                  <p className="mt-2 text-sm text-gray-400">Pilih salah satu teman di daftar kontak untuk membuka percakapan, voice talk, atau video talk.</p>
+                  <h2 className="mt-4 font-cinzel text-2xl text-gold">Select a friend to begin</h2>
+                  <p className="mt-2 text-sm text-gray-400">Select a friend from the contact list to open chat, voice talk, or video talk.</p>
                 </div>
               </div>
             )}
@@ -604,15 +604,15 @@ export default function Social({ user, profile, onNavigate, onEditProfile, onLog
 
       {/* Incoming Call Notification Popup */}
       {incomingOffer && (
-        <aside aria-label="Pemberitahuan panggilan masuk" className="fixed top-20 right-4 sm:right-8 z-50 flex items-center gap-3.5 rounded-2xl border border-gold/50 bg-[#0e111a]/95 p-4 shadow-2xl backdrop-blur-2xl ring-1 ring-white/15 max-w-sm">
+        <aside aria-label="Incoming call notification" className="fixed top-20 right-4 sm:right-8 z-50 flex items-center gap-3.5 rounded-2xl border border-gold/50 bg-[#0e111a]/95 p-4 shadow-2xl backdrop-blur-2xl ring-1 ring-white/15 max-w-sm">
           <div className="relative">
-            <Avatar name={incomingOffer.caller?.username || 'Teman'} url={incomingOffer.caller?.avatar_url} size="w-12 h-12" />
+            <Avatar name={incomingOffer.caller?.username || 'Friend'} url={incomingOffer.caller?.avatar_url} size="w-12 h-12" />
             <span className="absolute -bottom-1 -right-1 h-3.5 w-3.5 rounded-full bg-emerald ring-2 ring-[#0e111a] animate-pulse" />
           </div>
           <div className="min-w-0 flex-1">
-            <h3 className="truncate font-semibold text-white">{incomingOffer.caller?.username || 'Teman'}</h3>
+            <h3 className="truncate font-semibold text-white">{incomingOffer.caller?.username || 'Friend'}</h3>
             <p className="text-xs text-gold flex items-center gap-1">
-              <span>{incomingOffer.payload?.callType === 'voice' ? '📞 Panggilan Suara Masuk' : '📹 Panggilan Video Masuk'}</span>
+              <span>{incomingOffer.payload?.callType === 'voice' ? '📞 Incoming Voice Call' : '📹 Incoming Video Call'}</span>
             </p>
           </div>
           <div className="flex items-center gap-1.5 shrink-0">
@@ -621,14 +621,14 @@ export default function Social({ user, profile, onNavigate, onEditProfile, onLog
               onClick={acceptCall}
               className="rounded-xl bg-emerald px-3.5 py-1.5 text-xs font-bold text-obsidian hover:bg-emerald/80 transition shadow-md"
             >
-              Terima
+              Accept
             </button>
             <button
               type="button"
               onClick={rejectCall}
               className="rounded-xl bg-rose-600 px-3 py-1.5 text-xs font-bold text-white hover:bg-rose-700 transition"
             >
-              Tolak
+              Decline
             </button>
           </div>
         </aside>
@@ -639,7 +639,7 @@ export default function Social({ user, profile, onNavigate, onEditProfile, onLog
         <>
           {callMinimized ? (
             /* Minimized Floating Status Pill */
-            <aside aria-label="Status panggilan melayang" className="fixed bottom-20 right-4 sm:bottom-24 sm:right-6 z-50 flex items-center gap-3 rounded-full border border-gold/50 bg-[#0e111a]/95 px-4 py-2.5 shadow-2xl backdrop-blur-2xl ring-1 ring-white/15">
+            <aside aria-label="Floating call status" className="fixed bottom-20 right-4 sm:bottom-24 sm:right-6 z-50 flex items-center gap-3 rounded-full border border-gold/50 bg-[#0e111a]/95 px-4 py-2.5 shadow-2xl backdrop-blur-2xl ring-1 ring-white/15">
               <div className="relative">
                 <Avatar name={active?.username} url={active?.avatar_url} size="w-8 h-8 text-xs" />
                 <span className="absolute -bottom-0.5 -right-0.5 h-2.5 w-2.5 rounded-full bg-emerald ring-2 ring-[#0e111a] animate-pulse" />
@@ -649,7 +649,7 @@ export default function Social({ user, profile, onNavigate, onEditProfile, onLog
                 <p className="text-[10px] text-emerald-400 font-mono flex items-center gap-1">
                   <span>{callType === 'voice' ? '📞 Voice' : '📹 Video'}</span>
                   <span>•</span>
-                  <span>{callStatus === 'Terhubung' ? formatDuration(callDuration) : (callStatus || 'Aktif')}</span>
+                  <span>{callStatus === 'Connected' ? formatDuration(callDuration) : (callStatus || 'Active')}</span>
                 </p>
               </div>
               <button
@@ -664,25 +664,25 @@ export default function Social({ user, profile, onNavigate, onEditProfile, onLog
               <button
                 type="button"
                 onClick={() => setCallMinimized(false)}
-                aria-label="Perbesar layar panggilan"
+                aria-label="Expand call screen"
                 className="rounded-full bg-gold/20 p-2 text-xs text-gold hover:bg-gold/30 transition font-bold"
-                title="Perbesar layar panggilan"
+                title="Expand call screen"
               >
                 ⛶
               </button>
               <button
                 type="button"
                 onClick={() => endCall()}
-                aria-label="Akhiri panggilan"
+                aria-label="End call"
                 className="rounded-full bg-rose-600 p-2 text-xs text-white hover:bg-rose-700 transition"
-                title="Akhiri"
+                title="End Call"
               >
                 ✕
               </button>
             </aside>
           ) : (
             /* Expanded Floating Call Screen */
-            <aside aria-label="Layar panggilan mengambang" className="fixed bottom-20 right-4 sm:bottom-24 sm:right-6 z-50 w-[94vw] sm:w-[440px] md:w-[480px] max-h-[85vh] rounded-3xl border border-gold/40 bg-[#0c0e16]/95 p-4 sm:p-5 shadow-2xl backdrop-blur-2xl ring-1 ring-white/10 overflow-hidden flex flex-col">
+            <aside aria-label="Floating call screen" className="fixed bottom-20 right-4 sm:bottom-24 sm:right-6 z-50 w-[94vw] sm:w-[440px] md:w-[480px] max-h-[85vh] rounded-3xl border border-gold/40 bg-[#0c0e16]/95 p-4 sm:p-5 shadow-2xl backdrop-blur-2xl ring-1 ring-white/10 overflow-hidden flex flex-col">
               {/* Floating Header */}
               <div className="mb-3 flex items-center justify-between border-b border-white/10 pb-3">
                 <div className="flex items-center gap-3 min-w-0">
@@ -693,7 +693,7 @@ export default function Social({ user, profile, onNavigate, onEditProfile, onLog
                       <span className="inline-block h-2 w-2 rounded-full bg-emerald animate-pulse" />
                       <span>{callType === 'voice' ? 'Voice Talk' : 'Video Talk'}</span>
                       <span>·</span>
-                      <span className="font-mono">{callStatus === 'Terhubung' ? formatDuration(callDuration) : (callStatus || 'Menyiapkan…')}</span>
+                      <span className="font-mono">{callStatus === 'Connected' ? formatDuration(callDuration) : (callStatus || 'Connecting…')}</span>
                     </p>
                   </div>
                 </div>
@@ -701,18 +701,18 @@ export default function Social({ user, profile, onNavigate, onEditProfile, onLog
                   <button
                     type="button"
                     onClick={() => setCallMinimized(true)}
-                    aria-label="Minimize layar status panggilan"
+                    aria-label="Minimize call status screen"
                     className="rounded-xl border border-white/10 bg-white/5 p-2 text-xs text-gray-300 hover:bg-white/10 hover:text-white transition"
-                    title="Minimize / Sembunyikan Layar"
+                    title="Minimize Call Screen"
                   >
                     🗕
                   </button>
                   <button
                     type="button"
                     onClick={() => endCall()}
-                    aria-label="Akhiri panggilan"
+                    aria-label="End call"
                     className="rounded-xl border border-rose-500/30 bg-rose-500/10 p-2 text-xs text-rose-300 hover:bg-rose-500 hover:text-white transition"
-                    title="Akhiri"
+                    title="End Call"
                   >
                     ✕
                   </button>
@@ -740,7 +740,7 @@ export default function Social({ user, profile, onNavigate, onEditProfile, onLog
                       />
                       {cameraOff && (
                         <div className="absolute inset-0 flex items-center justify-center bg-black/80 text-[10px] text-gray-400">
-                          Kamera Mati
+                          Camera Off
                         </div>
                       )}
                     </div>
@@ -755,7 +755,7 @@ export default function Social({ user, profile, onNavigate, onEditProfile, onLog
                     </div>
                     <h4 className="mt-4 font-semibold text-white">{active?.username}</h4>
                     <p className="mt-1 text-xs text-emerald-400 font-mono">
-                      {callStatus === 'Terhubung' ? `Suara 2 Arah Aktif (${formatDuration(callDuration)})` : (callStatus || 'Menghubungkan suara…')}
+                      {callStatus === 'Connected' ? `2-Way Voice Active (${formatDuration(callDuration)})` : (callStatus || 'Connecting voice…')}
                     </p>
                     <div className="mt-4 flex items-center gap-1">
                       <span className="h-3 w-1 bg-gold/60 rounded-full animate-pulse" />
@@ -781,7 +781,7 @@ export default function Social({ user, profile, onNavigate, onEditProfile, onLog
                   }`}
                 >
                   <span>{micMuted ? '🔇' : '🎙️'}</span>
-                  <span>{micMuted ? 'Nyalakan Mic' : 'Matikan Mic'}</span>
+                  <span>{micMuted ? 'Unmute Mic' : 'Mute Mic'}</span>
                 </button>
                 {callType === 'video' && (
                   <button
@@ -793,7 +793,7 @@ export default function Social({ user, profile, onNavigate, onEditProfile, onLog
                     }`}
                   >
                     <span>{cameraOff ? '📷' : '📹'}</span>
-                    <span>{cameraOff ? 'Nyalakan Kamera' : 'Matikan Kamera'}</span>
+                    <span>{cameraOff ? 'Turn Camera On' : 'Turn Camera Off'}</span>
                   </button>
                 )}
                 <button
@@ -810,7 +810,7 @@ export default function Social({ user, profile, onNavigate, onEditProfile, onLog
                   className="flex items-center gap-1.5 rounded-xl bg-rose-600 px-4 py-2 text-xs font-bold text-white hover:bg-rose-700 transition shadow-lg shadow-rose-900/30"
                 >
                   <span>📞</span>
-                  <span>Akhiri</span>
+                  <span>End Call</span>
                 </button>
               </div>
             </aside>

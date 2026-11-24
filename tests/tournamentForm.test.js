@@ -35,7 +35,7 @@ test('player quota and registered minimum', () => {
   assert.ok(validateTournament({ ...valid(), max_players: 1 }, { now: NOW }).max_players);
   assert.ok(validateTournament({ ...valid(), max_players: 2000 }, { now: NOW }).max_players);
   assert.ok(validateTournament({ ...valid(), max_players: 12.5 }, { now: NOW }).max_players);
-  assert.match(validateTournament({ ...valid(), max_players: 8 }, { now: NOW, minPlayers: 10 }).max_players, /10 pemain/);
+  assert.match(validateTournament({ ...valid(), max_players: 8 }, { now: NOW, minPlayers: 10 }).max_players, /10 (pemain|players)/);
 });
 
 test('rounds: null = auto, capped by maxRounds of the quota', () => {
@@ -44,7 +44,7 @@ test('rounds: null = auto, capped by maxRounds of the quota', () => {
   assert.ok(validateTournament({ ...valid(), rounds: 31 }, { now: NOW }).rounds);
   // 8 players → max 5 rounds
   assert.equal(validateTournament({ ...valid(), max_players: 8, rounds: 5 }, { now: NOW }).rounds, undefined);
-  assert.match(validateTournament({ ...valid(), max_players: 8, rounds: 6 }, { now: NOW }).rounds, /maksimal 5/);
+  assert.match(validateTournament({ ...valid(), max_players: 8, rounds: 6 }, { now: NOW }).rounds, /(maksimal|maximum) 5/);
   assert.equal(plannedRounds(null, 64), 6);
   assert.equal(plannedRounds(null, 5), 3);
   assert.equal(plannedRounds(9, 8), 5);

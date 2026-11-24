@@ -16,7 +16,7 @@ export default function AuthModal({ onClose, initialMode = 'login' }) {
     setError(null);
 
     try {
-      if (!isSupabaseConfigured) throw new Error(supabaseConfigError || 'Konfigurasi Supabase belum siap.');
+      if (!isSupabaseConfigured) throw new Error(supabaseConfigError || 'Supabase configuration is not ready.');
       if (isLogin) {
         const { error: err } = await supabase.auth.signInWithPassword({ email, password });
         if (err) throw err;
@@ -33,8 +33,8 @@ export default function AuthModal({ onClose, initialMode = 'login' }) {
           },
         });
         if (err) throw err;
-        if (data.session) toast.success('Akun berhasil dibuat. Selamat bermain!');
-        else toast.success('Akun dibuat. Konfirmasi email masih aktif di Supabase, jadi cek inbox Anda.');
+        if (data.session) toast.success('Account created successfully. Enjoy playing!');
+        else toast.success('Account created. Email confirmation is required, please check your inbox.');
         onClose();
       }
     } catch (err) {
@@ -114,13 +114,13 @@ export default function AuthModal({ onClose, initialMode = 'login' }) {
 }
 
 function formatAuthError(error) {
-  const message = String(error?.message || error || 'Login gagal.');
+  const message = String(error?.message || error || 'Login failed.');
   const normalized = message.toLowerCase();
   if (normalized.includes('invalid api key') || normalized.includes('apikey')) {
-    return 'Invalid API key Supabase. Periksa VITE_SUPABASE_URL dan VITE_SUPABASE_ANON_KEY di GitHub Actions secrets, lalu deploy ulang.';
+    return 'Invalid Supabase API key. Please verify VITE_SUPABASE_URL and VITE_SUPABASE_ANON_KEY in GitHub Actions secrets and redeploy.';
   }
   if (normalized.includes('email not confirmed')) {
-    return 'Email belum dikonfirmasi. Matikan Confirm email di Supabase Authentication → Providers → Email, atau konfirmasi email akun ini.';
+    return 'Email not confirmed yet. Disable "Confirm email" in Supabase Authentication → Providers → Email, or confirm the verification email in your inbox.';
   }
   return message;
 }

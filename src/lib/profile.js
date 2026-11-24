@@ -8,15 +8,15 @@ const GUEST_KEY = 'gs-chessx-guest-profile';
 const GUEST_DEFAULT = { username: 'Guest', avatar_url: null, rating: 1200, games_played: 0, wins: 0 };
 
 export function validateUsername(name) {
-  if (!name) return 'Username wajib diisi.';
-  if (name.length < 3 || name.length > 20) return 'Username harus 3–20 karakter.';
-  if (!USERNAME_RULE.test(name)) return 'Hanya huruf, angka, dan underscore (_).';
+  if (!name) return 'Username is required.';
+  if (name.length < 3 || name.length > 20) return 'Username must be 3–20 characters.';
+  if (!USERNAME_RULE.test(name)) return 'Only letters, numbers, and underscores (_).';
   return null;
 }
 
 export function validateAvatarFile(file) {
-  if (!AVATAR_TYPES.includes(file.type)) return 'Format harus PNG, JPG, WEBP, atau GIF.';
-  if (file.size > MAX_AVATAR_BYTES) return 'Ukuran file maksimal 2 MB.';
+  if (!AVATAR_TYPES.includes(file.type)) return 'Format must be PNG, JPG, WEBP, or GIF.';
+  if (file.size > MAX_AVATAR_BYTES) return 'File size must be at most 2 MB.';
   return null;
 }
 
@@ -34,11 +34,11 @@ export function resizeImage(file, size = 256) {
         .getContext('2d')
         .drawImage(img, (img.width - side) / 2, (img.height - side) / 2, side, side, 0, 0, size, size);
       URL.revokeObjectURL(objectUrl);
-      canvas.toBlob((blob) => (blob ? resolve(blob) : reject(new Error('Gagal memproses gambar.'))), 'image/webp', 0.9);
+      canvas.toBlob((blob) => (blob ? resolve(blob) : reject(new Error('Failed to process image.'))), 'image/webp', 0.9);
     };
     img.onerror = () => {
       URL.revokeObjectURL(objectUrl);
-      reject(new Error('File gambar tidak valid.'));
+      reject(new Error('Invalid image file.'));
     };
     img.src = objectUrl;
   });

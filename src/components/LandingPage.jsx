@@ -1,12 +1,12 @@
 import { useState } from 'react';
 
 const LANDING_FEATURES = [
-  { key: 'board', icon: '♟', title: '2D / 3D Board', desc: 'Beralih antara mode klasik 2D dan visualisasi 3D immersive', tone: 'gold' },
-  { key: 'academy', icon: '♞', title: 'Chess Academy', desc: 'Pelajari taktik, prinsip pembukaan, dan latihan puzzle', tone: 'blue' },
-  { key: 'tournaments', icon: '♜', title: 'Swiss Tournaments', desc: 'Kompetisi berkala dengan sistem Swiss dan bracket resmi', tone: 'violet' },
-  { key: 'voice', icon: '🎙️', title: 'Voice & Video Talk', desc: 'Komunikasi langsung dengan lawan saat pertandingan berlangsung', tone: 'green' },
-  { key: 'social', icon: '☁', title: 'Friends & Chat', desc: 'Tambahkan teman, tantang duel cepat, dan kirim pesan realtime', tone: 'cyan' },
-  { key: 'ai', icon: '🤖', title: 'VS AI 10 Levels', desc: 'Latih kemampuanmu menghadapi bot dari pemula hingga Grandmaster', tone: 'slate' },
+  { key: 'board', icon: '♟', title: '2D / 3D Board', desc: 'Switch seamlessly between classic 2D view and immersive 3D board', tone: 'gold' },
+  { key: 'academy', icon: '♞', title: 'Chess Academy', desc: 'Master tactics, opening principles, and interactive puzzle trainers', tone: 'blue' },
+  { key: 'tournaments', icon: '♜', title: 'Swiss Tournaments', desc: 'Scheduled competitions with official Swiss pairings & brackets', tone: 'violet' },
+  { key: 'voice', icon: '🎙️', title: 'Voice & Video Talk', desc: 'Realtime 2-way audio and video talk while playing or chatting', tone: 'green' },
+  { key: 'social', icon: '☁', title: 'Friends & Chat', desc: 'Add friends, challenge quick duels, and send instant messages', tone: 'cyan' },
+  { key: 'ai', icon: '🤖', title: 'VS AI 10 Levels', desc: 'Sharpen your skills against bot engines from beginner to Grandmaster', tone: 'slate' },
 ];
 
 export default function LandingPage({ onPlay, onLogin, onSignup, user }) {
@@ -30,13 +30,13 @@ export default function LandingPage({ onPlay, onLogin, onSignup, user }) {
           {/* Desktop Links */}
           <div className="hidden items-center gap-1 rounded-full border border-white/10 bg-white/[.03] p-1 md:flex">
             <a href="#hero" className="rounded-full px-4 py-2 text-xs font-semibold text-gray-300 transition hover:bg-white/10 hover:text-white">
-              Beranda
+              Home
             </a>
             <a href="#features" className="rounded-full px-4 py-2 text-xs font-semibold text-gray-300 transition hover:bg-white/10 hover:text-white">
-              Fitur
+              Features
             </a>
             <a href="#tournaments" className="rounded-full px-4 py-2 text-xs font-semibold text-gray-300 transition hover:bg-white/10 hover:text-white">
-              Turnamen
+              Tournaments
             </a>
             <button type="button" onClick={onPlay} className="rounded-full px-4 py-2 text-xs font-semibold text-gray-300 transition hover:bg-white/10 hover:text-white">
               Chess Academy
@@ -67,7 +67,7 @@ export default function LandingPage({ onPlay, onLogin, onSignup, user }) {
                   onClick={onSignup}
                   className="hidden sm:inline-flex rounded-full bg-gradient-to-r from-gold to-champagne px-5 py-2 text-xs sm:text-sm font-extrabold text-obsidian shadow-lg shadow-gold/25 transition hover:shadow-gold/40"
                 >
-                  Daftar
+                  Sign Up
                 </button>
               </>
             )}
@@ -93,28 +93,28 @@ export default function LandingPage({ onPlay, onLogin, onSignup, user }) {
               onClick={() => setMobileMenuOpen(false)}
               className="rounded-xl px-4 py-3 text-left text-sm font-semibold text-gray-300 hover:bg-white/10 hover:text-white"
             >
-              Beranda
+              Home
             </a>
             <a
               href="#features"
               onClick={() => setMobileMenuOpen(false)}
               className="rounded-xl px-4 py-3 text-left text-sm font-semibold text-gray-300 hover:bg-white/10 hover:text-white"
             >
-              Fitur Unggulan
+              Top Features
             </a>
             <a
               href="#tournaments"
               onClick={() => setMobileMenuOpen(false)}
               className="rounded-xl px-4 py-3 text-left text-sm font-semibold text-gray-300 hover:bg-white/10 hover:text-white"
             >
-              Turnamen
+              Tournaments
             </a>
             <button
               type="button"
               onClick={() => { setMobileMenuOpen(false); onPlay(); }}
               className="rounded-xl bg-gold/15 px-4 py-3 text-left text-sm font-semibold text-gold hover:bg-gold hover:text-obsidian transition"
             >
-              Mainkan Catur Sekarang
+              Play Chess Now
             </button>
           </div>
         )}
@@ -151,7 +151,7 @@ export default function LandingPage({ onPlay, onLogin, onSignup, user }) {
               <span className="text-gold drop-shadow-[0_2px_14px_rgba(212,175,55,0.4)]">Grow together.</span>
             </h1>
             <p className="mt-3 sm:mt-4 max-w-lg text-xs sm:text-base text-gray-300 leading-relaxed">
-              Holy Kingdom vs Anarchy Rebellion. Temukan lawan bermain, kembangkan strategi dengan AI dan Chess Academy, serta rebut kejuaraan di GS-ChessX.
+              Holy Kingdom vs Anarchy Rebellion. Find opponents, sharpen tactics with AI and Chess Academy, and claim victory on GS-ChessX.
             </p>
             <div className="mt-6 sm:mt-7 flex flex-col sm:flex-row items-stretch sm:items-center gap-3">
               <button
@@ -159,14 +159,14 @@ export default function LandingPage({ onPlay, onLogin, onSignup, user }) {
                 onClick={onPlay}
                 className="w-full sm:w-auto text-center rounded-full bg-gradient-to-r from-gold to-champagne px-7 py-3.5 text-sm sm:text-base font-extrabold text-obsidian shadow-lg shadow-gold/25 transition hover:-translate-y-0.5 hover:shadow-gold/40"
               >
-                Mulai Bermain Sekarang <span aria-hidden="true">›</span>
+                Play Now <span aria-hidden="true">›</span>
               </button>
               <button
                 type="button"
                 onClick={user ? onPlay : onSignup}
                 className="w-full sm:w-auto text-center rounded-full border border-white/20 bg-black/35 px-6 py-3.5 text-sm sm:text-base font-semibold text-white backdrop-blur transition hover:border-gold/60 hover:text-gold"
               >
-                {user ? 'Buka Dashboard' : 'Daftar Akun Gratis'}
+                {user ? 'Go to Lobby' : 'Sign Up Free'}
               </button>
             </div>
           </div>
@@ -183,8 +183,8 @@ export default function LandingPage({ onPlay, onLogin, onSignup, user }) {
             <div className="flex items-center gap-3">
               <span className="grid h-10 w-10 place-items-center rounded-xl bg-gold/15 text-2xl text-gold">⚡</span>
               <div>
-                <h2 className="font-cinzel text-lg font-bold text-white">Platform Catur Modern</h2>
-                <p className="text-xs text-gray-400">Komunitas catur aktif dengan sistem matchmaking cerdas</p>
+                <h2 className="font-cinzel text-lg font-bold text-white">Modern Chess Platform</h2>
+                <p className="text-xs text-gray-400">Active chess community with smart matchmaking</p>
               </div>
             </div>
             <div className="inline-flex items-center gap-2 rounded-full border border-emerald/30 bg-emerald/10 px-3 py-1 text-xs text-emerald">
@@ -194,19 +194,19 @@ export default function LandingPage({ onPlay, onLogin, onSignup, user }) {
           <div className="mt-4 grid grid-cols-2 sm:grid-cols-4 divide-y sm:divide-y-0 sm:divide-x divide-white/10 text-center">
             <div className="py-2 sm:py-0 px-2">
               <div className="text-2xl sm:text-3xl font-bold text-gold">12,847+</div>
-              <div className="mt-1 text-[11px] uppercase tracking-wider text-gray-400">Pemain Aktif</div>
+              <div className="mt-1 text-[11px] uppercase tracking-wider text-gray-400">Active Players</div>
             </div>
             <div className="py-2 sm:py-0 px-2">
               <div className="text-2xl sm:text-3xl font-bold text-emerald">48,200+</div>
-              <div className="mt-1 text-[11px] uppercase tracking-wider text-gray-400">Pertandingan</div>
+              <div className="mt-1 text-[11px] uppercase tracking-wider text-gray-400">Matches Played</div>
             </div>
             <div className="py-2 sm:py-0 px-2">
-              <div className="text-2xl sm:text-3xl font-bold text-azure">10 Level</div>
+              <div className="text-2xl sm:text-3xl font-bold text-azure">10 Levels</div>
               <div className="mt-1 text-[11px] uppercase tracking-wider text-gray-400">AI Difficulty</div>
             </div>
             <div className="py-2 sm:py-0 px-2">
               <div className="text-2xl sm:text-3xl font-bold text-champagne">Swiss System</div>
-              <div className="mt-1 text-[11px] uppercase tracking-wider text-gray-400">Format Turnamen</div>
+              <div className="mt-1 text-[11px] uppercase tracking-wider text-gray-400">Tournament Format</div>
             </div>
           </div>
         </section>
@@ -215,11 +215,11 @@ export default function LandingPage({ onPlay, onLogin, onSignup, user }) {
         <section id="features" className="mt-8">
           <div className="mb-4 flex items-center justify-between">
             <div>
-              <p className="text-xs uppercase tracking-[0.25em] text-gold">Fitur Lengkap</p>
-              <h2 className="mt-1 font-cinzel text-2xl sm:text-3xl font-bold text-white">Semua Kebutuhan Catur Anda</h2>
+              <p className="text-xs uppercase tracking-[0.25em] text-gold font-semibold">Core Features</p>
+              <h2 className="mt-1 font-cinzel text-2xl sm:text-3xl font-bold text-white">Everything You Need to Master Chess</h2>
             </div>
             <button type="button" onClick={onPlay} className="text-sm font-semibold text-gold hover:text-champagne transition">
-              Jelajahi Semua →
+              Explore All →
             </button>
           </div>
 
@@ -255,7 +255,7 @@ export default function LandingPage({ onPlay, onLogin, onSignup, user }) {
                 <span className="text-3xl text-gold">♜</span>
                 <div>
                   <h2 className="font-cinzel text-xl font-bold text-white">GS-ChessX Championship</h2>
-                  <p className="text-xs text-gray-500">Turnamen Swiss Berhadiah & Bersertifikat</p>
+                  <p className="text-xs text-gray-500">Official Swiss Tournaments & Brackets</p>
                 </div>
               </div>
               <span className="rounded-full bg-gold/15 border border-gold/40 px-3 py-1 text-xs font-bold text-gold">
@@ -271,14 +271,14 @@ export default function LandingPage({ onPlay, onLogin, onSignup, user }) {
               </div>
               <div className="flex-1">
                 <h3 className="font-cinzel text-xl font-bold text-white">Grand Swiss Tour 2026</h3>
-                <p className="mt-2 text-sm text-gray-300">▣ &nbsp;Pendaftaran dibuka untuk seluruh pemain terdaftar</p>
-                <p className="mt-1 text-sm text-gray-300">♟ &nbsp;128 Pemain · Matchmaking adil berdasarkan ELO</p>
+                <p className="mt-2 text-sm text-gray-300">▣ &nbsp;Registration open for all registered players</p>
+                <p className="mt-1 text-sm text-gray-300">♟ &nbsp;128 Players · Fair matchmaking based on ELO</p>
                 <button
                   type="button"
                   onClick={onPlay}
                   className="mt-4 rounded-full bg-gold px-6 py-2.5 text-sm font-bold text-obsidian transition hover:bg-champagne shadow-md shadow-gold/20"
                 >
-                  Ikuti Turnamen →
+                  Join Tournament →
                 </button>
               </div>
             </div>
@@ -291,14 +291,14 @@ export default function LandingPage({ onPlay, onLogin, onSignup, user }) {
                 <span className="text-2xl">🎓</span>
               </div>
               <p className="mt-3 text-sm text-gray-300 leading-relaxed">
-                Tingkatkan rating caturmu dengan studi posisi interaktif, taktik skakmat bertahap, dan kuis sejarah catur legendaris.
+                Level up your chess rating with interactive tactical positions, progressive checkmate patterns, and legendary chess history quizzes.
               </p>
               <div className="mt-4 space-y-2">
                 <div className="flex items-center gap-2 rounded-xl bg-white/[.04] p-2.5 text-xs text-gray-300">
-                  <span className="text-gold font-bold">✓</span> Puzzle Posisi & Taktik Skakmat
+                  <span className="text-gold font-bold">✓</span> Tactical Puzzles & Checkmate Patterns
                 </div>
                 <div className="flex items-center gap-2 rounded-xl bg-white/[.04] p-2.5 text-xs text-gray-300">
-                  <span className="text-gold font-bold">✓</span> Kuis Sejarah & Analisis Partai Klasik
+                  <span className="text-gold font-bold">✓</span> Historical Quizzes & Classic Game Analysis
                 </div>
               </div>
             </div>
@@ -307,7 +307,7 @@ export default function LandingPage({ onPlay, onLogin, onSignup, user }) {
               onClick={onPlay}
               className="mt-5 w-full rounded-full border border-gold/40 bg-gold/10 py-2.5 text-sm font-bold text-gold transition hover:bg-gold hover:text-obsidian"
             >
-              Mulai Belajar
+              Start Learning
             </button>
           </div>
         </section>
@@ -336,19 +336,19 @@ export default function LandingPage({ onPlay, onLogin, onSignup, user }) {
           <nav className="pointer-events-auto flex items-center justify-around rounded-full border border-gold/30 bg-[#0e1017]/95 px-4 py-2 sm:py-2.5 shadow-[0_10px_35px_rgba(0,0,0,0.8)] backdrop-blur-2xl ring-1 ring-white/10 transition-all hover:border-gold/50" aria-label="Bottom landing navigation">
             <a href="#hero" className="flex flex-col items-center gap-0.5 text-[10px] text-gold transition hover:text-champagne">
               <span className="text-xl leading-none">⌂</span>
-              <span>Beranda</span>
+              <span>Home</span>
             </a>
             <a href="#features" className="flex flex-col items-center gap-0.5 text-[10px] text-gray-400 transition hover:text-white">
               <span className="text-xl leading-none">⚡</span>
-              <span>Fitur</span>
+              <span>Features</span>
             </a>
             <a href="#tournaments" className="flex flex-col items-center gap-0.5 text-[10px] text-gray-400 transition hover:text-white">
               <span className="text-xl leading-none">♜</span>
-              <span>Turnamen</span>
+              <span>Tournaments</span>
             </a>
             <button type="button" onClick={onPlay} className="flex flex-col items-center gap-0.5 text-[10px] font-bold text-gold transition hover:text-champagne">
               <span className="text-xl leading-none">♟</span>
-              <span>Main</span>
+              <span>Play</span>
             </button>
           </nav>
         </div>
