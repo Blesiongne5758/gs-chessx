@@ -523,7 +523,7 @@ function MultiplayerVoice({ roomId, userId, opponentName }) {
         if (candidate) channel.send({ type: 'broadcast', event: 'signal', payload: { from: userId, kind: 'candidate', candidate: candidate.toJSON() } });
       };
       peer.onconnectionstatechange = () => setConnected(peer.connectionState === 'connected');
-      peer.oniceconnectionstatechange = () => { if (peer.iceConnectionState === 'failed') toast.error('Voice connection failed; network may require TURN.'); };
+      peer.oniceconnectionstatechange = () => { if (peer.iceConnectionState === 'failed') toast.error('Voice connection failed. Please check your network connection.'); };
       setActive(true);
       return peer;
     }

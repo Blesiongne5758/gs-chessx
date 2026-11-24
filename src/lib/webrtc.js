@@ -1,35 +1,52 @@
 import { supabase } from './supabaseClient';
-import toast from 'react-hot-toast';
 
 const FALLBACK_ICE_SERVERS = [
   { urls: 'stun:stun.l.google.com:19302' },
   { urls: 'stun:stun1.l.google.com:19302' },
   { urls: 'stun:stun2.l.google.com:19302' },
   { urls: 'stun:stun3.l.google.com:19302' },
-  { urls: 'stun:stun4.l.google.com:19302' },
+  { urls: 'stun:openrelay.metered.ca:80' },
   { urls: 'stun:global.stun.twilio.com:3478' },
+  {
+    urls: [
+      'turn:openrelay.metered.ca:80',
+      'turn:openrelay.metered.ca:443',
+      'turn:openrelay.metered.ca:443?transport=tcp',
+    ],
+    username: 'openrelayproject',
+    credential: 'openrelayproject',
+  },
 ];
-let turnWarningShown = false;
 
-function warnTurnUnavailable() {
-  if (turnWarningShown) return;
-  turnWarningShown = true;
-  toast('TURN server is not configured. Calls may fail behind strict NAT/firewalls.');
+let turnNoticeLogged = false;
+
+function logTurnFallback() {
+  if (turnNoticeLogged) return;
+  turnNoticeLogged = true;
+  console.info('[WebRTC] Using fallback STUN/TURN servers.');
 }
 
-/** Fetches short-lived TURN credentials from the authenticated Edge Function. */
+/** Fetches short-lived TURN credentials from the authenticated Edge Function, or falls back to public STUN/TURN relays. */
 export async function getIceServers() {
-  if (!navigator.onLine) { warnTurnUnavailable(); return FALLBACK_ICE_SERVERS; }
+  if (!navigator.onLine) {
+    logTurnFallback();
+    return FALLBACK_ICE_SERVERS;
+  }
   try {
     const { data, error } = await supabase.functions.invoke('turn-credentials', { method: 'GET' });
     if (error) throw error;
-    if (!Array.isArray(data?.iceServers) || data.iceServers.length === 0) { warnTurnUnavailable(); return FALLBACK_ICE_SERVERS; }
-    if (!data.turnConfigured) warnTurnUnavailable();
+    if (!Array.isArray(data?.iceServers) || data.iceServers.length === 0) {
+      logTurnFallback();
+      return FALLBACK_ICE_SERVERS;
+    }
+    if (!data.turnConfigured) {
+      // Edge function returned STUN only; merge with fallback TURN relay for firewall traversal
+      const turnRelays = FALLBACK_ICE_SERVERS.filter((s) => s.username);
+      return [...data.iceServers, ...turnRelays];
+    }
     return data.iceServers;
   } catch {
-    // Calls can still succeed peer-to-peer using STUN when TURN has not been
-    // configured; restrictive NAT/firewalls require a deployed TURN relay.
-    warnTurnUnavailable();
+    logTurnFallback();
     return FALLBACK_ICE_SERVERS;
   }
 }
