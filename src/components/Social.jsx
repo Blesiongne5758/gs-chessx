@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import toast from 'react-hot-toast';
 import { supabase } from '../lib/supabaseClient';
 import Avatar from './Avatar';
-import TopNav from './TopNav';
+import TopNav, { FooterNav } from './TopNav';
 import { fetchProfile } from '../lib/profile';
 import { getIceServers } from '../lib/webrtc';
 
@@ -194,24 +194,169 @@ export default function Social({ user, profile, onNavigate, onEditProfile, onLog
     setCameraOff(nextOff);
   }
 
-  if (user?.isGuest) return <div className="app-page min-h-screen bg-obsidian p-6 text-white"><TopNav active="social" onNavigate={onNavigate} profile={{ username: 'Guest' }} onEditProfile={onEditProfile} onLogout={onLogout} isAdmin /><button onClick={() => onNavigate('lobby')} className="text-gold">← Lobby</button><div className="mx-auto mt-20 max-w-xl rounded-2xl border border-gold/30 bg-graphite p-8 text-center"><h1 className="font-cinzel text-3xl text-gold">Friends & chat</h1><p className="mt-3 text-gray-300">Masuk dengan akun Supabase untuk menggunakan kontak pertemanan dan chat.</p></div></div>;
+  if (user?.isGuest) {
+    return (
+      <div className="flex min-h-screen flex-col bg-[#08090d] text-white">
+        <TopNav active="social" onNavigate={onNavigate} profile={{ username: 'Guest' }} onEditProfile={onEditProfile} onLogout={onLogout} isAdmin />
+        <main className="mx-auto flex-1 w-full max-w-xl px-4 py-12 text-center">
+          <button onClick={() => onNavigate('lobby')} className="text-gold text-sm hover:underline">← Lobby</button>
+          <div className="mt-8 rounded-2xl border border-gold/30 bg-graphite p-8 text-center shadow-xl">
+            <h1 className="font-cinzel text-3xl text-gold">Friends & chat</h1>
+            <p className="mt-3 text-gray-300">Masuk dengan akun Supabase untuk menggunakan kontak pertemanan dan chat.</p>
+          </div>
+        </main>
+        <FooterNav active="social" onNavigate={onNavigate} onEditProfile={onEditProfile} />
+      </div>
+    );
+  }
+
   return (
-    <div className="app-page min-h-screen bg-obsidian p-6 text-white">
+    <div className="flex min-h-screen flex-col bg-[#08090d] text-white">
       <TopNav active="social" onNavigate={onNavigate} profile={{ username: name, avatar_url: ownProfile?.avatar_url }} onEditProfile={onEditProfile} onLogout={onLogout} />
-      <div className="mx-auto max-w-7xl">
-        <div className="mb-6 flex flex-wrap items-end justify-between gap-4"><div><p className="text-xs uppercase tracking-[.25em] text-gold/70">GS-ChessX / Community</p><h1 className="mt-2 font-cinzel text-3xl text-gold">Friends & messages</h1><p className="mt-1 text-sm text-gray-400">Temukan lawan, terima permintaan, dan ngobrol langsung.</p></div><span className="rounded-full border border-emerald/30 bg-emerald/10 px-3 py-1 text-xs text-emerald">Akun terhubung</span></div>
+
+      <main className="mx-auto flex-1 w-full max-w-7xl px-4 py-6 sm:px-6 lg:px-8">
+        <div className="mb-6 flex flex-wrap items-end justify-between gap-4">
+          <div>
+            <p className="text-xs uppercase tracking-[.25em] text-gold/70">GS-ChessX / Community</p>
+            <h1 className="mt-2 font-cinzel text-3xl font-bold text-gold">Friends & messages</h1>
+            <p className="mt-1 text-sm text-gray-400">Temukan lawan, terima permintaan, dan ngobrol langsung.</p>
+          </div>
+          <span className="rounded-full border border-emerald/30 bg-emerald/10 px-3 py-1 text-xs text-emerald">Akun terhubung</span>
+        </div>
+
         <div className="grid gap-5 lg:grid-cols-[320px_minmax(0,1fr)]">
-          <aside className="space-y-5">
-            <section className="rounded-2xl border border-gold/20 bg-graphite p-5"><h2 className="mb-3 font-semibold text-white">Cari pemain</h2><form onSubmit={searchPlayers} className="flex gap-2"><input value={query} onChange={(e) => setQuery(e.target.value)} placeholder="Username…" className="min-w-0 flex-1 rounded-lg border border-slate bg-obsidian px-3 py-2 text-sm outline-none focus:border-gold"/><button className="rounded-lg bg-gold px-3 font-semibold text-obsidian">Cari</button></form><div className="mt-3 space-y-2">{results.map((p) => <div key={p.id} className="flex items-center gap-2 rounded-lg bg-slate/70 p-2"><Avatar name={p.username} url={p.avatar_url} size="w-9 h-9 text-sm"/><div className="min-w-0 flex-1"><div className="truncate text-sm">{p.username}</div><div className="text-xs text-gray-400">{p.rating} rating</div></div><button onClick={() => sendRequest(p)} className="text-sm font-semibold text-gold">+ Add</button></div>)}</div></section>
-            <section className="rounded-2xl border border-gold/20 bg-graphite p-5"><h2 className="mb-3 font-semibold text-white">Permintaan <span className="text-xs text-gray-400">{requests.length}</span></h2>{requests.length === 0 && <p className="text-sm text-gray-500">Belum ada permintaan.</p>}<div className="space-y-2">{requests.map((r) => <div key={r.id} className="flex items-center gap-2 rounded-lg bg-slate/70 p-2"><Avatar name={r.other?.username} url={r.other?.avatar_url} size="w-8 h-8 text-xs"/><span className="min-w-0 flex-1 truncate text-sm">{r.other?.username}</span>{r.incoming ? <><button onClick={() => respond(r, 'accepted')} aria-label="Accept" className="text-emerald">✓</button><button onClick={() => respond(r, 'blocked')} aria-label="Decline" className="text-rose-400">×</button></> : <span className="text-xs text-amber-300">Menunggu</span>}</div>)}</div></section>
-            <section className="rounded-2xl border border-gold/20 bg-graphite p-5"><h2 className="mb-3 font-semibold">Kontak teman <span className="text-xs text-gray-400">{friends.length}</span></h2>{loading && <p className="text-sm text-gray-500">Memuat…</p>}{!loading && !friends.length && <p className="text-sm text-gray-500">Belum ada teman. Cari pemain untuk memulai.</p>}<div className="space-y-2">{friends.map((f) => <button key={f.id} onClick={() => setActive(f)} className={`flex w-full items-center gap-2 rounded-lg p-2 text-left ${active?.id === f.id ? 'bg-gold/15 ring-1 ring-gold/50' : 'bg-slate/70 hover:bg-slate'}`}><Avatar name={f.username} url={f.avatar_url} size="w-9 h-9 text-sm"/><span className="min-w-0 flex-1 truncate text-sm">{f.username}</span><span className="text-xs text-gold">{f.rating}</span></button>)}</div></section>
+          <aside className={`space-y-5 ${active ? 'hidden lg:block' : 'block'}`}>
+            <section className="rounded-2xl border border-gold/20 bg-graphite p-5">
+              <h2 className="mb-3 font-semibold text-white">Cari pemain</h2>
+              <form onSubmit={searchPlayers} className="flex gap-2">
+                <input value={query} onChange={(e) => setQuery(e.target.value)} placeholder="Username…" className="min-w-0 flex-1 rounded-lg border border-slate bg-obsidian px-3 py-2 text-sm text-white outline-none focus:border-gold"/>
+                <button type="submit" className="rounded-lg bg-gold px-3 font-semibold text-obsidian hover:bg-champagne transition">Cari</button>
+              </form>
+              <div className="mt-3 space-y-2">
+                {results.map((p) => (
+                  <div key={p.id} className="flex items-center gap-2 rounded-lg bg-slate/70 p-2">
+                    <Avatar name={p.username} url={p.avatar_url} size="w-9 h-9 text-sm"/>
+                    <div className="min-w-0 flex-1">
+                      <div className="truncate text-sm font-semibold">{p.username}</div>
+                      <div className="text-xs text-gray-400">{p.rating} rating</div>
+                    </div>
+                    <button type="button" onClick={() => sendRequest(p)} className="text-sm font-semibold text-gold hover:text-champagne">+ Add</button>
+                  </div>
+                ))}
+              </div>
+            </section>
+
+            <section className="rounded-2xl border border-gold/20 bg-graphite p-5">
+              <h2 className="mb-3 font-semibold text-white">Permintaan <span className="text-xs text-gray-400">({requests.length})</span></h2>
+              {requests.length === 0 && <p className="text-sm text-gray-500">Belum ada permintaan.</p>}
+              <div className="space-y-2">
+                {requests.map((r) => (
+                  <div key={r.id} className="flex items-center gap-2 rounded-lg bg-slate/70 p-2">
+                    <Avatar name={r.other?.username} url={r.other?.avatar_url} size="w-8 h-8 text-xs"/>
+                    <span className="min-w-0 flex-1 truncate text-sm">{r.other?.username}</span>
+                    {r.incoming ? (
+                      <div className="flex items-center gap-1">
+                        <button type="button" onClick={() => respond(r, 'accepted')} aria-label="Accept" className="rounded bg-emerald/20 px-2 py-0.5 text-xs font-bold text-emerald hover:bg-emerald/30">✓</button>
+                        <button type="button" onClick={() => respond(r, 'blocked')} aria-label="Decline" className="rounded bg-rose-500/20 px-2 py-0.5 text-xs font-bold text-rose-400 hover:bg-rose-500/30">×</button>
+                      </div>
+                    ) : (
+                      <span className="text-xs text-amber-300">Menunggu</span>
+                    )}
+                  </div>
+                ))}
+              </div>
+            </section>
+
+            <section className="rounded-2xl border border-gold/20 bg-graphite p-5">
+              <h2 className="mb-3 font-semibold text-white">Kontak teman <span className="text-xs text-gray-400">({friends.length})</span></h2>
+              {loading && <p className="text-sm text-gray-500">Memuat…</p>}
+              {!loading && !friends.length && <p className="text-sm text-gray-500">Belum ada teman. Cari pemain untuk memulai.</p>}
+              <div className="space-y-2 max-h-80 overflow-y-auto">
+                {friends.map((f) => (
+                  <button
+                    type="button"
+                    key={f.id}
+                    onClick={() => setActive(f)}
+                    className={`flex w-full items-center gap-2 rounded-lg p-2.5 text-left transition ${active?.id === f.id ? 'bg-gold/15 ring-1 ring-gold/50' : 'bg-slate/70 hover:bg-slate'}`}
+                  >
+                    <Avatar name={f.username} url={f.avatar_url} size="w-9 h-9 text-sm"/>
+                    <span className="min-w-0 flex-1 truncate text-sm font-medium">{f.username}</span>
+                    <span className="text-xs font-bold text-gold">{f.rating}</span>
+                  </button>
+                ))}
+              </div>
+            </section>
           </aside>
-          <section className="flex min-h-[640px] flex-col overflow-hidden rounded-2xl border border-gold/20 bg-graphite">
-            {active ? <><header className="flex items-center justify-between border-b border-white/5 p-4"><div className="flex items-center gap-3"><Avatar name={active.username} url={active.avatar_url} size="w-10 h-10"/><div><h2 className="font-semibold">{active.username}</h2><p className="text-xs text-gray-400">Rating {active.rating} · kontak teman</p></div></div><button onClick={openMedia} className="rounded-lg border border-gold/30 px-3 py-2 text-sm text-gold hover:bg-gold/10">Video / voice</button></header><div className="flex-1 space-y-3 overflow-y-auto p-5">{messages.length === 0 && <div className="mt-20 text-center text-sm text-gray-500">Belum ada pesan. Sapa temanmu!</div>}{messages.map((m) => <div key={m.id} className={`flex ${m.sender_id === user.id ? 'justify-end' : 'justify-start'}`}><div className={`max-w-[80%] rounded-2xl px-4 py-2 text-sm ${m.sender_id === user.id ? 'rounded-br-sm bg-gold text-obsidian' : 'rounded-bl-sm bg-slate text-gray-100'}`}><p className="whitespace-pre-wrap break-words">{m.body}</p><time className={`mt-1 block text-right text-[10px] ${m.sender_id === user.id ? 'text-obsidian/60' : 'text-gray-400'}`}>{new Date(m.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</time></div></div>)}</div><form onSubmit={sendMessage} className="flex gap-2 border-t border-white/5 p-4"><input value={draft} maxLength={2000} onChange={(e) => setDraft(e.target.value)} placeholder={`Pesan untuk ${active.username}…`} className="min-w-0 flex-1 rounded-xl border border-slate bg-obsidian px-4 py-3 text-sm outline-none focus:border-gold"/><button disabled={!draft.trim()} className="rounded-xl bg-gold px-5 font-semibold text-obsidian disabled:opacity-40">Kirim</button></form></> : <div className="grid flex-1 place-items-center p-8 text-center"><div><div className="text-5xl text-gold/30">♟</div><h2 className="mt-4 font-cinzel text-2xl text-gold">Pilih teman untuk memulai</h2><p className="mt-2 text-sm text-gray-400">Chat terenkripsi oleh aturan akses akun dan pertemanan database.</p></div></div>}
+
+          <section className={`flex flex-col h-[580px] sm:h-[640px] overflow-hidden rounded-2xl border border-gold/20 bg-graphite shadow-xl ${!active ? 'hidden lg:flex' : 'flex'}`}>
+            {active ? (
+              <>
+                <header className="flex items-center justify-between border-b border-white/5 bg-slate/20 p-4">
+                  <div className="flex items-center gap-3">
+                    <button
+                      type="button"
+                      onClick={() => setActive(null)}
+                      className="lg:hidden rounded-lg border border-gold/40 bg-gold/10 px-2.5 py-1 text-xs font-semibold text-gold hover:bg-gold hover:text-obsidian transition"
+                    >
+                      ← Kontak
+                    </button>
+                    <Avatar name={active.username} url={active.avatar_url} size="w-10 h-10"/>
+                    <div>
+                      <h2 className="font-semibold text-white">{active.username}</h2>
+                      <p className="text-xs text-gray-400">Rating {active.rating} · kontak teman</p>
+                    </div>
+                  </div>
+                  <button type="button" onClick={openMedia} className="rounded-lg border border-gold/30 px-3 py-2 text-sm text-gold hover:bg-gold/10 transition">
+                    Video / voice
+                  </button>
+                </header>
+
+                <div className="flex-1 space-y-3 overflow-y-auto p-4 sm:p-5">
+                  {messages.length === 0 && <div className="mt-20 text-center text-sm text-gray-500">Belum ada pesan. Sapa temanmu!</div>}
+                  {messages.map((m) => (
+                    <div key={m.id} className={`flex ${m.sender_id === user.id ? 'justify-end' : 'justify-start'}`}>
+                      <div className={`max-w-[80%] rounded-2xl px-4 py-2 text-sm ${m.sender_id === user.id ? 'rounded-br-sm bg-gold text-obsidian font-medium' : 'rounded-bl-sm bg-slate text-gray-100'}`}>
+                        <p className="whitespace-pre-wrap break-words">{m.body}</p>
+                        <time className={`mt-1 block text-right text-[10px] ${m.sender_id === user.id ? 'text-obsidian/60' : 'text-gray-400'}`}>
+                          {new Date(m.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                        </time>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+
+                <form onSubmit={sendMessage} className="flex gap-2 border-t border-white/10 bg-graphite/95 p-3 sm:p-4">
+                  <input
+                    value={draft}
+                    maxLength={2000}
+                    onChange={(e) => setDraft(e.target.value)}
+                    placeholder={`Pesan untuk ${active.username}…`}
+                    className="min-w-0 flex-1 rounded-xl border border-slate bg-obsidian px-4 py-3 text-sm text-white placeholder-gray-500 outline-none focus:border-gold"
+                  />
+                  <button
+                    type="submit"
+                    disabled={!draft.trim()}
+                    className="shrink-0 rounded-xl bg-gold px-5 py-3 font-semibold text-obsidian hover:bg-champagne transition disabled:opacity-40"
+                  >
+                    Kirim
+                  </button>
+                </form>
+              </>
+            ) : (
+              <div className="grid flex-1 place-items-center p-8 text-center">
+                <div>
+                  <div className="text-5xl text-gold/30">♟</div>
+                  <h2 className="mt-4 font-cinzel text-2xl text-gold">Pilih teman untuk memulai</h2>
+                  <p className="mt-2 text-sm text-gray-400">Pilih salah satu teman di daftar kontak untuk membuka percakapan.</p>
+                </div>
+              </div>
+            )}
             {mediaError && <p role="alert" className="px-4 pb-3 text-sm text-rose-300">{mediaError}</p>}
           </section>
         </div>
-      </div>
+      </main>
+
+      <FooterNav active="social" onNavigate={onNavigate} onEditProfile={onEditProfile} />
       {mediaOpen && <div className="fixed inset-0 z-50 grid place-items-center bg-black/80 p-4"><div className="w-full max-w-3xl rounded-2xl border border-gold/30 bg-graphite p-5"><div className="mb-3 flex items-start justify-between"><div><h2 className="font-cinzel text-xl text-gold">Panggilan dengan {active?.username}</h2><p className="mt-1 text-xs text-emerald-300">{callStatus || 'Menyiapkan media…'} · WebRTC peer-to-peer</p></div><button onClick={() => endCall()} aria-label="Akhiri panggilan" className="text-gray-400">✕</button></div><div className="grid gap-3 sm:grid-cols-2"><video ref={remoteVideoRef} autoPlay playsInline className="aspect-video w-full rounded-xl bg-black object-cover"/><video ref={videoRef} autoPlay muted playsInline className="aspect-video w-full rounded-xl bg-black object-cover"/></div>{incomingOffer && <div className="mt-3 flex items-center justify-between rounded-lg bg-slate p-3"><span className="text-sm">{active?.username} menelepon Anda.</span><button onClick={acceptCall} className="rounded-lg bg-emerald px-4 py-2 font-semibold text-obsidian">Terima</button></div>}<div className="mt-4 flex flex-wrap justify-center gap-3">{mediaRef.current && <><button onClick={toggleMicrophone} aria-pressed={micMuted} className={`rounded-lg px-4 py-2 font-semibold ${micMuted ? 'bg-rose-600 text-white' : 'bg-slate text-white'}`}>{micMuted ? 'Unmute microphone' : 'Mute microphone'}</button><button onClick={toggleCamera} aria-pressed={cameraOff} className={`rounded-lg px-4 py-2 font-semibold ${cameraOff ? 'bg-amber-500 text-obsidian' : 'bg-slate text-white'}`}>{cameraOff ? 'Turn camera on' : 'Turn camera off'}</button></>}<button onClick={() => endCall()} className="rounded-lg bg-rose-600 px-4 py-2 font-semibold text-white">Akhiri panggilan</button></div></div></div>}
     </div>
   );

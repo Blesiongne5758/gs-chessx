@@ -6,7 +6,7 @@ import { getIceServers } from '../lib/webrtc';
 const ChessBoard3D = lazy(() => import('./ChessBoard3D'));
 import ChessPiece2D from './ChessPiece2D';
 import HistoricalSplash from './HistoricalSplash';
-import TopNav from './TopNav';
+import TopNav, { FooterNav } from './TopNav';
 import { CHESS_SKIN_LIST, resolveChessSkin } from '../lib/chessSkins';
 
 const PIECES = {
@@ -68,9 +68,29 @@ export default function GameRoom({ user, timeControl, match, onBack, onSocial, o
   const [customization, setCustomization] = useState(DEFAULT_CUSTOMIZATION);
   const [showHistoricalSplash, setShowHistoricalSplash] = useState(true);
   const gameChannelRef = useRef(null);
-  const myColor = match?.color === 'black' ? 'b' : 'w';
+  const [playerSide, setPlayerSide] = useState(() => (match?.color === 'black' ? 'b' : 'w'));
   const isMultiplayer = Boolean(match?.roomId);
   const isAiMatch = match?.mode === 'ai';
+
+  useEffect(() => {
+    if (match?.color) {
+      setPlayerSide(match.color === 'black' ? 'b' : 'w');
+    }
+  }, [match?.color]);
+
+  function handleSideChange(side) {
+    if (side === playerSide) return;
+    setPlayerSide(side);
+    setSelectedSquare(null);
+    if (isAiMatch && history.length === 0) {
+      setGame(new Chess());
+    }
+    toast.success(
+      side === 'b'
+        ? 'Bidak Hitam (Atheist) aktif — bidak Anda kini berada di bawah.'
+        : 'Bidak Putih (Religion) aktif — bidak Anda kini berada di bawah.'
+    );
+  }
 
   const turn = game.turn();
   const history = game.history({ verbose: true });
@@ -114,7 +134,8 @@ export default function GameRoom({ user, timeControl, match, onBack, onSocial, o
 
   // VS AI is entirely local: it never joins Presence or a Realtime channel.
   useEffect(() => {
-    if (!isAiMatch || result || turn !== 'b') return undefined;
+    const aiColor = playerSide === 'w' ? 'b' : 'w';
+    if (!isAiMatch || result || turn !== aiColor) return undefined;
     setAiThinking(true);
     const timer = window.setTimeout(() => {
       setGame((current) => {
@@ -133,7 +154,7 @@ export default function GameRoom({ user, timeControl, match, onBack, onSocial, o
       });
     }, 550);
     return () => window.clearTimeout(timer);
-  }, [isAiMatch, match?.aiLevel, result, turn]);
+  }, [isAiMatch, match?.aiLevel, result, turn, playerSide]);
 
   // Clock: only the side to move ticks, and only while the game is running and at least one move was made.
   useEffect(() => {
@@ -181,7 +202,9 @@ export default function GameRoom({ user, timeControl, match, onBack, onSocial, o
 
   function handleSquareClick(square) {
     if (isMultiplayer && !gameChannelReady) return;
-    if (result || (isMultiplayer && turn !== myColor) || (isAiMatch && turn !== 'w')) return;
+    if (result) return;
+    if (isMultiplayer && turn !== playerSide) return;
+    if (isAiMatch && turn !== playerSide) return;
     const piece = game.get(square);
 
     if (selectedSquare && validTargets.includes(square)) {
@@ -208,8 +231,11 @@ export default function GameRoom({ user, timeControl, match, onBack, onSocial, o
       return;
     }
 
-    if (piece && piece.color === turn) setSelectedSquare(square);
-    else setSelectedSquare(null);
+    if (piece && piece.color === turn && (!isAiMatch && !isMultiplayer ? true : piece.color === playerSide)) {
+      setSelectedSquare(square);
+    } else {
+      setSelectedSquare(null);
+    }
   }
 
   function resetGame() {
@@ -223,8 +249,8 @@ export default function GameRoom({ user, timeControl, match, onBack, onSocial, o
 
   function resign() {
     if (result) return;
-    const resigningColor = isMultiplayer ? myColor : isAiMatch ? 'w' : turn;
-    finishGame(`${resigningColor === 'w' ? 'Putih' : 'Hitam'} menyerah — ${resigningColor === 'w' ? 'Hitam' : 'Putih'} menang`);
+    const resigningColor = (isMultiplayer || isAiMatch) ? playerSide : turn;
+    finishGame(`${resigningColor === 'w' ? 'Religion (Putih)' : 'Atheist (Hitam)'} menyerah — ${resigningColor === 'w' ? 'Atheist (Hitam)' : 'Religion (Putih)'} menang`);
   }
 
   function offerDraw(accept = false) {
@@ -248,12 +274,33 @@ export default function GameRoom({ user, timeControl, match, onBack, onSocial, o
       ? board.flat().find((p) => p && p.type === 'k' && p.color === turn)?.square
       : null;
     if (skinMode === '3d') {
-      return <Suspense fallback={<div className="grid h-full place-items-center rounded-xl border border-gold/30 bg-graphite text-sm text-gold">Memuat papan 3D…</div>}><ChessBoard3D board={board} selectedSquare={selectedSquare} validTargets={validTargets} lastMove={lastMove} kingInCheck={kingInCheck} onSquareClick={handleSquareClick} skin={skinId} customization={customization} whiteName={whiteName} blackName={blackName} capturedByWhite={captured.byWhite} capturedByBlack={captured.byBlack} /></Suspense>;
+      return (
+        <Suspense fallback={<div className="grid h-full place-items-center rounded-xl border border-gold/30 bg-graphite text-sm text-gold">Memuat papan 3D…</div>}>
+          <ChessBoard3D
+            board={board}
+            selectedSquare={selectedSquare}
+            validTargets={validTargets}
+            lastMove={lastMove}
+            kingInCheck={kingInCheck}
+            onSquareClick={handleSquareClick}
+            skin={skinId}
+            customization={customization}
+            whiteName={whiteName}
+            blackName={blackName}
+            capturedByWhite={captured.byWhite}
+            capturedByBlack={captured.byBlack}
+            playerSide={playerSide}
+          />
+        </Suspense>
+      );
     }
     const squares = [];
+    const isFlipped = playerSide === 'b';
 
-    for (let row = 0; row < 8; row++) {
-      for (let col = 0; col < 8; col++) {
+    for (let r = 0; r < 8; r++) {
+      for (let c = 0; c < 8; c++) {
+        const row = isFlipped ? 7 - r : r;
+        const col = isFlipped ? 7 - c : c;
         const square = String.fromCharCode(97 + col) + (8 - row);
         const piece = board[row][col];
         const isLight = (row + col) % 2 === 0;
@@ -283,9 +330,9 @@ export default function GameRoom({ user, timeControl, match, onBack, onSocial, o
                 }`}
               />
             )}
-            {col === 0 && <span className="absolute top-0.5 left-1 text-[10px] text-black/50">{8 - row}</span>}
-            {row === 7 && (
-              <span className="absolute bottom-0.5 right-1 text-[10px] text-black/50">{String.fromCharCode(97 + col)}</span>
+            {c === 0 && <span className="absolute top-0.5 left-1 text-[10px] font-bold text-black/50">{8 - row}</span>}
+            {r === 7 && (
+              <span className="absolute bottom-0.5 right-1 text-[10px] font-bold text-black/50">{String.fromCharCode(97 + col)}</span>
             )}
           </div>,
         );
@@ -297,36 +344,82 @@ export default function GameRoom({ user, timeControl, match, onBack, onSocial, o
   const sans = history.map((m) => m.san);
   const youName = user?.isGuest ? 'You (Guest)' : user?.user_metadata?.username || user?.email?.split('@')[0] || 'You';
   const opponentName = isAiMatch ? 'Komputer' : match?.opponent?.username || 'Lawan';
-  const blackName = isMultiplayer ? (myColor === 'b' ? youName : opponentName) : isAiMatch ? opponentName : 'Opponent (Black)';
-  const whiteName = isMultiplayer ? (myColor === 'w' ? youName : opponentName) : `${youName} (White)`;
+
+  const isPlayerBlack = playerSide === 'b';
+  const youLabel = isPlayerBlack ? `${youName} (Atheist / Hitam)` : `${youName} (Religion / Putih)`;
+  const oppLabel = isPlayerBlack ? `${opponentName} (Religion / Putih)` : `${opponentName} (Atheist / Hitam)`;
+  const youTime = isPlayerBlack ? blackTime : whiteTime;
+  const oppTime = isPlayerBlack ? whiteTime : blackTime;
+  const youTurn = isPlayerBlack ? turn === 'b' : turn === 'w';
+  const oppTurn = isPlayerBlack ? turn === 'w' : turn === 'b';
+  const youCaptured = isPlayerBlack ? captured.byBlack : captured.byWhite;
+  const oppCaptured = isPlayerBlack ? captured.byWhite : captured.byBlack;
+  const whiteName = isPlayerBlack ? oppLabel : youLabel;
+  const blackName = isPlayerBlack ? youLabel : oppLabel;
   const activeSkin = resolveChessSkin(skinId, customization);
 
   return (
-    <div className="app-page min-h-screen bg-obsidian flex flex-col">
+    <div className="min-h-screen bg-obsidian flex flex-col">
       <TopNav active="game" onNavigate={onNavigate} profile={{ username: youName }} onEditProfile={onEditProfile} onLogout={onLogout} isAdmin={user?.isGuest} />
       <div className="mx-auto flex w-full max-w-6xl items-center justify-between px-4 pt-4 text-sm"><button onClick={onBack} className="text-gray-300 hover:text-white">← Back to Lobby</button><span className="text-gray-500">{timeControl?.label}</span></div>
 
       {/* Game Area */}
       <div className="flex-1 flex items-center justify-center p-6">
         <div className="grid grid-cols-1 lg:grid-cols-[1fr_minmax(0,560px)_1fr] gap-6 max-w-6xl w-full">
-          {/* Left — Black / opponent */}
+          {/* Left — Opponent */}
           <div className="space-y-4">
             <PlayerCard
-              icon="♚"
-              iconClass="bg-black text-white"
-              name={`${blackName} (Black)`}
-              sub={isMultiplayer ? 'Quick Match' : isAiMatch ? `Komputer · Level ${match.aiLevel || 10}` : 'Local hot-seat'}
-              time={blackTime}
-              active={turn === 'b' && !result}
+              icon={isPlayerBlack ? '♔' : '♚'}
+              iconClass={isPlayerBlack ? 'bg-gold text-obsidian' : 'bg-black text-white'}
+              name={oppLabel}
+              sub={isMultiplayer ? 'Quick Match' : isAiMatch ? `Komputer · Level ${match?.aiLevel || 10}` : 'Local hot-seat'}
+              time={oppTime}
+              active={oppTurn && !result}
             />
             <div className="bg-graphite border border-gold/30 rounded-lg p-4">
-              <h3 className="text-gold font-bold mb-2">♟ Captured by Black</h3>
-              <div className="text-2xl min-h-8">{captured.byBlack.join('') || '—'}</div>
+              <h3 className="text-gold font-bold mb-2">{isPlayerBlack ? '♔ Dimakan oleh Putih' : '♟ Dimakan oleh Hitam'}</h3>
+              <div className="text-2xl min-h-8">{oppCaptured.join('') || '—'}</div>
             </div>
           </div>
 
           {/* Center — Board */}
           <div className="space-y-3">
+            {/* Faction / Side Switcher */}
+            <div className="flex flex-wrap items-center justify-between gap-2 rounded-xl border border-gold/30 bg-[#12141c] p-2.5 shadow-md">
+              <div className="flex items-center gap-1.5">
+                <span className="text-xs font-semibold text-gray-300">Pilih Bidak:</span>
+                <span className="text-[11px] text-gray-400 hidden sm:inline">(bidak di bawah)</span>
+              </div>
+              <div className="flex items-center gap-1.5">
+                <button
+                  type="button"
+                  onClick={() => handleSideChange('w')}
+                  className={`flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-bold transition ${
+                    playerSide === 'w'
+                      ? 'bg-gradient-to-r from-gold to-champagne text-obsidian shadow-md shadow-gold/25'
+                      : 'bg-white/[.05] text-gray-300 hover:bg-white/10 hover:text-white'
+                  }`}
+                  title="Pilih Religion / Putih (Bidak Putih di bawah)"
+                >
+                  <span>🕊️</span>
+                  <span>Religion (Putih)</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => handleSideChange('b')}
+                  className={`flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-bold transition ${
+                    playerSide === 'b'
+                      ? 'bg-gradient-to-r from-rose-700 via-rose-900 to-graphite text-white border border-rose-400/40 shadow-md shadow-rose-900/30'
+                      : 'bg-white/[.05] text-gray-300 hover:bg-white/10 hover:text-white'
+                  }`}
+                  title="Pilih Atheist / Hitam (Bidak Hitam di bawah)"
+                >
+                  <span>🏴</span>
+                  <span>Atheist (Hitam)</span>
+                </button>
+              </div>
+            </div>
+
             <div className="space-y-2"><div className="flex items-center justify-between gap-3"><div><div className="text-xs uppercase tracking-widest text-gray-500">Skin bidak</div><div className="mt-1 text-[11px] text-gray-500">{CHESS_SKIN_LIST.find((skin) => skin.id === skinId)?.description}</div></div><div className="flex shrink-0 rounded-lg border border-gold/25 bg-graphite p-1"><button onClick={() => setSkinMode('3d')} aria-pressed={skinMode === '3d'} className={`rounded-md px-3 py-1.5 text-xs font-semibold ${skinMode === '3d' ? 'bg-gold text-obsidian' : 'text-gray-300'}`}>3D</button><button onClick={() => setSkinMode('2d')} aria-pressed={skinMode === '2d'} className={`rounded-md px-3 py-1.5 text-xs font-semibold ${skinMode === '2d' ? 'bg-gold text-obsidian' : 'text-gray-300'}`}>2D</button></div></div><div className="grid grid-cols-2 gap-1.5 sm:grid-cols-3">{CHESS_SKIN_LIST.map((skin) => <button key={skin.id} onClick={() => setSkinId(skin.id)} aria-pressed={skinId === skin.id} className={`rounded-md border px-2 py-1.5 text-[11px] font-semibold transition ${skinId === skin.id ? 'border-gold bg-gold text-obsidian shadow-[0_0_14px_rgba(212,175,55,.24)]' : 'border-white/10 bg-graphite text-gray-300 hover:border-gold/50'}`}>{skin.shortLabel}</button>)}</div>{skinId === 'custom' && <CustomNeonControls value={customization} onChange={setCustomization} />}</div>
             {isMultiplayer && !gameChannelReady && <p role="status" className="rounded border border-amber-400/40 bg-amber-400/10 p-2 text-center text-xs text-amber-200">Menghubungkan ke pertandingan. Langkah akan aktif setelah tersambung.</p>}
             {isAiMatch && aiThinking && <p role="status" className="rounded border border-gold/40 bg-gold/10 p-2 text-center text-xs text-gold">Komputer sedang berpikir…</p>}
@@ -343,19 +436,19 @@ export default function GameRoom({ user, timeControl, match, onBack, onSocial, o
             )}
           </div>
 
-          {/* Right — White / you + history */}
+          {/* Right — You */}
           <div className="space-y-4">
             <PlayerCard
-              icon="♔"
-              iconClass="bg-gold text-obsidian"
-              name={whiteName}
-              sub={isMultiplayer ? 'Quick Match' : isAiMatch ? 'Pemain' : 'Local hot-seat'}
-              time={whiteTime}
-              active={turn === 'w' && !result}
+              icon={isPlayerBlack ? '♚' : '♔'}
+              iconClass={isPlayerBlack ? 'bg-black text-white' : 'bg-gold text-obsidian'}
+              name={youLabel}
+              sub="Bidak Anda (Sisi Bawah Papan)"
+              time={youTime}
+              active={youTurn && !result}
             />
             <div className="bg-graphite border border-gold/30 rounded-lg p-4">
-              <h3 className="text-gold font-bold mb-2">♙ Captured by White</h3>
-              <div className="text-2xl min-h-8">{captured.byWhite.join('') || '—'}</div>
+              <h3 className="text-gold font-bold mb-2">{isPlayerBlack ? '♟ Dimakan oleh Hitam' : '♙ Dimakan oleh Putih'}</h3>
+              <div className="text-2xl min-h-8">{youCaptured.join('') || '—'}</div>
             </div>
             <div className="bg-graphite border border-gold/30 rounded-lg p-4">
               <h3 className="text-gold font-bold mb-2">📜 Move History</h3>
@@ -397,6 +490,7 @@ export default function GameRoom({ user, timeControl, match, onBack, onSocial, o
         </div>
       </div>
       {showHistoricalSplash && <HistoricalSplash onContinue={() => setShowHistoricalSplash(false)} />}
+      <FooterNav active="game" onNavigate={onNavigate} onEditProfile={onEditProfile} />
     </div>
   );
 }

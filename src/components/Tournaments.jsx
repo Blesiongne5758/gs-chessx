@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import toast from 'react-hot-toast';
-import TopNav from './TopNav';
+import TopNav, { FooterNav } from './TopNav';
 import Avatar from './Avatar';
 import SwissPanel from './SwissPanel';
 import { fetchProfile } from '../lib/profile';
@@ -103,7 +103,7 @@ export default function Tournaments({ user, onNavigate, onEditProfile, onLogout,
   }
 
   return (
-    <div className="app-page min-h-screen bg-obsidian p-6">
+    <div className="min-h-screen bg-obsidian text-white flex flex-col">
       <TopNav
         active="tournaments"
         onNavigate={onNavigate}
@@ -113,7 +113,7 @@ export default function Tournaments({ user, onNavigate, onEditProfile, onLogout,
         isAdmin={isAdmin}
       />
 
-      <div className="max-w-7xl mx-auto space-y-6">
+      <div className="max-w-7xl mx-auto space-y-6 flex-1 w-full px-4 py-6 sm:px-6 lg:px-8">
         {/* Header + featured */}
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
           <div className="lg:col-span-1">
@@ -230,6 +230,7 @@ export default function Tournaments({ user, onNavigate, onEditProfile, onLogout,
           onClose={() => setSelectedId(null)}
         />
       )}
+      <FooterNav active="tournaments" onNavigate={onNavigate} onEditProfile={onEditProfile} />
     </div>
   );
 }

@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import toast from 'react-hot-toast';
 import { supabase } from '../lib/supabaseClient';
 import Avatar from './Avatar';
-import TopNav from './TopNav';
+import TopNav, { FooterNav } from './TopNav';
 import { loadGuestProfile } from '../lib/profile';
 
 const TIME_CONTROLS = [
@@ -28,6 +28,9 @@ export default function Lobby({ user, onPlay, onLogout, onEditProfile, onNavigat
   const [leaders, setLeaders] = useState([]);
   const [leaderError, setLeaderError] = useState('');
   const [lastLeaderSync, setLastLeaderSync] = useState(null);
+  const [aiModalOpen, setAiModalOpen] = useState(false);
+  const [aiFaction, setAiFaction] = useState('white');
+  const [aiLevel, setAiLevel] = useState(10);
 
   useEffect(() => {
     if (user.isGuest) {
@@ -91,8 +94,17 @@ export default function Lobby({ user, onPlay, onLogout, onEditProfile, onNavigat
   }
 
   function startAiMatch(event) {
-    event.stopPropagation();
-    onPlay(TIME_CONTROLS[4]);
+    event?.stopPropagation?.();
+    setAiModalOpen(true);
+  }
+
+  function confirmAiMatch() {
+    setAiModalOpen(false);
+    onPlay({
+      ...TIME_CONTROLS[4],
+      aiLevel,
+      color: aiFaction,
+    });
   }
 
   function activateFeature(key) {
@@ -103,7 +115,7 @@ export default function Lobby({ user, onPlay, onLogout, onEditProfile, onNavigat
   }
 
   return (
-    <div className="app-page min-h-screen overflow-x-hidden bg-[#08090d] text-white">
+    <div className="min-h-screen overflow-x-hidden bg-[#08090d] text-white flex flex-col">
       <TopNav
         active="lobby"
         onNavigate={onNavigate}
@@ -113,7 +125,7 @@ export default function Lobby({ user, onPlay, onLogout, onEditProfile, onNavigat
         isAdmin={user.isGuest || !!profile?.is_admin}
       />
 
-      <main className="mx-auto max-w-7xl px-4 pb-28 sm:px-6 lg:px-8">
+      <main className="mx-auto max-w-7xl px-4 pb-12 sm:px-6 lg:px-8 flex-1 w-full">
         <section className="relative isolate mt-4 min-h-[265px] overflow-hidden rounded-[2rem] border border-gold/40 bg-[#15130f] shadow-[0_20px_70px_rgba(245,158,11,.15)] sm:min-h-[330px]">
           <div className="absolute inset-0 bg-cover bg-center opacity-45 mix-blend-screen" style={{ backgroundImage: "url('/historical-reykjavik.png')" }} />
           <div className="absolute inset-0 bg-[radial-gradient(circle_at_73%_46%,rgba(245,158,11,.38),transparent_26%),linear-gradient(120deg,#0d1118_0%,#1d1b16_46%,#39270e_100%)]" />
@@ -162,6 +174,129 @@ export default function Lobby({ user, onPlay, onLogout, onEditProfile, onNavigat
         <section className="mt-8 rounded-[1.75rem] border border-white/10 bg-[#111319] p-5 sm:p-6"><div className="flex items-center justify-between"><div><p className="text-xs uppercase tracking-[.25em] text-gold">Community pulse</p><h2 className="mt-1 font-cinzel text-xl font-bold">Top players</h2><p className="mt-1 text-[11px] text-gray-500">{lastLeaderSync ? `Live · diperbarui ${lastLeaderSync.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}` : 'Menyinkronkan pemain…'}</p></div><button type="button" onClick={() => onNavigate('social')} className="text-sm text-gray-400 hover:text-white">Friends {friends.length} →</button></div>{leaderError ? <p className="mt-5 rounded-xl border border-amber-400/30 bg-amber-400/10 p-3 text-sm text-amber-200">Top players belum dapat dimuat: {leaderError}</p> : leaders.length === 0 ? <p className="mt-5 text-sm text-gray-500">Belum ada profil pemain di database. Pemain baru akan muncul otomatis setelah registrasi dan sinkronisasi.</p> : <div className="mt-5 grid gap-2 sm:grid-cols-2">{leaders.slice(0, 4).map((player, index) => <LeaderboardRow key={player.id} rank={index + 1} name={player.username} avatarUrl={player.avatar_url} rating={player.rating} games={player.games_played} isNew={player.created_at && Date.now() - new Date(player.created_at).getTime() < 7 * 24 * 60 * 60 * 1000} isYou={player.id === user.id} />)}</div>}</section>
       </main>
 
+      {/* VS AI Setup Modal */}
+      {aiModalOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 p-4 backdrop-blur-sm">
+          <div className="w-full max-w-md rounded-2xl border border-gold/40 bg-[#12141a] p-6 shadow-2xl shadow-black/80">
+            <div className="flex items-center justify-between border-b border-white/10 pb-4">
+              <div className="flex items-center gap-2">
+                <span className="text-2xl">🤖</span>
+                <h2 className="font-cinzel text-xl font-bold text-white">Main Lawan Komputer</h2>
+              </div>
+              <button
+                type="button"
+                onClick={() => setAiModalOpen(false)}
+                className="text-gray-400 hover:text-white text-xl"
+              >
+                ✕
+              </button>
+            </div>
+
+            <div className="mt-5 space-y-5">
+              {/* Faction Choice */}
+              <div>
+                <label className="block text-xs font-semibold uppercase tracking-wider text-gold mb-2">
+                  Pilih Bidak / Kubu Ideologi
+                </label>
+                <div className="grid grid-cols-3 gap-2">
+                  <button
+                    type="button"
+                    onClick={() => setAiFaction('white')}
+                    className={`flex flex-col items-center justify-center gap-1 rounded-xl border p-3 text-center transition ${
+                      aiFaction === 'white'
+                        ? 'border-gold bg-gold/20 text-white shadow-md shadow-gold/20 ring-1 ring-gold'
+                        : 'border-white/10 bg-white/[.04] text-gray-400 hover:border-gold/40 hover:text-gray-200'
+                    }`}
+                  >
+                    <span className="text-2xl">🕊️</span>
+                    <strong className="text-xs">Religion</strong>
+                    <span className="text-[10px] text-gold font-bold">Putih</span>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => setAiFaction('black')}
+                    className={`flex flex-col items-center justify-center gap-1 rounded-xl border p-3 text-center transition ${
+                      aiFaction === 'black'
+                        ? 'border-rose-400 bg-rose-950/40 text-white shadow-md shadow-rose-950/50 ring-1 ring-rose-400'
+                        : 'border-white/10 bg-white/[.04] text-gray-400 hover:border-rose-400/40 hover:text-gray-200'
+                    }`}
+                  >
+                    <span className="text-2xl">🏴</span>
+                    <strong className="text-xs">Atheist</strong>
+                    <span className="text-[10px] text-rose-300 font-bold">Hitam</span>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => setAiFaction('random')}
+                    className={`flex flex-col items-center justify-center gap-1 rounded-xl border p-3 text-center transition ${
+                      aiFaction === 'random'
+                        ? 'border-azure bg-azure/20 text-white shadow-md shadow-azure/20 ring-1 ring-azure'
+                        : 'border-white/10 bg-white/[.04] text-gray-400 hover:border-azure/40 hover:text-gray-200'
+                    }`}
+                  >
+                    <span className="text-2xl">🎲</span>
+                    <strong className="text-xs">Acak</strong>
+                    <span className="text-[10px] text-azure font-bold">Auto</span>
+                  </button>
+                </div>
+                <p className="mt-2 text-[11px] text-gray-400">
+                  {aiFaction === 'white'
+                    ? 'Bidak Putih di bawah, Anda bergerak lebih dulu.'
+                    : aiFaction === 'black'
+                    ? 'Bidak Hitam di bawah, komputer (Putih) bergerak lebih dulu.'
+                    : 'Kubu dipilih secara acak saat pertandingan dimulai.'}
+                </p>
+              </div>
+
+              {/* Difficulty Level */}
+              <div>
+                <div className="flex items-center justify-between mb-2">
+                  <label className="text-xs font-semibold uppercase tracking-wider text-gold">
+                    Tingkat Kesulitan AI
+                  </label>
+                  <span className="rounded-full bg-gold/15 px-2.5 py-0.5 text-xs font-bold text-gold">
+                    Level {aiLevel} {aiLevel === 10 ? '(Master)' : aiLevel >= 7 ? '(Mahir)' : aiLevel >= 4 ? '(Menengah)' : '(Pemula)'}
+                  </span>
+                </div>
+                <input
+                  type="range"
+                  min="1"
+                  max="10"
+                  value={aiLevel}
+                  onChange={(e) => setAiLevel(Number(e.target.value))}
+                  className="w-full accent-gold cursor-pointer"
+                />
+                <div className="flex justify-between text-[10px] text-gray-500 mt-1">
+                  <span>1 (Santai)</span>
+                  <span>5 (Klub)</span>
+                  <span>10 (Grandmaster)</span>
+                </div>
+              </div>
+            </div>
+
+            <div className="mt-6 flex gap-3">
+              <button
+                type="button"
+                onClick={() => setAiModalOpen(false)}
+                className="flex-1 rounded-xl border border-white/15 bg-white/[.04] py-3 text-sm font-semibold text-gray-300 hover:bg-white/10 transition"
+              >
+                Batal
+              </button>
+              <button
+                type="button"
+                onClick={confirmAiMatch}
+                className="flex-1 rounded-xl bg-gradient-to-r from-gold to-champagne py-3 text-sm font-extrabold text-obsidian shadow-lg shadow-gold/25 hover:shadow-gold/40 transition"
+              >
+                Mulai Main ›
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      <FooterNav active="lobby" onNavigate={onNavigate} onEditProfile={onEditProfile} />
     </div>
   );
 }

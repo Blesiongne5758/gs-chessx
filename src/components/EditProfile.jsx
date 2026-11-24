@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import toast from 'react-hot-toast';
 import { supabase } from '../lib/supabaseClient';
 import Avatar from './Avatar';
-import TopNav from './TopNav';
+import TopNav, { FooterNav } from './TopNav';
 import { fetchProfile, updateProfile, validateUsername, validateAvatarFile, resizeImage } from '../lib/profile';
 
 export default function EditProfile({ user, onBack, onNavigate, onEditProfile, onLogout }) {
@@ -117,13 +117,14 @@ export default function EditProfile({ user, onBack, onNavigate, onEditProfile, o
   }
 
   return (
-    <div className="app-page min-h-screen bg-obsidian p-6">
+    <div className="min-h-screen bg-obsidian text-white flex flex-col">
       <TopNav active="profile" onNavigate={onNavigate} profile={{ username: profile?.username || username, avatar_url: profile?.avatar_url }} onEditProfile={onEditProfile} onLogout={onLogout} isAdmin={user?.isGuest} />
-      <button onClick={onBack} className="mx-auto mb-8 block max-w-3xl text-left text-sm text-gray-300 hover:text-white">
-        ← Back to Lobby
-      </button>
+      <main className="mx-auto flex-1 w-full max-w-3xl px-4 py-8 sm:px-6">
+        <button onClick={onBack} className="mb-6 block text-left text-sm text-gray-300 hover:text-white">
+          ← Back to Lobby
+        </button>
 
-      <div className="max-w-xl mx-auto bg-graphite border border-gold/30 rounded-xl p-8">
+        <div className="bg-graphite border border-gold/30 rounded-xl p-6 sm:p-8 shadow-xl">
         <h1 className="text-2xl font-cinzel font-bold text-gold mb-1">Edit Profile</h1>
         <p className="text-sm text-gray-400 mb-6">
           {user.isGuest ? 'Mode tamu — perubahan disimpan di browser ini saja.' : 'Ubah username dan foto profil Anda.'}
@@ -214,7 +215,9 @@ export default function EditProfile({ user, onBack, onNavigate, onEditProfile, o
           </form>
         )}
         {!user.isGuest && <section className="mt-8 border-t border-white/10 pt-6"><h2 className="font-cinzel text-lg font-bold text-gold">Keamanan akun</h2><p className="mb-4 mt-1 text-sm text-gray-400">Atur password baru untuk akun ini.</p><form onSubmit={handlePasswordSubmit} className="space-y-3"><label className="block text-sm text-gray-300">Password baru<input type="password" minLength={8} autoComplete="new-password" required value={newPassword} onChange={(e) => setNewPassword(e.target.value)} className="mt-1 w-full rounded border border-gray-700 bg-obsidian px-4 py-2 text-white outline-none focus:border-gold" placeholder="Minimal 8 karakter" /></label><label className="block text-sm text-gray-300">Ulangi password baru<input type="password" minLength={8} autoComplete="new-password" required value={confirmPassword} onChange={(e) => setConfirmPassword(e.target.value)} className="mt-1 w-full rounded border border-gray-700 bg-obsidian px-4 py-2 text-white outline-none focus:border-gold" placeholder="Konfirmasi password" /></label><button disabled={passwordSaving || !newPassword || !confirmPassword} className="w-full rounded bg-slate py-3 font-semibold text-white hover:bg-gray-700 disabled:opacity-40">{passwordSaving ? 'Memperbarui…' : 'Perbarui password'}</button></form></section>}
-      </div>
+        </div>
+      </main>
+      <FooterNav active="profile" onNavigate={onNavigate} onEditProfile={onEditProfile} />
     </div>
   );
 }

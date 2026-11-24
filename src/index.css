@@ -12,7 +12,11 @@ body {
 }
 
 @layer components {
-  .app-page { padding-bottom: 8rem; }
+  .app-page {
+    display: flex;
+    flex-direction: column;
+    min-height: 100vh;
+  }
 
   .feature-tile {
     isolation: isolate;

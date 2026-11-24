@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import toast from 'react-hot-toast';
-import TopNav from './TopNav';
+import TopNav, { FooterNav } from './TopNav';
 import { TournamentDetail } from './Tournaments';
 import { fetchProfile } from '../lib/profile';
 import {
@@ -554,7 +554,7 @@ export default function AdminTournaments({ user, onNavigate, onEditProfile, onLo
 
 function Shell({ user, profile, onNavigate, onEditProfile, onLogout, isAdmin, children }) {
   return (
-    <div className="app-page min-h-screen bg-obsidian p-6">
+    <div className="min-h-screen bg-obsidian text-white flex flex-col">
       <TopNav
         active="admin"
         onNavigate={onNavigate}
@@ -563,7 +563,10 @@ function Shell({ user, profile, onNavigate, onEditProfile, onLogout, isAdmin, ch
         onLogout={onLogout}
         isAdmin={isAdmin ?? (user.isGuest || !!profile?.is_admin)}
       />
-      {children}
+      <div className="flex-1 w-full px-4 py-6 sm:px-6 lg:px-8">
+        {children}
+      </div>
+      <FooterNav active="admin" onNavigate={onNavigate} onEditProfile={onEditProfile} />
     </div>
   );
 }

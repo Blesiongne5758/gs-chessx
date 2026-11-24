@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import { supabase } from '../lib/supabaseClient';
 import Avatar from './Avatar';
 import toast from 'react-hot-toast';
-import TopNav from './TopNav';
+import TopNav, { FooterNav } from './TopNav';
 
 const PROFILE_SELECT = 'id, username, avatar_url, rating';
 export default function QuickMatch({ user, timeControl, onMatched, onBack, onNavigate, onEditProfile, onLogout }) {
@@ -102,5 +102,57 @@ export default function QuickMatch({ user, timeControl, onMatched, onBack, onNav
   const onlineFriends = online.filter((x) => friendIds.has(x.id));
   const onlineOthers = online.filter((x) => !friendIds.has(x.id));
   const playerCard = (p) => <div key={p.id} className="flex items-center gap-3 rounded-lg bg-slate p-3"><Avatar name={p.username} url={p.avatar_url} size="h-9 w-9 text-sm"/><div className="min-w-0 flex-1"><p className="truncate font-medium">{p.username}</p><p className="text-xs text-gray-400">Rating {p.rating ?? 1200} · Online</p></div><button onClick={() => challenge(p)} className="rounded-lg bg-gold px-3 py-2 text-xs font-bold text-obsidian">Tantang</button></div>;
-  return <div className="app-page min-h-screen bg-obsidian text-white"><TopNav active="quick-match" onNavigate={onNavigate} profile={{ username: user?.email?.split('@')[0] || 'Player' }} onEditProfile={onEditProfile} onLogout={onLogout} isAdmin={user?.isGuest} /><main className="px-4 py-8"><div className="mx-auto max-w-4xl"><button onClick={onBack} className="mb-5 text-sm text-gray-300 hover:text-white">← Kembali ke Lobby</button><div className="grid gap-5 md:grid-cols-[1fr_1.2fr]"><section className="rounded-2xl border border-gold/30 bg-graphite p-6"><p className="text-xs uppercase tracking-[.25em] text-gold">Quick Match</p><h1 className="mt-2 font-cinzel text-3xl text-white">Temukan lawan</h1><p className="mt-2 text-sm text-gray-400">Saat antre, status Anda disiarkan kepada pemain lain yang sedang online.</p><div className="mt-6 rounded-xl bg-slate p-4"><p className="text-xs text-gray-400">KONTROL WAKTU</p><p className="mt-1 font-bold text-gold">{timeControl?.label || 'Rapid (10+0)'}</p></div><div className="mt-4 flex items-center gap-3 rounded-xl border border-white/10 p-4"><span className={`h-3 w-3 rounded-full ${status === 'searching' || status === 'inviting' ? 'animate-pulse bg-emerald-400' : 'bg-gray-500'}`}/><div><p className="font-semibold">{status === 'connecting' ? 'Menghubungkan…' : status === 'inviting' ? 'Undangan terkirim' : 'Anda online'}</p><p className="text-xs text-gray-400">{online.length} pemain online lainnya</p></div></div>{(error || unavailableMessage) && <p role="alert" className="mt-3 text-sm text-amber-300">{error || unavailableMessage}</p>}<button onClick={() => challenge(null)} disabled={status === 'connecting' || Boolean(unavailableMessage)} className="mt-5 w-full rounded-xl bg-gradient-to-r from-gold to-champagne py-3 font-bold text-obsidian disabled:opacity-50">Cari lawan sekarang</button><p className="mt-3 text-xs leading-relaxed text-gray-500">Jaga halaman ini tetap terbuka. Jika konfigurasi Realtime Supabase belum aktif, matchmaking tidak dapat menerima pemain lain.</p></section><section className="space-y-5 rounded-2xl border border-gold/20 bg-graphite p-5"><h2 className="font-cinzel text-xl text-gold">Pemain online</h2>{incoming && <div role="dialog" aria-label="Tantangan masuk" className="rounded-xl border border-gold bg-gold/10 p-4"><p className="font-semibold">{incoming.fromName} mengundang Anda</p><p className="mt-1 text-xs text-gray-300">{incoming.timeControl?.label}</p><div className="mt-3 flex gap-2"><button onClick={() => answer(true)} className="rounded-lg bg-gold px-4 py-2 text-sm font-bold text-obsidian">Terima & main</button><button onClick={() => answer(false)} className="rounded-lg bg-slate px-4 py-2 text-sm">Tolak</button></div></div>}<div><h3 className="mb-2 text-sm font-semibold text-gray-300">Teman ({onlineFriends.length} online)</h3><div className="space-y-2">{onlineFriends.length ? onlineFriends.map(playerCard) : <p className="rounded-lg bg-slate/50 p-3 text-sm text-gray-500">Teman online akan tampil di sini.</p>}</div></div><div><h3 className="mb-2 text-sm font-semibold text-gray-300">Pemain lain ({onlineOthers.length})</h3><div className="max-h-64 space-y-2 overflow-y-auto">{onlineOthers.length ? onlineOthers.map(playerCard) : <p className="rounded-lg bg-slate/50 p-3 text-sm text-gray-500">Belum ada pemain lain yang online.</p>}</div></div></section></div></div></main></div>;
+  return (
+    <div className="min-h-screen bg-obsidian text-white flex flex-col">
+      <TopNav active="quick-match" onNavigate={onNavigate} profile={{ username: user?.email?.split('@')[0] || 'Player' }} onEditProfile={onEditProfile} onLogout={onLogout} isAdmin={user?.isGuest} />
+      <main className="px-4 py-8 flex-1">
+        <div className="mx-auto max-w-4xl">
+          <button onClick={onBack} className="mb-5 text-sm text-gray-300 hover:text-white">← Kembali ke Lobby</button>
+          <div className="grid gap-5 md:grid-cols-[1fr_1.2fr]">
+            <section className="rounded-2xl border border-gold/30 bg-graphite p-6">
+              <p className="text-xs uppercase tracking-[.25em] text-gold">Quick Match</p>
+              <h1 className="mt-2 font-cinzel text-3xl text-white">Temukan lawan</h1>
+              <p className="mt-2 text-sm text-gray-400">Saat antre, status Anda disiarkan kepada pemain lain yang sedang online.</p>
+              <div className="mt-6 rounded-xl bg-slate p-4">
+                <p className="text-xs text-gray-400">KONTROL WAKTU</p>
+                <p className="mt-1 font-bold text-gold">{timeControl?.label || 'Rapid (10+0)'}</p>
+              </div>
+              <div className="mt-4 flex items-center gap-3 rounded-xl border border-white/10 p-4">
+                <span className={`h-3 w-3 rounded-full ${status === 'searching' || status === 'inviting' ? 'animate-pulse bg-emerald-400' : 'bg-gray-500'}`}/>
+                <div>
+                  <p className="font-semibold">{status === 'connecting' ? 'Menghubungkan…' : status === 'inviting' ? 'Undangan terkirim' : 'Anda online'}</p>
+                  <p className="text-xs text-gray-400">{online.length} pemain online lainnya</p>
+                </div>
+              </div>
+              {(error || unavailableMessage) && <p role="alert" className="mt-3 text-sm text-amber-300">{error || unavailableMessage}</p>}
+              <button onClick={() => challenge(null)} disabled={status === 'connecting' || Boolean(unavailableMessage)} className="mt-5 w-full rounded-xl bg-gradient-to-r from-gold to-champagne py-3 font-bold text-obsidian disabled:opacity-50">Cari lawan sekarang</button>
+              <p className="mt-3 text-xs leading-relaxed text-gray-500">Jaga halaman ini tetap terbuka. Jika konfigurasi Realtime Supabase belum aktif, matchmaking tidak dapat menerima pemain lain.</p>
+            </section>
+            <section className="space-y-5 rounded-2xl border border-gold/20 bg-graphite p-5">
+              <h2 className="font-cinzel text-xl text-gold">Pemain online</h2>
+              {incoming && (
+                <div role="dialog" aria-label="Tantangan masuk" className="rounded-xl border border-gold bg-gold/10 p-4">
+                  <p className="font-semibold">{incoming.fromName} mengundang Anda</p>
+                  <p className="mt-1 text-xs text-gray-300">{incoming.timeControl?.label}</p>
+                  <div className="mt-3 flex gap-2">
+                    <button onClick={() => answer(true)} className="rounded-lg bg-gold px-4 py-2 text-sm font-bold text-obsidian">Terima & main</button>
+                    <button onClick={() => answer(false)} className="rounded-lg bg-slate px-4 py-2 text-sm">Tolak</button>
+                  </div>
+                </div>
+              )}
+              <div>
+                <h3 className="mb-2 text-sm font-semibold text-gray-300">Teman ({onlineFriends.length} online)</h3>
+                <div className="space-y-2">{onlineFriends.length ? onlineFriends.map(playerCard) : <p className="rounded-lg bg-slate/50 p-3 text-sm text-gray-500">Teman online akan tampil di sini.</p>}</div>
+              </div>
+              <div>
+                <h3 className="mb-2 text-sm font-semibold text-gray-300">Pemain lain ({onlineOthers.length})</h3>
+                <div className="max-h-64 space-y-2 overflow-y-auto">{onlineOthers.length ? onlineOthers.map(playerCard) : <p className="rounded-lg bg-slate/50 p-3 text-sm text-gray-500">Belum ada pemain lain yang online.</p>}</div>
+              </div>
+            </section>
+          </div>
+        </div>
+      </main>
+      <FooterNav active="quick-match" onNavigate={onNavigate} onEditProfile={onEditProfile} />
+    </div>
+  );
 }

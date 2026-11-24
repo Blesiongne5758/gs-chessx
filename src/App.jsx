@@ -109,7 +109,15 @@ function App() {
           onPlay={(tc) => {
             setTimeControl(tc);
             if (tc.mode === 'ai') {
-              setMatch({ mode: 'ai', aiLevel: tc.aiLevel || 10, opponent: { username: 'Komputer' } });
+              const assignedColor = tc.color === 'random'
+                ? (Math.random() < 0.5 ? 'white' : 'black')
+                : (tc.color || 'white');
+              setMatch({
+                mode: 'ai',
+                aiLevel: tc.aiLevel || 10,
+                color: assignedColor,
+                opponent: { username: 'Komputer' },
+              });
               setPage('game');
             } else {
               setMatch(null);

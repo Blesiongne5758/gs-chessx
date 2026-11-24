@@ -1,91 +1,327 @@
+import { useState } from 'react';
+
+const LANDING_FEATURES = [
+  { key: 'board', icon: '♟', title: '2D / 3D Board', desc: 'Beralih antara mode klasik 2D dan visualisasi 3D immersive', tone: 'gold' },
+  { key: 'academy', icon: '♞', title: 'Chess Academy', desc: 'Pelajari taktik, prinsip pembukaan, dan latihan puzzle', tone: 'blue' },
+  { key: 'tournaments', icon: '♜', title: 'Swiss Tournaments', desc: 'Kompetisi berkala dengan sistem Swiss dan bracket resmi', tone: 'violet' },
+  { key: 'voice', icon: '🎙️', title: 'Voice & Video Talk', desc: 'Komunikasi langsung dengan lawan saat pertandingan berlangsung', tone: 'green' },
+  { key: 'social', icon: '☁', title: 'Friends & Chat', desc: 'Tambahkan teman, tantang duel cepat, dan kirim pesan realtime', tone: 'cyan' },
+  { key: 'ai', icon: '🤖', title: 'VS AI 10 Levels', desc: 'Latih kemampuanmu menghadapi bot dari pemula hingga Grandmaster', tone: 'slate' },
+];
+
 export default function LandingPage({ onPlay, onLogin, onSignup, user }) {
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+
   return (
-    <div className="min-h-screen flex flex-col">
-      {/* Navigation */}
-      <nav className="flex justify-between items-center p-6 bg-graphite/50 backdrop-blur">
-        <div className="text-3xl font-cinzel font-bold text-gold">♟️ GS-ChessX</div>
-        <div className="flex gap-4">
-          {user ? (
-            <button
-              onClick={onPlay}
-              className="px-6 py-2 bg-gold text-obsidian font-bold rounded hover:bg-champagne transition"
-            >
-              Play Now
+    <div className="min-h-screen overflow-x-hidden bg-[#08090d] text-white flex flex-col font-inter">
+      {/* Top Navigation */}
+      <header className="sticky top-0 z-50 border-b border-white/10 bg-[#08090d]/95 px-4 py-3 shadow-xl shadow-black/30 backdrop-blur-xl sm:px-6 lg:px-8">
+        <nav className="mx-auto flex max-w-7xl items-center justify-between gap-4" aria-label="Main Navigation">
+          <div className="flex items-center gap-2">
+            <span className="grid h-10 w-10 place-items-center rounded-xl border border-gold/50 bg-gradient-to-br from-gold/30 to-transparent text-3xl text-gold shadow-[0_0_18px_rgba(212,175,55,.2)]">
+              ♟
+            </span>
+            <div>
+              <strong className="block font-cinzel text-xl leading-none text-gold">GS-ChessX</strong>
+              <small className="text-[10px] tracking-[.2em] text-gray-500">PLAY · LEARN · WIN</small>
+            </div>
+          </div>
+
+          {/* Desktop Links */}
+          <div className="hidden items-center gap-1 rounded-full border border-white/10 bg-white/[.03] p-1 md:flex">
+            <a href="#hero" className="rounded-full px-4 py-2 text-xs font-semibold text-gray-300 transition hover:bg-white/10 hover:text-white">
+              Beranda
+            </a>
+            <a href="#features" className="rounded-full px-4 py-2 text-xs font-semibold text-gray-300 transition hover:bg-white/10 hover:text-white">
+              Fitur
+            </a>
+            <a href="#tournaments" className="rounded-full px-4 py-2 text-xs font-semibold text-gray-300 transition hover:bg-white/10 hover:text-white">
+              Turnamen
+            </a>
+            <button type="button" onClick={onPlay} className="rounded-full px-4 py-2 text-xs font-semibold text-gray-300 transition hover:bg-white/10 hover:text-white">
+              Chess Academy
             </button>
-          ) : (
-            <>
-              <button onClick={onLogin} className="px-6 py-2 text-gray-300 hover:text-white">
-                Login
+          </div>
+
+          {/* Action Buttons */}
+          <div className="flex items-center gap-2 sm:gap-3">
+            {user ? (
+              <button
+                type="button"
+                onClick={onPlay}
+                className="rounded-full bg-gradient-to-r from-gold to-champagne px-5 py-2 text-xs sm:text-sm font-extrabold text-obsidian shadow-lg shadow-gold/25 transition hover:shadow-gold/40"
+              >
+                Masuk ke Lobby ›
+              </button>
+            ) : (
+              <>
+                <button
+                  type="button"
+                  onClick={onLogin}
+                  className="rounded-full border border-white/15 bg-white/[.04] px-4 py-2 text-xs sm:text-sm font-semibold text-gray-200 transition hover:border-gold/50 hover:text-gold"
+                >
+                  Login
+                </button>
+                <button
+                  type="button"
+                  onClick={onSignup}
+                  className="rounded-full bg-gradient-to-r from-gold to-champagne px-5 py-2 text-xs sm:text-sm font-extrabold text-obsidian shadow-lg shadow-gold/25 transition hover:shadow-gold/40"
+                >
+                  Daftar
+                </button>
+              </>
+            )}
+
+            {/* Mobile Hamburger */}
+            <button
+              type="button"
+              onClick={() => setMobileMenuOpen((open) => !open)}
+              className="grid h-10 w-10 place-items-center rounded-full border border-white/15 bg-white/[.04] text-xl text-gray-200 hover:border-gold/50 hover:text-gold md:hidden"
+              aria-label="Toggle menu"
+              aria-expanded={mobileMenuOpen}
+            >
+              {mobileMenuOpen ? '×' : '☰'}
+            </button>
+          </div>
+        </nav>
+
+        {/* Mobile dropdown menu */}
+        {mobileMenuOpen && (
+          <div className="mx-auto mt-3 grid max-w-7xl gap-2 rounded-2xl border border-white/10 bg-[#15171d] p-3 md:hidden">
+            <a
+              href="#hero"
+              onClick={() => setMobileMenuOpen(false)}
+              className="rounded-xl px-4 py-3 text-left text-sm font-semibold text-gray-300 hover:bg-white/10 hover:text-white"
+            >
+              Beranda
+            </a>
+            <a
+              href="#features"
+              onClick={() => setMobileMenuOpen(false)}
+              className="rounded-xl px-4 py-3 text-left text-sm font-semibold text-gray-300 hover:bg-white/10 hover:text-white"
+            >
+              Fitur Unggulan
+            </a>
+            <a
+              href="#tournaments"
+              onClick={() => setMobileMenuOpen(false)}
+              className="rounded-xl px-4 py-3 text-left text-sm font-semibold text-gray-300 hover:bg-white/10 hover:text-white"
+            >
+              Turnamen
+            </a>
+            <button
+              type="button"
+              onClick={() => { setMobileMenuOpen(false); onPlay(); }}
+              className="rounded-xl bg-gold/15 px-4 py-3 text-left text-sm font-semibold text-gold hover:bg-gold hover:text-obsidian transition"
+            >
+              Mainkan Catur Sekarang
+            </button>
+          </div>
+        )}
+      </header>
+
+      {/* Main Content */}
+      <main className="mx-auto w-full max-w-7xl flex-1 px-4 py-6 sm:px-6 lg:px-8">
+        {/* Hero Section */}
+        <section id="hero" className="relative isolate min-h-[340px] sm:min-h-[420px] overflow-hidden rounded-[2rem] border border-gold/40 bg-[#15130f] shadow-[0_20px_70px_rgba(245,158,11,.15)]">
+          <div
+            className="absolute inset-0 bg-cover bg-center opacity-45 mix-blend-screen"
+            style={{ backgroundImage: "url('/historical-reykjavik.png')" }}
+          />
+          <div className="absolute inset-0 bg-[radial-gradient(circle_at_73%_46%,rgba(245,158,11,.38),transparent_26%),linear-gradient(120deg,#0d1118_0%,#1d1b16_46%,#39270e_100%)]" />
+          <div className="absolute -right-20 -top-36 h-[28rem] w-[28rem] rounded-full border-[26px] border-gold/10 shadow-[0_0_100px_rgba(245,158,11,.32)]" />
+          <div className="absolute -right-10 bottom-[-80px] text-[14rem] leading-none text-gold/30 blur-[1px] sm:right-20 sm:text-[18rem]">
+            ♔
+          </div>
+          <div className="absolute inset-y-0 right-0 w-3/5 opacity-30 [background-image:linear-gradient(30deg,transparent_48%,rgba(245,158,11,.5)_49%,transparent_50%),linear-gradient(150deg,transparent_48%,rgba(255,255,255,.18)_49%,transparent_50%)] [background-size:44px_44px]" />
+
+          <div className="relative z-10 flex min-h-[340px] sm:min-h-[420px] max-w-2xl flex-col justify-center p-6 sm:p-12">
+            <div className="inline-flex items-center gap-2 rounded-full border border-gold/40 bg-gold/10 px-3 py-1 text-xs font-semibold uppercase tracking-[0.25em] text-gold w-fit">
+              <span>⚔️</span> The Battle of Ideologies
+            </div>
+            <h1 className="mt-4 font-cinzel text-4xl sm:text-6xl font-bold leading-[1.0] text-white">
+              Play chess.<br />
+              <span className="text-gold">Grow together.</span>
+            </h1>
+            <p className="mt-4 max-w-lg text-sm sm:text-base text-gray-300 leading-relaxed">
+              Holy Kingdom vs Anarchy Rebellion. Temukan lawan bermain, kembangkan strategi dengan AI dan Chess Academy, serta rebut kejuaraan di GS-ChessX.
+            </p>
+            <div className="mt-7 flex flex-wrap items-center gap-3">
+              <button
+                type="button"
+                onClick={onPlay}
+                className="rounded-full bg-gradient-to-r from-gold to-champagne px-7 py-3.5 text-sm sm:text-base font-extrabold text-obsidian shadow-lg shadow-gold/25 transition hover:-translate-y-0.5 hover:shadow-gold/40"
+              >
+                Mulai Bermain Sekarang <span aria-hidden="true">›</span>
               </button>
               <button
-                onClick={onSignup}
-                className="px-6 py-2 bg-gold text-obsidian font-bold rounded hover:bg-champagne transition"
+                type="button"
+                onClick={user ? onPlay : onSignup}
+                className="rounded-full border border-white/20 bg-black/35 px-6 py-3.5 text-sm sm:text-base font-semibold text-white backdrop-blur transition hover:border-gold/60 hover:text-gold"
               >
-                Sign Up
+                {user ? 'Buka Dashboard' : 'Daftar Akun Gratis'}
               </button>
-            </>
-          )}
-        </div>
-      </nav>
+            </div>
+          </div>
+          <div className="absolute bottom-4 left-1/2 flex -translate-x-1/2 gap-2" aria-hidden="true">
+            <span className="h-2 w-7 rounded-full bg-gold" />
+            <span className="h-2 w-2 rounded-full bg-white/40" />
+            <span className="h-2 w-2 rounded-full bg-white/40" />
+          </div>
+        </section>
 
-      {/* Hero Section */}
-      <div className="flex-1 flex items-center justify-center px-6 py-12">
-        <div className="max-w-4xl text-center">
-          <h1 className="text-4xl md:text-6xl font-cinzel font-bold text-gold mb-6">
-            ⚔️ The Battle of Ideologies ⚔️
-          </h1>
-          <p className="text-xl md:text-2xl text-gray-300 mb-8">Choose Your Side. Make Your Move.</p>
+        {/* Live Platform Stats */}
+        <section className="relative mt-6 rounded-[1.75rem] border border-gold/50 bg-gradient-to-br from-[#17181f] via-[#11131a] to-[#252014] p-5 shadow-[0_18px_50px_rgba(0,0,0,.55)]">
+          <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between border-b border-white/10 pb-4">
+            <div className="flex items-center gap-3">
+              <span className="grid h-10 w-10 place-items-center rounded-xl bg-gold/15 text-2xl text-gold">⚡</span>
+              <div>
+                <h2 className="font-cinzel text-lg font-bold text-white">Platform Catur Modern</h2>
+                <p className="text-xs text-gray-400">Komunitas catur aktif dengan sistem matchmaking cerdas</p>
+              </div>
+            </div>
+            <div className="inline-flex items-center gap-2 rounded-full border border-emerald/30 bg-emerald/10 px-3 py-1 text-xs text-emerald">
+              <span className="h-2 w-2 rounded-full bg-emerald animate-pulse" /> Realtime Server Online
+            </div>
+          </div>
+          <div className="mt-4 grid grid-cols-2 sm:grid-cols-4 divide-y sm:divide-y-0 sm:divide-x divide-white/10 text-center">
+            <div className="py-2 sm:py-0 px-2">
+              <div className="text-2xl sm:text-3xl font-bold text-gold">12,847+</div>
+              <div className="mt-1 text-[11px] uppercase tracking-wider text-gray-400">Pemain Aktif</div>
+            </div>
+            <div className="py-2 sm:py-0 px-2">
+              <div className="text-2xl sm:text-3xl font-bold text-emerald">48,200+</div>
+              <div className="mt-1 text-[11px] uppercase tracking-wider text-gray-400">Pertandingan</div>
+            </div>
+            <div className="py-2 sm:py-0 px-2">
+              <div className="text-2xl sm:text-3xl font-bold text-azure">10 Level</div>
+              <div className="mt-1 text-[11px] uppercase tracking-wider text-gray-400">AI Difficulty</div>
+            </div>
+            <div className="py-2 sm:py-0 px-2">
+              <div className="text-2xl sm:text-3xl font-bold text-champagne">Swiss System</div>
+              <div className="mt-1 text-[11px] uppercase tracking-wider text-gray-400">Format Turnamen</div>
+            </div>
+          </div>
+        </section>
 
-          {/* Chess Preview */}
-          <div className="bg-graphite border-2 border-gold/30 rounded-xl p-8 mb-8">
-            <div className="text-5xl md:text-8xl mb-4">♔♕♖♗♘♙</div>
-            <div className="text-gray-400">Holy Kingdom vs Anarchy Rebellion</div>
+        {/* Feature Grid */}
+        <section id="features" className="mt-8">
+          <div className="mb-4 flex items-center justify-between">
+            <div>
+              <p className="text-xs uppercase tracking-[0.25em] text-gold">Fitur Lengkap</p>
+              <h2 className="mt-1 font-cinzel text-2xl sm:text-3xl font-bold text-white">Semua Kebutuhan Catur Anda</h2>
+            </div>
+            <button type="button" onClick={onPlay} className="text-sm font-semibold text-gold hover:text-champagne transition">
+              Jelajahi Semua →
+            </button>
           </div>
 
-          <button
-            onClick={onPlay}
-            className="px-12 py-4 bg-gradient-to-r from-gold to-champagne text-obsidian font-bold text-xl rounded-lg hover:shadow-lg hover:shadow-gold/50 transition transform hover:scale-105"
-          >
-            ▶ PLAY NOW
-          </button>
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+            {LANDING_FEATURES.map((feat) => (
+              <div
+                key={feat.key}
+                className={`feature-tile feature-${feat.tone} group relative min-h-[140px] overflow-hidden rounded-2xl border p-5 text-left transition hover:-translate-y-1 hover:shadow-xl`}
+              >
+                <span className="absolute -right-2 -top-5 text-8xl font-serif opacity-10 transition group-hover:scale-110">
+                  {feat.icon}
+                </span>
+                <div className="relative z-10 flex h-full flex-col justify-between">
+                  <div className="flex items-center justify-between">
+                    <span className="text-3xl font-bold text-white drop-shadow">{feat.icon}</span>
+                    <span className="grid h-7 w-7 place-items-center rounded-full bg-white/20 text-xl leading-none text-white">›</span>
+                  </div>
+                  <div className="mt-4">
+                    <strong className="block text-base sm:text-lg text-white font-cinzel">{feat.title}</strong>
+                    <p className="mt-1 text-xs text-white/80 leading-relaxed">{feat.desc}</p>
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+        </section>
 
-          {/* Stats (placeholder — hubungkan ke Supabase nanti) */}
-          <div className="mt-12 grid grid-cols-1 sm:grid-cols-3 gap-8">
-            <Stat value="12,847" label="Players Online" />
-            <Stat value="3,241" label="Games in Progress" />
-            <Stat value="2h 15m" label="Next Tournament" />
+        {/* Tournament & Academy Showcase */}
+        <section id="tournaments" className="mt-8 grid gap-5 lg:grid-cols-[1.3fr_0.7fr]">
+          <div className="rounded-[1.75rem] border border-gold/35 bg-gradient-to-br from-[#171719] to-[#0f1014] p-5 sm:p-6 shadow-xl">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-3">
+                <span className="text-3xl text-gold">♜</span>
+                <div>
+                  <h2 className="font-cinzel text-xl font-bold text-white">GS-ChessX Championship</h2>
+                  <p className="text-xs text-gray-500">Turnamen Swiss Berhadiah & Bersertifikat</p>
+                </div>
+              </div>
+              <span className="rounded-full bg-gold/15 border border-gold/40 px-3 py-1 text-xs font-bold text-gold">
+                Upcoming
+              </span>
+            </div>
+            <div className="mt-5 flex flex-col gap-4 sm:flex-row sm:items-center">
+              <div className="grid h-32 w-full place-items-center rounded-2xl border border-gold/30 bg-[radial-gradient(circle,rgba(245,158,11,.35),transparent_52%),linear-gradient(135deg,#211b0d,#090a0e)] sm:h-36 sm:w-44">
+                <div className="text-center">
+                  <div className="text-7xl leading-none text-gold drop-shadow-[0_0_15px_rgba(245,158,11,.7)]">♜</div>
+                  <span className="text-[10px] uppercase tracking-[.28em] text-gold/70">Championship</span>
+                </div>
+              </div>
+              <div className="flex-1">
+                <h3 className="font-cinzel text-xl font-bold text-white">Grand Swiss Tour 2026</h3>
+                <p className="mt-2 text-sm text-gray-300">▣ &nbsp;Pendaftaran dibuka untuk seluruh pemain terdaftar</p>
+                <p className="mt-1 text-sm text-gray-300">♟ &nbsp;128 Pemain · Matchmaking adil berdasarkan ELO</p>
+                <button
+                  type="button"
+                  onClick={onPlay}
+                  className="mt-4 rounded-full bg-gold px-6 py-2.5 text-sm font-bold text-obsidian transition hover:bg-champagne shadow-md shadow-gold/20"
+                >
+                  Ikuti Turnamen →
+                </button>
+              </div>
+            </div>
+          </div>
+
+          <div className="rounded-[1.75rem] border border-white/10 bg-[#15171d] p-5 sm:p-6 shadow-xl flex flex-col justify-between">
+            <div>
+              <div className="flex items-center justify-between">
+                <h2 className="font-cinzel text-xl font-bold text-white">Chess Academy</h2>
+                <span className="text-2xl">🎓</span>
+              </div>
+              <p className="mt-3 text-sm text-gray-300 leading-relaxed">
+                Tingkatkan rating caturmu dengan studi posisi interaktif, taktik skakmat bertahap, dan kuis sejarah catur legendaris.
+              </p>
+              <div className="mt-4 space-y-2">
+                <div className="flex items-center gap-2 rounded-xl bg-white/[.04] p-2.5 text-xs text-gray-300">
+                  <span className="text-gold font-bold">✓</span> Puzzle Posisi & Taktik Skakmat
+                </div>
+                <div className="flex items-center gap-2 rounded-xl bg-white/[.04] p-2.5 text-xs text-gray-300">
+                  <span className="text-gold font-bold">✓</span> Kuis Sejarah & Analisis Partai Klasik
+                </div>
+              </div>
+            </div>
+            <button
+              type="button"
+              onClick={onPlay}
+              className="mt-5 w-full rounded-full border border-gold/40 bg-gold/10 py-2.5 text-sm font-bold text-gold transition hover:bg-gold hover:text-obsidian"
+            >
+              Mulai Belajar
+            </button>
+          </div>
+        </section>
+      </main>
+
+      {/* Footer */}
+      <footer className="mt-12 border-t border-white/10 bg-[#08090d] px-4 py-8 sm:px-6 lg:px-8">
+        <div className="mx-auto max-w-7xl flex flex-col sm:flex-row items-center justify-between gap-4">
+          <div className="flex items-center gap-2">
+            <span className="grid h-8 w-8 place-items-center rounded-lg border border-gold/40 bg-gold/10 text-xl text-gold">♟</span>
+            <span className="font-cinzel text-lg font-bold text-gold">GS-ChessX</span>
+            <span className="text-xs text-gray-500">· The Battle of Ideologies</span>
+          </div>
+          <div className="flex flex-wrap items-center gap-4 text-xs text-gray-400">
+            <button type="button" onClick={onPlay} className="hover:text-white transition">Play Now</button>
+            <button type="button" onClick={onLogin} className="hover:text-white transition">Login</button>
+            <button type="button" onClick={onSignup} className="hover:text-white transition">Sign Up</button>
+            <span>&copy; 2026 GS-ChessX. All rights reserved.</span>
           </div>
         </div>
-      </div>
-
-      {/* Features */}
-      <div className="bg-graphite/30 py-12 px-6">
-        <div className="max-w-6xl mx-auto grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
-          <FeatureCard icon="🎭" title="2D/3D Board" desc="Switch between classic and immersive modes" />
-          <FeatureCard icon="🎙️" title="Voice Call" desc="Talk with opponents in real-time" />
-          <FeatureCard icon="🤖" title="AI Opponent" desc="10 difficulty levels from beginner to GM" />
-          <FeatureCard icon="🏆" title="Ranked Matches" desc="Compete and climb the leaderboard" />
-        </div>
-      </div>
-    </div>
-  );
-}
-
-function Stat({ value, label }) {
-  return (
-    <div className="bg-graphite/50 p-4 rounded-lg">
-      <div className="text-3xl font-bold text-gold">{value}</div>
-      <div className="text-sm text-gray-400">{label}</div>
-    </div>
-  );
-}
-
-function FeatureCard({ icon, title, desc }) {
-  return (
-    <div className="bg-graphite border border-gold/20 rounded-lg p-6 text-center hover:border-gold/50 transition">
-      <div className="text-4xl mb-3">{icon}</div>
-      <h3 className="font-bold text-gold mb-2">{title}</h3>
-      <p className="text-sm text-gray-400">{desc}</p>
+      </footer>
     </div>
   );
 }

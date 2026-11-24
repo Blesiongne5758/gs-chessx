@@ -117,7 +117,7 @@ function squareName(row, col) {
   return `${FILES[col]}${8 - row}`;
 }
 
-export default function ChessBoard3D({ board, selectedSquare, validTargets = [], lastMove, kingInCheck, onSquareClick, skin = 'holy', customization, whiteName = 'Putih', blackName = 'Hitam', capturedByWhite = [], capturedByBlack = [] }) {
+export default function ChessBoard3D({ board, selectedSquare, validTargets = [], lastMove, kingInCheck, onSquareClick, skin = 'holy', customization, whiteName = 'Putih', blackName = 'Hitam', capturedByWhite = [], capturedByBlack = [], playerSide = 'w' }) {
   const hostRef = useRef(null);
   const boardRef = useRef(null);
   const sceneRef = useRef(null);
@@ -129,9 +129,13 @@ export default function ChessBoard3D({ board, selectedSquare, validTargets = [],
   const onSquareClickRef = useRef(onSquareClick);
   const zoomRef = useRef(1);
   const [zoom, setZoom] = useState(1);
-  const [yaw, setYaw] = useState(0);
+  const [yaw, setYaw] = useState(playerSide === 'b' ? 180 : 0);
   const [pitch, setPitch] = useState(24);
   const [isFullscreen, setIsFullscreen] = useState(false);
+
+  useEffect(() => {
+    setYaw(playerSide === 'b' ? 180 : 0);
+  }, [playerSide]);
 
   useEffect(() => {
     onSquareClickRef.current = onSquareClick;
@@ -470,7 +474,7 @@ export default function ChessBoard3D({ board, selectedSquare, validTargets = [],
 
   function resetCamera() {
     setZoom(1);
-    setYaw(0);
+    setYaw(playerSide === 'b' ? 180 : 0);
     setPitch(24);
   }
 

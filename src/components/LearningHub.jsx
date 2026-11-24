@@ -1,11 +1,11 @@
 import ChessLearningPanel from './ChessLearningPanel';
-import TopNav from './TopNav';
+import TopNav, { FooterNav } from './TopNav';
 
 export default function LearningHub({ user, onNavigate, onEditProfile, onLogout }) {
   const username = user?.isGuest ? 'You (Guest)' : user?.user_metadata?.username || user?.email?.split('@')[0] || 'Player';
 
   return (
-    <div className="app-page min-h-screen bg-obsidian p-6">
+    <div className="min-h-screen bg-[#08090d] text-white flex flex-col">
       <TopNav
         active="learning"
         onNavigate={onNavigate}
@@ -14,7 +14,7 @@ export default function LearningHub({ user, onNavigate, onEditProfile, onLogout 
         onLogout={onLogout}
         isAdmin={user?.isGuest}
       />
-      <main className="mx-auto max-w-5xl">
+      <main className="mx-auto w-full max-w-5xl flex-1 px-4 py-8 sm:px-6 lg:px-8">
         <section className="mb-6 rounded-2xl border border-gold/25 bg-gradient-to-br from-graphite to-[#11141c] p-6 shadow-xl shadow-black/20">
           <p className="text-[10px] uppercase tracking-[0.24em] text-gold/80">Chess Academy</p>
           <h1 className="mt-2 font-cinzel text-3xl font-bold text-gold">Asah strategi sebelum kembali ke papan</h1>
@@ -24,6 +24,7 @@ export default function LearningHub({ user, onNavigate, onEditProfile, onLogout 
           <ChessLearningPanel />
         </div>
       </main>
+      <FooterNav active="learning" onNavigate={onNavigate} onEditProfile={onEditProfile} />
     </div>
   );
 }
