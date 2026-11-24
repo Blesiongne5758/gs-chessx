@@ -105,7 +105,7 @@ export default function QuickMatch({ user, timeControl, onMatched, onBack, onNav
   return (
     <div className="min-h-screen bg-obsidian text-white flex flex-col">
       <TopNav active="quick-match" onNavigate={onNavigate} profile={{ username: user?.email?.split('@')[0] || 'Player' }} onEditProfile={onEditProfile} onLogout={onLogout} isAdmin={user?.isGuest} />
-      <main className="px-4 py-8 flex-1">
+      <main className="px-4 py-8 pb-24 sm:pb-20 flex-1">
         <div className="mx-auto max-w-4xl">
           <button onClick={onBack} className="mb-5 text-sm text-gray-300 hover:text-white">← Kembali ke Lobby</button>
           <div className="grid gap-5 md:grid-cols-[1fr_1.2fr]">

@@ -563,7 +563,7 @@ function Shell({ user, profile, onNavigate, onEditProfile, onLogout, isAdmin, ch
         onLogout={onLogout}
         isAdmin={isAdmin ?? (user.isGuest || !!profile?.is_admin)}
       />
-      <div className="flex-1 w-full px-4 py-6 sm:px-6 lg:px-8">
+      <div className="flex-1 w-full px-4 py-6 pb-24 sm:pb-20 sm:px-6 lg:px-8">
         {children}
       </div>
       <FooterNav active="admin" onNavigate={onNavigate} onEditProfile={onEditProfile} />

@@ -467,7 +467,7 @@ export default function GameRoom({ user, timeControl, match, onBack, onSocial, o
       </div>
 
       {/* Bottom Controls */}
-      <div className="bg-graphite border-t border-gold/30 p-4">
+      <div className="bg-graphite border-t border-gold/30 p-4 pb-24 sm:pb-20">
         <div className="max-w-6xl mx-auto flex flex-wrap justify-center gap-4">
           {isMultiplayer && <MultiplayerVoice roomId={match.roomId} userId={user.id} opponentName={opponentName} />}
           <button onClick={onSocial} className="px-6 py-2 bg-slate text-gray-300 rounded hover:bg-gray-700">

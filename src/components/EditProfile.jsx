@@ -119,7 +119,7 @@ export default function EditProfile({ user, onBack, onNavigate, onEditProfile, o
   return (
     <div className="min-h-screen bg-obsidian text-white flex flex-col">
       <TopNav active="profile" onNavigate={onNavigate} profile={{ username: profile?.username || username, avatar_url: profile?.avatar_url }} onEditProfile={onEditProfile} onLogout={onLogout} isAdmin={user?.isGuest} />
-      <main className="mx-auto flex-1 w-full max-w-3xl px-4 py-8 sm:px-6">
+      <main className="mx-auto flex-1 w-full max-w-3xl px-4 py-8 pb-24 sm:pb-20 sm:px-6">
         <button onClick={onBack} className="mb-6 block text-left text-sm text-gray-300 hover:text-white">
           ← Back to Lobby
         </button>

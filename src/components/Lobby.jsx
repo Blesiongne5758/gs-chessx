@@ -125,8 +125,24 @@ export default function Lobby({ user, onPlay, onLogout, onEditProfile, onNavigat
         isAdmin={user.isGuest || !!profile?.is_admin}
       />
 
-      <main className="mx-auto max-w-7xl px-4 pb-12 sm:px-6 lg:px-8 flex-1 w-full">
-        <section className="relative isolate mt-4 min-h-[265px] overflow-hidden rounded-[2rem] border border-gold/40 bg-[#15130f] shadow-[0_20px_70px_rgba(245,158,11,.15)] sm:min-h-[330px]">
+      <main className="mx-auto max-w-7xl px-4 pb-24 sm:pb-20 sm:px-6 lg:px-8 flex-1 w-full">
+        {/* Mobile View Title: GS-ChessX */}
+        <div className="flex sm:hidden items-center justify-between pt-2 pb-2 px-1">
+          <div className="flex items-center gap-2">
+            <span className="grid h-8 w-8 place-items-center rounded-lg border border-gold/40 bg-gold/10 text-xl text-gold shadow-[0_0_12px_rgba(212,175,55,.25)]">♟</span>
+            <div>
+              <h1 className="font-cinzel text-2xl font-bold leading-none text-gold drop-shadow-[0_2px_8px_rgba(212,175,55,.3)]">
+                GS-ChessX
+              </h1>
+              <p className="text-[9px] uppercase tracking-[0.2em] text-gray-400 mt-0.5">The Battle of Ideologies</p>
+            </div>
+          </div>
+          <span className="rounded-full border border-gold/30 bg-gold/10 px-2.5 py-1 text-[10px] font-semibold text-gold">
+            Online Lobby
+          </span>
+        </div>
+
+        <section className="relative isolate mt-2 sm:mt-4 min-h-[265px] overflow-hidden rounded-[2rem] border border-gold/40 bg-[#15130f] shadow-[0_20px_70px_rgba(245,158,11,.15)] sm:min-h-[330px]">
           <div className="absolute inset-0 bg-cover bg-center opacity-45 mix-blend-screen" style={{ backgroundImage: "url('/historical-reykjavik.png')" }} />
           <div className="absolute inset-0 bg-[radial-gradient(circle_at_73%_46%,rgba(245,158,11,.38),transparent_26%),linear-gradient(120deg,#0d1118_0%,#1d1b16_46%,#39270e_100%)]" />
           <div className="absolute -right-20 -top-36 h-[28rem] w-[28rem] rounded-full border-[26px] border-gold/10 shadow-[0_0_100px_rgba(245,158,11,.32)]" />

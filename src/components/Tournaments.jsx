@@ -113,7 +113,7 @@ export default function Tournaments({ user, onNavigate, onEditProfile, onLogout,
         isAdmin={isAdmin}
       />
 
-      <div className="max-w-7xl mx-auto space-y-6 flex-1 w-full px-4 py-6 sm:px-6 lg:px-8">
+      <div className="max-w-7xl mx-auto space-y-6 flex-1 w-full px-4 py-6 pb-24 sm:pb-20 sm:px-6 lg:px-8">
         {/* Header + featured */}
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
           <div className="lg:col-span-1">

@@ -438,7 +438,7 @@ export default function Social({ user, profile, onNavigate, onEditProfile, onLog
     <div className="flex min-h-screen flex-col bg-[#08090d] text-white">
       <TopNav active="social" onNavigate={onNavigate} profile={{ username: name, avatar_url: ownProfile?.avatar_url }} onEditProfile={onEditProfile} onLogout={onLogout} />
 
-      <main className="mx-auto flex-1 w-full max-w-7xl px-4 py-6 sm:px-6 lg:px-8">
+      <main className="mx-auto flex-1 w-full max-w-7xl px-4 py-6 pb-24 sm:pb-20 sm:px-6 lg:px-8">
         <div className="mb-6 flex flex-wrap items-end justify-between gap-4">
           <div>
             <p className="text-xs uppercase tracking-[.25em] text-gold/70">GS-ChessX / Community</p>

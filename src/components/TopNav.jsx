@@ -26,9 +26,9 @@ export default function TopNav({ active, onNavigate, profile, onEditProfile, onL
         <nav className="mx-auto flex max-w-7xl items-center justify-between gap-4" aria-label="Primary navigation">
           <button type="button" onClick={() => onNavigate('lobby')} className="flex items-center gap-2 text-left" aria-label="Go to home">
             <span className="grid h-10 w-10 place-items-center rounded-xl border border-gold/50 bg-gradient-to-br from-gold/30 to-transparent text-3xl text-gold shadow-[0_0_18px_rgba(212,175,55,.2)]">♟</span>
-            <span className="hidden sm:block">
-              <strong className="block font-cinzel text-xl leading-none text-gold">GS-ChessX</strong>
-              <small className="text-[10px] tracking-[.2em] text-gray-500">PLAY · LEARN · WIN</small>
+            <span className="block">
+              <strong className="block font-cinzel text-base sm:text-xl leading-none text-gold">GS-ChessX</strong>
+              <small className="text-[9px] sm:text-[10px] tracking-[.15em] sm:tracking-[.2em] text-gray-500">PLAY · LEARN · WIN</small>
             </span>
           </button>
 
@@ -114,9 +114,9 @@ export default function TopNav({ active, onNavigate, profile, onEditProfile, onL
 
 export function FooterNav({ active, onNavigate, onEditProfile }) {
   return (
-    <footer className="sticky bottom-3 z-30 mt-auto w-full px-4 pointer-events-none pb-2 pt-4" aria-label="Footer navigation">
+    <footer className="fixed bottom-3 inset-x-0 z-40 pointer-events-none px-3 sm:px-4" aria-label="Footer navigation">
       <div className="mx-auto max-w-lg">
-        <nav className="pointer-events-auto flex items-center justify-around rounded-full border border-gold/30 bg-[#0e1017]/90 px-4 py-2 shadow-[0_8px_32px_rgba(0,0,0,0.7)] backdrop-blur-2xl ring-1 ring-white/10 transition-all hover:border-gold/50" aria-label="Bottom navigation">
+        <nav className="pointer-events-auto flex items-center justify-around rounded-full border border-gold/30 bg-[#0e1017]/95 px-3 sm:px-5 py-2 sm:py-2.5 shadow-[0_10px_35px_rgba(0,0,0,0.8)] backdrop-blur-2xl ring-1 ring-white/10 transition-all hover:border-gold/50" aria-label="Bottom navigation">
           <BottomNavItem active={active === 'lobby'} icon="⌂" label="Home" onClick={() => onNavigate('lobby')} />
           <BottomNavItem active={active === 'quick-match' || active === 'game'} icon="♟" label="Play" onClick={() => onNavigate('quick-match')} />
           <BottomNavItem active={active === 'tournaments' || active === 'admin'} icon="♜" label="Tournaments" onClick={() => onNavigate('tournaments')} />

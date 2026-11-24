@@ -49,23 +49,23 @@ export default function LandingPage({ onPlay, onLogin, onSignup, user }) {
               <button
                 type="button"
                 onClick={onPlay}
-                className="rounded-full bg-gradient-to-r from-gold to-champagne px-5 py-2 text-xs sm:text-sm font-extrabold text-obsidian shadow-lg shadow-gold/25 transition hover:shadow-gold/40"
+                className="rounded-full bg-gradient-to-r from-gold to-champagne px-4 sm:px-5 py-2 text-xs sm:text-sm font-extrabold text-obsidian shadow-lg shadow-gold/25 transition hover:shadow-gold/40"
               >
-                Masuk ke Lobby ›
+                Lobby ›
               </button>
             ) : (
               <>
                 <button
                   type="button"
                   onClick={onLogin}
-                  className="rounded-full border border-white/15 bg-white/[.04] px-4 py-2 text-xs sm:text-sm font-semibold text-gray-200 transition hover:border-gold/50 hover:text-gold"
+                  className="rounded-full border border-white/15 bg-white/[.04] px-3.5 sm:px-4 py-1.5 sm:py-2 text-xs sm:text-sm font-semibold text-gray-200 transition hover:border-gold/50 hover:text-gold"
                 >
                   Login
                 </button>
                 <button
                   type="button"
                   onClick={onSignup}
-                  className="rounded-full bg-gradient-to-r from-gold to-champagne px-5 py-2 text-xs sm:text-sm font-extrabold text-obsidian shadow-lg shadow-gold/25 transition hover:shadow-gold/40"
+                  className="hidden sm:inline-flex rounded-full bg-gradient-to-r from-gold to-champagne px-5 py-2 text-xs sm:text-sm font-extrabold text-obsidian shadow-lg shadow-gold/25 transition hover:shadow-gold/40"
                 >
                   Daftar
                 </button>
@@ -121,7 +121,7 @@ export default function LandingPage({ onPlay, onLogin, onSignup, user }) {
       </header>
 
       {/* Main Content */}
-      <main className="mx-auto w-full max-w-7xl flex-1 px-4 py-6 sm:px-6 lg:px-8">
+      <main className="mx-auto w-full max-w-7xl flex-1 px-4 py-6 pb-28 sm:pb-24 sm:px-6 lg:px-8">
         {/* Hero Section */}
         <section id="hero" className="relative isolate min-h-[340px] sm:min-h-[420px] overflow-hidden rounded-[2rem] border border-gold/40 bg-[#15130f] shadow-[0_20px_70px_rgba(245,158,11,.15)]">
           <div
@@ -130,34 +130,41 @@ export default function LandingPage({ onPlay, onLogin, onSignup, user }) {
           />
           <div className="absolute inset-0 bg-[radial-gradient(circle_at_73%_46%,rgba(245,158,11,.38),transparent_26%),linear-gradient(120deg,#0d1118_0%,#1d1b16_46%,#39270e_100%)]" />
           <div className="absolute -right-20 -top-36 h-[28rem] w-[28rem] rounded-full border-[26px] border-gold/10 shadow-[0_0_100px_rgba(245,158,11,.32)]" />
-          <div className="absolute -right-10 bottom-[-80px] text-[14rem] leading-none text-gold/30 blur-[1px] sm:right-20 sm:text-[18rem]">
+          <div className="hidden sm:block absolute -right-10 bottom-[-80px] text-[18rem] leading-none text-gold/20 blur-[1px] select-none pointer-events-none sm:right-20">
+            ♔
+          </div>
+          <div className="sm:hidden absolute right-2 bottom-3 text-8xl text-gold/15 leading-none select-none pointer-events-none">
             ♔
           </div>
           <div className="absolute inset-y-0 right-0 w-3/5 opacity-30 [background-image:linear-gradient(30deg,transparent_48%,rgba(245,158,11,.5)_49%,transparent_50%),linear-gradient(150deg,transparent_48%,rgba(255,255,255,.18)_49%,transparent_50%)] [background-size:44px_44px]" />
 
-          <div className="relative z-10 flex min-h-[340px] sm:min-h-[420px] max-w-2xl flex-col justify-center p-6 sm:p-12">
-            <div className="inline-flex items-center gap-2 rounded-full border border-gold/40 bg-gold/10 px-3 py-1 text-xs font-semibold uppercase tracking-[0.25em] text-gold w-fit">
+          <div className="relative z-10 flex min-h-[340px] sm:min-h-[420px] max-w-2xl flex-col justify-center p-5 sm:p-12">
+            <div className="flex sm:hidden items-center gap-2 mb-2.5">
+              <span className="text-gold font-bold text-xs tracking-[0.25em] font-cinzel uppercase">GS-CHESSX</span>
+              <span className="h-px flex-1 bg-gradient-to-r from-gold/50 to-transparent" />
+            </div>
+            <div className="inline-flex items-center gap-1.5 rounded-full border border-gold/40 bg-gold/15 px-3 py-1 text-[11px] sm:text-xs font-semibold uppercase tracking-[0.15em] sm:tracking-[0.25em] text-gold w-fit shadow-sm">
               <span>⚔️</span> The Battle of Ideologies
             </div>
-            <h1 className="mt-4 font-cinzel text-4xl sm:text-6xl font-bold leading-[1.0] text-white">
+            <h1 className="mt-3 sm:mt-4 font-cinzel text-3xl sm:text-5xl lg:text-6xl font-extrabold leading-[1.1] text-white tracking-tight">
               Play chess.<br />
-              <span className="text-gold">Grow together.</span>
+              <span className="text-gold drop-shadow-[0_2px_14px_rgba(212,175,55,0.4)]">Grow together.</span>
             </h1>
-            <p className="mt-4 max-w-lg text-sm sm:text-base text-gray-300 leading-relaxed">
+            <p className="mt-3 sm:mt-4 max-w-lg text-xs sm:text-base text-gray-300 leading-relaxed">
               Holy Kingdom vs Anarchy Rebellion. Temukan lawan bermain, kembangkan strategi dengan AI dan Chess Academy, serta rebut kejuaraan di GS-ChessX.
             </p>
-            <div className="mt-7 flex flex-wrap items-center gap-3">
+            <div className="mt-6 sm:mt-7 flex flex-col sm:flex-row items-stretch sm:items-center gap-3">
               <button
                 type="button"
                 onClick={onPlay}
-                className="rounded-full bg-gradient-to-r from-gold to-champagne px-7 py-3.5 text-sm sm:text-base font-extrabold text-obsidian shadow-lg shadow-gold/25 transition hover:-translate-y-0.5 hover:shadow-gold/40"
+                className="w-full sm:w-auto text-center rounded-full bg-gradient-to-r from-gold to-champagne px-7 py-3.5 text-sm sm:text-base font-extrabold text-obsidian shadow-lg shadow-gold/25 transition hover:-translate-y-0.5 hover:shadow-gold/40"
               >
                 Mulai Bermain Sekarang <span aria-hidden="true">›</span>
               </button>
               <button
                 type="button"
                 onClick={user ? onPlay : onSignup}
-                className="rounded-full border border-white/20 bg-black/35 px-6 py-3.5 text-sm sm:text-base font-semibold text-white backdrop-blur transition hover:border-gold/60 hover:text-gold"
+                className="w-full sm:w-auto text-center rounded-full border border-white/20 bg-black/35 px-6 py-3.5 text-sm sm:text-base font-semibold text-white backdrop-blur transition hover:border-gold/60 hover:text-gold"
               >
                 {user ? 'Buka Dashboard' : 'Daftar Akun Gratis'}
               </button>
@@ -306,8 +313,8 @@ export default function LandingPage({ onPlay, onLogin, onSignup, user }) {
         </section>
       </main>
 
-      {/* Footer */}
-      <footer className="mt-12 border-t border-white/10 bg-[#08090d] px-4 py-8 sm:px-6 lg:px-8">
+      {/* Static Footer */}
+      <footer className="mt-12 border-t border-white/10 bg-[#08090d] px-4 py-8 pb-24 sm:px-6 lg:px-8">
         <div className="mx-auto max-w-7xl flex flex-col sm:flex-row items-center justify-between gap-4">
           <div className="flex items-center gap-2">
             <span className="grid h-8 w-8 place-items-center rounded-lg border border-gold/40 bg-gold/10 text-xl text-gold">♟</span>
@@ -322,6 +329,30 @@ export default function LandingPage({ onPlay, onLogin, onSignup, user }) {
           </div>
         </div>
       </footer>
+
+      {/* Floating Bottom Navigation Dock (Mobile & Desktop View) */}
+      <div className="fixed bottom-3 inset-x-0 z-40 pointer-events-none px-3 sm:px-4" aria-label="Floating landing navigation">
+        <div className="mx-auto max-w-md">
+          <nav className="pointer-events-auto flex items-center justify-around rounded-full border border-gold/30 bg-[#0e1017]/95 px-4 py-2 sm:py-2.5 shadow-[0_10px_35px_rgba(0,0,0,0.8)] backdrop-blur-2xl ring-1 ring-white/10 transition-all hover:border-gold/50" aria-label="Bottom landing navigation">
+            <a href="#hero" className="flex flex-col items-center gap-0.5 text-[10px] text-gold transition hover:text-champagne">
+              <span className="text-xl leading-none">⌂</span>
+              <span>Beranda</span>
+            </a>
+            <a href="#features" className="flex flex-col items-center gap-0.5 text-[10px] text-gray-400 transition hover:text-white">
+              <span className="text-xl leading-none">⚡</span>
+              <span>Fitur</span>
+            </a>
+            <a href="#tournaments" className="flex flex-col items-center gap-0.5 text-[10px] text-gray-400 transition hover:text-white">
+              <span className="text-xl leading-none">♜</span>
+              <span>Turnamen</span>
+            </a>
+            <button type="button" onClick={onPlay} className="flex flex-col items-center gap-0.5 text-[10px] font-bold text-gold transition hover:text-champagne">
+              <span className="text-xl leading-none">♟</span>
+              <span>Main</span>
+            </button>
+          </nav>
+        </div>
+      </div>
     </div>
   );
 }
