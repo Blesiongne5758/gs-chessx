@@ -14,6 +14,9 @@ import LearningHub from './components/LearningHub';
 import LeaderboardModal from './components/LeaderboardModal';
 import MatchHistoryModal from './components/MatchHistoryModal';
 import PgnReplayModal from './components/PgnReplayModal';
+import OnlineUserBanner from './components/OnlineUserBanner';
+import { DEFAULT_TIME_CONTROL, normalizeTimeControl } from './lib/timeControls';
+import { triggerUserOnlineAlert } from './lib/onlineAlerts';
 
 const GUEST = { id: 'guest', email: 'guest@local', isGuest: true };
 
@@ -21,7 +24,7 @@ function App() {
   const [user, setUser] = useState(null);
   const [page, setPage] = useState('landing');
   const [authMode, setAuthMode] = useState(null); // 'login' | 'signup' | null
-  const [timeControl, setTimeControl] = useState({ label: 'Rapid (10+0)', base: 600, inc: 0 });
+  const [timeControl, setTimeControl] = useState(DEFAULT_TIME_CONTROL);
   const [match, setMatch] = useState(null);
   const [leaderboardOpen, setLeaderboardOpen] = useState(false);
   const [historyOpen, setHistoryOpen] = useState(false);
@@ -88,8 +91,97 @@ function App() {
     setPage('landing');
   }
 
+  // Global online presence & login announcements
+  const recentOnlineAnnouncements = useRef(new Map());
+
+  useEffect(() => {
+    if (!isSupabaseConfigured || !user || user.isGuest) return undefined;
+
+    let active = true;
+    const userId = user.id;
+    let channel;
+    const initialPresenceLoaded = { current: false };
+
+    function announceUser(announcedId, username, avatarUrl) {
+      if (!username) return;
+      const key = announcedId || username;
+      const now = Date.now();
+      const last = recentOnlineAnnouncements.current.get(key);
+      if (last && now - last < 8000) return; // Deduplicate within 8 seconds
+      recentOnlineAnnouncements.current.set(key, now);
+      triggerUserOnlineAlert(username, avatarUrl);
+    }
+
+    async function initGlobalPresence() {
+      const { data: prof } = await supabase
+        .from('profiles')
+        .select('id, username, avatar_url')
+        .eq('id', userId)
+        .maybeSingle();
+
+      if (!active) return;
+      const myUsername = prof?.username || user.email?.split('@')[0] || 'Player';
+      const myAvatar = prof?.avatar_url || null;
+
+      channel = supabase.channel('online-presence-global', {
+        config: {
+          presence: { key: userId },
+          broadcast: { self: false },
+        },
+      });
+
+      channel.on('presence', { event: 'sync' }, () => {
+        if (!initialPresenceLoaded.current) {
+          initialPresenceLoaded.current = true;
+        }
+      });
+
+      channel.on('presence', { event: 'join' }, ({ newPresences }) => {
+        if (!initialPresenceLoaded.current) return;
+        (newPresences || []).forEach((p) => {
+          if (p?.id && p.id !== userId) {
+            announceUser(p.id, p.username, p.avatar_url);
+          }
+        });
+      });
+
+      channel.on('broadcast', { event: 'user-now-online' }, ({ payload }) => {
+        if (payload?.id && payload.id !== userId) {
+          announceUser(payload.id, payload.username, payload.avatar_url);
+        }
+      });
+
+      channel.subscribe(async (status) => {
+        if (status !== 'SUBSCRIBED' || !active) return;
+        await channel.track({
+          id: userId,
+          username: myUsername,
+          avatar_url: myAvatar,
+          onlineAt: new Date().toISOString(),
+        });
+        await channel.send({
+          type: 'broadcast',
+          event: 'user-now-online',
+          payload: {
+            id: userId,
+            username: myUsername,
+            avatar_url: myAvatar,
+          },
+        });
+      });
+    }
+
+    initGlobalPresence();
+
+    return () => {
+      active = false;
+      if (channel) supabase.removeChannel(channel);
+    };
+  }, [user?.id, user?.isGuest, user?.email]);
+
   return (
     <div className="min-h-screen bg-obsidian text-white font-inter">
+      <OnlineUserBanner />
       {page === 'landing' && (
         <LandingPage
           user={user}
@@ -143,6 +235,7 @@ function App() {
         <QuickMatch
           user={user}
           timeControl={timeControl}
+          onTimeControlChange={setTimeControl}
           onNavigate={setPage}
           onEditProfile={() => setPage('profile')}
           onLogout={handleLogout}

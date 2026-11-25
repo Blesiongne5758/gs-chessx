@@ -4,7 +4,7 @@ import { resolveChessSkin } from '../lib/chessSkins';
 
 const FILES = 'abcdefgh';
 
-function makePiece(type, color, skin = 'holy', customization, performance = {}) {
+function makePiece(type, color, skin = 'classic', customization, performance = {}) {
   const group = new THREE.Group();
   const white = color === 'w';
   const skinSet = resolveChessSkin(skin, customization);
@@ -117,7 +117,7 @@ function squareName(row, col) {
   return `${FILES[col]}${8 - row}`;
 }
 
-export default function ChessBoard3D({ board, selectedSquare, validTargets = [], lastMove, kingInCheck, onSquareClick, skin = 'holy', customization, whiteName = 'White', blackName = 'Black', capturedByWhite = [], capturedByBlack = [], playerSide = 'w' }) {
+export default function ChessBoard3D({ board, selectedSquare, validTargets = [], lastMove, kingInCheck, onSquareClick, skin = 'classic', customization, whiteName = 'White', blackName = 'Black', capturedByWhite = [], capturedByBlack = [], playerSide = 'w' }) {
   const hostRef = useRef(null);
   const boardRef = useRef(null);
   const sceneRef = useRef(null);

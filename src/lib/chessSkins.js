@@ -1,4 +1,13 @@
 export const CHESS_SKINS = {
+  classic: {
+    id: 'classic',
+    label: 'Classic',
+    shortLabel: 'Classic',
+    description: 'Pure black & white pieces on a crisp black & white board — the timeless look',
+    board: { light: 0xffffff, dark: 0x1a1a1a, frame: 0x2a2a2a, rim: 0x111111 },
+    white: { body: 0xffffff, light: 0xffffff, shade: 0xcccccc, edge: 0x888888, accent: 0xdddddd, accentDark: 0x999999 },
+    black: { body: 0x111111, light: 0x333333, shade: 0x080808, edge: 0x000000, accent: 0x444444, accentDark: 0x222222 },
+  },
   holy: {
     id: 'holy',
     label: 'Holy vs Anarchy',
@@ -89,7 +98,7 @@ function hexToNumber(hex) {
 }
 
 export function resolveChessSkin(id, customization) {
-  const source = CHESS_SKINS[id] || CHESS_SKINS.holy;
+  const source = CHESS_SKINS[id] || CHESS_SKINS.classic;
   if (id !== 'custom' || !customization) return source;
   return {
     ...source,

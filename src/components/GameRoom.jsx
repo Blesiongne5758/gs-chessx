@@ -78,8 +78,8 @@ export default function GameRoom({
   const [drawPending, setDrawPending] = useState(false);
   const [gameChannelReady, setGameChannelReady] = useState(false);
   const [aiThinking, setAiThinking] = useState(false);
-  const [skinMode, setSkinMode] = useState('3d');
-  const [skinId, setSkinId] = useState('holy');
+  const [skinMode, setSkinMode] = useState('2d');
+  const [skinId, setSkinId] = useState('classic');
   const [customization, setCustomization] = useState(DEFAULT_CUSTOMIZATION);
   const [showHistoricalSplash, setShowHistoricalSplash] = useState(true);
   const [replayStep, setReplayStep] = useState(null); // null when live, number when in replay mode
@@ -643,27 +643,15 @@ export default function GameRoom({
               </div>
             </div>
 
-            {/* Skins & 2D/3D selector */}
-            <div className="space-y-2">
-              <div className="flex items-center justify-between gap-3">
-                <div>
-                  <div className="text-xs uppercase tracking-widest text-gray-500 font-semibold">Piece Skins</div>
-                  <div className="mt-1 text-[11px] text-gray-400">{CHESS_SKIN_LIST.find((skin) => skin.id === skinId)?.description}</div>
-                </div>
-                <div className="flex shrink-0 rounded-lg border border-gold/25 bg-graphite p-1">
-                  <button onClick={() => setSkinMode('3d')} aria-pressed={skinMode === '3d'} className={`rounded-md px-3 py-1 text-xs font-semibold ${skinMode === '3d' ? 'bg-gold text-obsidian shadow-sm' : 'text-gray-300'}`}>3D</button>
-                  <button onClick={() => setSkinMode('2d')} aria-pressed={skinMode === '2d'} className={`rounded-md px-3 py-1 text-xs font-semibold ${skinMode === '2d' ? 'bg-gold text-obsidian shadow-sm' : 'text-gray-300'}`}>2D</button>
-                </div>
-              </div>
-              <div className="grid grid-cols-2 gap-1.5 sm:grid-cols-3">
-                {CHESS_SKIN_LIST.map((skin) => (
-                  <button key={skin.id} onClick={() => setSkinId(skin.id)} aria-pressed={skinId === skin.id} className={`rounded-md border px-2 py-1.5 text-[11px] font-semibold transition ${skinId === skin.id ? 'border-gold bg-gold text-obsidian shadow-[0_0_14px_rgba(212,175,55,.24)]' : 'border-white/10 bg-graphite text-gray-300 hover:border-gold/50'}`}>
-                    {skin.shortLabel}
-                  </button>
-                ))}
-              </div>
-              {skinId === 'custom' && <CustomNeonControls value={customization} onChange={setCustomization} />}
-            </div>
+            {/* Board & Piece Skin — slide-down dropdown */}
+            <SkinDropdown
+              skinId={skinId}
+              onSkinChange={setSkinId}
+              skinMode={skinMode}
+              onModeChange={setSkinMode}
+              customization={customization}
+              onCustomizationChange={setCustomization}
+            />
 
             {isMultiplayer && !gameChannelReady && (
               <p role="status" className="rounded-xl border border-amber-400/40 bg-amber-400/10 p-2 text-center text-xs text-amber-200">
@@ -852,12 +840,16 @@ export default function GameRoom({
       <div className="bg-graphite border-t border-gold/30 p-4 pb-24 sm:pb-20">
         <div className="max-w-6xl mx-auto flex flex-wrap justify-center gap-3">
           {isMultiplayer && !isSpectator && <MultiplayerVoice roomId={match.roomId} userId={user.id} opponentName={opponentName} />}
-          <button onClick={onSocial} className="px-5 py-2 bg-slate text-gray-300 rounded-lg hover:bg-gray-700 transition">
-            🎙️ Voice / Video
-          </button>
-          <button onClick={onSocial} className="px-5 py-2 bg-slate text-gray-300 rounded-lg hover:bg-gray-700 transition">
-            💬 Chat
-          </button>
+          {!isAiMatch && (
+            <>
+              <button onClick={onSocial} className="px-5 py-2 bg-slate text-gray-300 rounded-lg hover:bg-gray-700 transition">
+                🎙️ Voice / Video
+              </button>
+              <button onClick={onSocial} className="px-5 py-2 bg-slate text-gray-300 rounded-lg hover:bg-gray-700 transition">
+                💬 Chat
+              </button>
+            </>
+          )}
           {!isSpectator && (
             <button
               onClick={() => !result && offerDraw()}
@@ -1007,6 +999,124 @@ function MultiplayerVoice({ roomId, userId, opponentName }) {
           )}
         </div>
       )}
+    </div>
+  );
+}
+
+function SkinDropdown({ skinId, onSkinChange, skinMode, onModeChange, customization, onCustomizationChange }) {
+  const [open, setOpen] = useState(false);
+  const ref = useRef(null);
+  const activeSkin = CHESS_SKIN_LIST.find((s) => s.id === skinId) || CHESS_SKIN_LIST[0];
+
+  // Close on outside click
+  useEffect(() => {
+    if (!open) return undefined;
+    function handler(e) {
+      if (ref.current && !ref.current.contains(e.target)) setOpen(false);
+    }
+    document.addEventListener('mousedown', handler);
+    return () => document.removeEventListener('mousedown', handler);
+  }, [open]);
+
+  return (
+    <div ref={ref} className="relative">
+      {/* Trigger Button */}
+      <button
+        type="button"
+        onClick={() => setOpen((v) => !v)}
+        className="w-full flex items-center justify-between gap-2 rounded-xl border border-gold/30 bg-[#12141c] px-3.5 py-2.5 text-xs font-semibold text-white shadow-md hover:border-gold/60 transition"
+        aria-haspopup="true"
+        aria-expanded={open}
+      >
+        <span className="flex items-center gap-2 min-w-0">
+          <span className="text-gold font-bold uppercase tracking-wider text-[10px]">Board &amp; Piece Skin</span>
+          <span className="truncate text-gray-300">— {activeSkin.shortLabel}</span>
+        </span>
+        <span className="flex items-center gap-2 shrink-0">
+          {/* 2D/3D pill inline */}
+          <span
+            className="rounded-md border border-gold/25 bg-graphite px-1.5 py-0.5 text-[10px] font-bold text-gold"
+          >
+            {skinMode.toUpperCase()}
+          </span>
+          <svg
+            className={`h-4 w-4 text-gray-400 transition-transform duration-300 ${open ? 'rotate-180' : ''}`}
+            fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}
+          >
+            <path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" />
+          </svg>
+        </span>
+      </button>
+
+      {/* Slide-Down Panel */}
+      <div
+        className={`overflow-hidden transition-all duration-300 ease-in-out ${open ? 'max-h-[520px] opacity-100' : 'max-h-0 opacity-0'}`}
+        aria-hidden={!open}
+      >
+        <div className="mt-1 rounded-xl border border-gold/25 bg-[#0e1018] p-3 shadow-2xl shadow-black/60 space-y-3">
+
+          {/* 2D / 3D Mode Toggle */}
+          <div className="flex items-center justify-between">
+            <span className="text-[10px] font-bold uppercase tracking-wider text-gray-500">Board Render</span>
+            <div className="flex rounded-lg border border-gold/20 bg-graphite p-0.5">
+              {['2d', '3d'].map((mode) => (
+                <button
+                  key={mode}
+                  type="button"
+                  onClick={() => onModeChange(mode)}
+                  aria-pressed={skinMode === mode}
+                  className={`rounded-md px-4 py-1 text-xs font-bold transition ${
+                    skinMode === mode ? 'bg-gold text-obsidian shadow-sm' : 'text-gray-300 hover:text-white'
+                  }`}
+                >
+                  {mode.toUpperCase()}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {/* Divider */}
+          <div className="border-t border-white/8" />
+
+          {/* Skin List */}
+          <div>
+            <span className="text-[10px] font-bold uppercase tracking-wider text-gray-500">Piece &amp; Board Skin</span>
+            <div className="mt-2 grid grid-cols-2 gap-1.5 sm:grid-cols-3">
+              {CHESS_SKIN_LIST.map((skin) => {
+                const isActive = skinId === skin.id;
+                return (
+                  <button
+                    key={skin.id}
+                    type="button"
+                    onClick={() => { onSkinChange(skin.id); if (skin.id !== 'custom') setOpen(false); }}
+                    aria-pressed={isActive}
+                    className={`flex flex-col items-start rounded-lg border px-2.5 py-2 text-left transition ${
+                      isActive
+                        ? 'border-gold bg-gold/15 text-gold shadow-[0_0_12px_rgba(212,175,55,.18)]'
+                        : 'border-white/8 bg-white/[.03] text-gray-300 hover:border-gold/40 hover:bg-white/[.06] hover:text-white'
+                    }`}
+                  >
+                    <span className="font-bold text-[11px] leading-tight">{skin.shortLabel}</span>
+                    <span className={`text-[10px] leading-tight mt-0.5 ${isActive ? 'text-gold/70' : 'text-gray-500'}`}>
+                      {skin.description.length > 36 ? skin.description.slice(0, 36) + '…' : skin.description}
+                    </span>
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+
+          {/* Active skin description */}
+          <p className="text-[10px] text-gray-500 italic border-t border-white/8 pt-2">
+            {activeSkin.description}
+          </p>
+
+          {/* Custom Neon Controls (only when custom is selected) */}
+          {skinId === 'custom' && (
+            <CustomNeonControls value={customization} onChange={onCustomizationChange} />
+          )}
+        </div>
+      </div>
     </div>
   );
 }

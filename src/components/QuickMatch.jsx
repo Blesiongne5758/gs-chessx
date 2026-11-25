@@ -4,12 +4,19 @@ import Avatar from './Avatar';
 import toast from 'react-hot-toast';
 import TopNav, { FooterNav } from './TopNav';
 import { addNotification } from '../lib/notifications';
+import {
+  TIME_CONTROL_CATEGORIES,
+  getCategoryPresets,
+  getDefaultCategoryPreset,
+  normalizeTimeControl,
+} from '../lib/timeControls';
 
 const PROFILE_SELECT = 'id, username, avatar_url, rating';
 
 export default function QuickMatch({
   user,
   timeControl,
+  onTimeControlChange,
   onMatched,
   onBack,
   onNavigate,
@@ -27,15 +34,22 @@ export default function QuickMatch({
   const [liveMatches, setLiveMatches] = useState([]);
   const [autoPairing, setAutoPairing] = useState(false);
   const [queueSeconds, setQueueSeconds] = useState(0);
+  const [selectedTc, setSelectedTc] = useState(() => normalizeTimeControl(timeControl));
 
   const channelRef = useRef(null);
   const profileRef = useRef(null);
-  const tcRef = useRef(timeControl);
+  const tcRef = useRef(selectedTc);
   const incomingRef = useRef(null);
   const autoPairingRef = useRef(autoPairing);
   const userId = user?.id;
 
-  useEffect(() => { tcRef.current = timeControl; }, [timeControl]);
+  useEffect(() => {
+    if (timeControl) {
+      const normalized = normalizeTimeControl(timeControl);
+      setSelectedTc(normalized);
+      tcRef.current = normalized;
+    }
+  }, [timeControl]);
   useEffect(() => { incomingRef.current = incoming; }, [incoming]);
   useEffect(() => { autoPairingRef.current = autoPairing; }, [autoPairing]);
 
@@ -263,6 +277,32 @@ export default function QuickMatch({
     }
   }
 
+  function handleSelectCategory(catId) {
+    const preset = getDefaultCategoryPreset(catId);
+    handleSelectPreset(preset);
+  }
+
+  function handleSelectPreset(preset) {
+    const normalized = normalizeTimeControl(preset);
+    setSelectedTc(normalized);
+    tcRef.current = normalized;
+    onTimeControlChange?.(normalized);
+
+    if (channelRef.current && profileRef.current) {
+      channelRef.current.track({
+        ...profileRef.current,
+        id: userId,
+        status: autoPairingRef.current ? 'searching_auto' : 'available',
+        timeControl: normalized.label,
+        updatedAt: new Date().toISOString(),
+      });
+    }
+
+    if (autoPairingRef.current) {
+      toast.success(`Matchmaking updated for ${normalized.label}`);
+    }
+  }
+
   async function answer(accepted) {
     const target = incomingRef.current;
     if (!target || !channelRef.current || !profileRef.current) return;
@@ -367,9 +407,70 @@ export default function QuickMatch({
                   Auto-pairing matches you with players near your Glicko-2 rating automatically.
                 </p>
 
-                <div className="mt-5 rounded-xl bg-slate p-4 border border-white/5">
-                  <p className="text-xs text-gray-400 font-semibold uppercase tracking-wider">Time Control</p>
-                  <p className="mt-1 font-bold text-gold text-lg">{timeControl?.label || 'Rapid (10+0)'}</p>
+                {/* Time Control Selection (Rapid, Blitz, Bullet, Classic) */}
+                <div className="mt-5 rounded-2xl bg-[#14161f] p-4 sm:p-5 border border-gold/30 shadow-lg">
+                  <div className="flex items-center justify-between mb-3">
+                    <div>
+                      <p className="text-xs text-gold font-bold uppercase tracking-wider">Time Control</p>
+                      <p className="text-xs text-gray-400 mt-0.5">Select pace: Rapid, Blitz, Bullet, Classic</p>
+                    </div>
+                    <span className="inline-flex items-center gap-1.5 rounded-full bg-gold/15 border border-gold/40 px-3 py-1 text-xs font-bold text-gold">
+                      <span>{selectedTc.icon}</span>
+                      <span>{selectedTc.label}</span>
+                    </span>
+                  </div>
+
+                  {/* 4 Main Categories: Rapid, Blitz, Bullet, Classic */}
+                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+                    {TIME_CONTROL_CATEGORIES.map((cat) => {
+                      const isActive = selectedTc.category === cat.id;
+                      return (
+                        <button
+                          key={cat.id}
+                          type="button"
+                          onClick={() => handleSelectCategory(cat.id)}
+                          className={`group relative flex flex-col items-center justify-center rounded-xl p-3 text-center transition-all ${
+                            isActive
+                              ? 'bg-gradient-to-b from-gold/25 to-gold/10 border-2 border-gold text-white shadow-[0_0_15px_rgba(212,175,55,0.25)]'
+                              : 'bg-white/[0.03] border border-white/10 text-gray-300 hover:border-gold/50 hover:bg-white/[0.06] hover:text-white'
+                          }`}
+                        >
+                          <span className="text-xl mb-1">{cat.icon}</span>
+                          <span className="font-bold text-sm tracking-wide">{cat.name}</span>
+                          <span className="text-[10px] text-gray-400 mt-0.5">{cat.defaultPreset}</span>
+                          {isActive && (
+                            <span className="absolute -top-1.5 -right-1.5 h-3 w-3 rounded-full bg-gold ring-2 ring-[#14161f]" />
+                          )}
+                        </button>
+                      );
+                    })}
+                  </div>
+
+                  {/* Category Specific Presets */}
+                  <div className="mt-3 pt-3 border-t border-white/10 flex flex-wrap items-center justify-between gap-2">
+                    <span className="text-[11px] text-gray-400 uppercase tracking-wider font-semibold">
+                      {selectedTc.categoryName || selectedTc.name} Presets:
+                    </span>
+                    <div className="flex flex-wrap items-center gap-1.5">
+                      {getCategoryPresets(selectedTc.category).map((preset) => {
+                        const isPresetActive = selectedTc.id === preset.id || selectedTc.label === preset.label;
+                        return (
+                          <button
+                            key={preset.id}
+                            type="button"
+                            onClick={() => handleSelectPreset(preset)}
+                            className={`rounded-lg px-2.5 py-1 text-xs font-bold transition-all ${
+                              isPresetActive
+                                ? 'bg-gold text-obsidian shadow-sm shadow-gold/30'
+                                : 'bg-white/5 text-gray-300 hover:bg-white/15 hover:text-white border border-white/10'
+                            }`}
+                          >
+                            {preset.name}
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </div>
                 </div>
 
                 <div className="mt-4 flex items-center gap-3 rounded-xl border border-white/10 p-4 bg-white/[0.02]">

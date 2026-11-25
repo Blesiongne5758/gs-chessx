@@ -31,3 +31,37 @@ body {
   .feature-cyan { border-color: rgba(34, 211, 238, .72); background: linear-gradient(135deg, #087c9c 0%, #104b72 48%, #101c2b 100%); }
   .feature-slate { border-color: rgba(148, 163, 184, .62); background: linear-gradient(135deg, #475569 0%, #273246 50%, #171b27 100%); }
 }
+
+@keyframes slideDownHead {
+  0% {
+    transform: translateY(-160%);
+    opacity: 0;
+  }
+  70% {
+    transform: translateY(6%);
+    opacity: 1;
+  }
+  100% {
+    transform: translateY(0);
+    opacity: 1;
+  }
+}
+
+@keyframes slideUpHead {
+  0% {
+    transform: translateY(0);
+    opacity: 1;
+  }
+  100% {
+    transform: translateY(-160%);
+    opacity: 0;
+  }
+}
+
+.banner-slide-down {
+  animation: slideDownHead 0.45s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+.banner-slide-up {
+  animation: slideUpHead 0.38s cubic-bezier(0.7, 0, 0.84, 0) forwards;
+}

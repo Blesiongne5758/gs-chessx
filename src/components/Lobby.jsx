@@ -4,12 +4,13 @@ import { supabase } from '../lib/supabaseClient';
 import Avatar from './Avatar';
 import TopNav, { FooterNav } from './TopNav';
 import { loadGuestProfile } from '../lib/profile';
+import { TIME_CONTROL_CATEGORIES, getDefaultCategoryPreset } from '../lib/timeControls';
 
 const TIME_CONTROLS = [
   { label: '⚡ Bullet (1+0)', desc: 'Fast & furious', base: 60, inc: 0 },
   { label: '⚡ Blitz (3+2)', desc: 'Most popular', base: 180, inc: 2 },
   { label: '⚡ Rapid (10+0)', desc: 'Strategic play', base: 600, inc: 0 },
-  { label: '🎯 Classical (30+0)', desc: 'Deep thinking', base: 1800, inc: 0 },
+  { label: '🎯 Classic (30+0)', desc: 'Deep thinking', base: 1800, inc: 0 },
   { label: '🤖 VS AI (10 levels)', desc: 'Play against the computer engine offline', base: 600, inc: 0, mode: 'ai', aiLevel: 10 },
 ];
 
@@ -97,8 +98,8 @@ export default function Lobby({
   const rating = profile?.rating ?? 1200;
   const rank = rating >= 2400 ? 'Grandmaster' : rating >= 2200 ? 'Master' : rating >= 2000 ? 'Expert' : rating >= 1800 ? 'Advanced' : rating >= 1500 ? 'Club Player' : 'Apprentice';
 
-  function startQuickMatch() {
-    onPlay(TIME_CONTROLS[2]);
+  function startQuickMatch(tc) {
+    onPlay(tc || getDefaultCategoryPreset('rapid'));
   }
 
   function startAiMatch(event) {
@@ -167,8 +168,26 @@ export default function Lobby({
             <h1 className="mt-3 max-w-md font-cinzel text-4xl font-bold leading-[.95] text-white sm:text-6xl">Play chess.<br /><span className="text-gold">Grow together.</span></h1>
             <p className="mt-4 max-w-sm text-sm text-gray-300 sm:text-base">Find opponents, sharpen strategies, and build your legacy on the GS-ChessX board.</p>
             <div className="mt-6 flex flex-wrap items-center gap-3">
-              <button type="button" onClick={startQuickMatch} className="rounded-full bg-gradient-to-r from-gold to-champagne px-6 py-3 text-sm font-extrabold text-obsidian shadow-lg shadow-gold/25 transition hover:-translate-y-0.5 hover:shadow-gold/40">Play Now <span aria-hidden="true">›</span></button>
+              <button type="button" onClick={() => startQuickMatch()} className="rounded-full bg-gradient-to-r from-gold to-champagne px-6 py-3 text-sm font-extrabold text-obsidian shadow-lg shadow-gold/25 transition hover:-translate-y-0.5 hover:shadow-gold/40">Play Now <span aria-hidden="true">›</span></button>
               <button type="button" onClick={startAiMatch} className="rounded-full border border-white/20 bg-black/25 px-5 py-3 text-sm font-semibold text-white backdrop-blur transition hover:border-gold/60 hover:text-gold">VS AI</button>
+            </div>
+            {/* Quick Match Time Control Presets */}
+            <div className="mt-4 flex flex-wrap items-center gap-2">
+              <span className="text-[11px] font-semibold uppercase tracking-wider text-gray-400 mr-1">Quick Match:</span>
+              {TIME_CONTROL_CATEGORIES.map((cat) => {
+                const preset = getDefaultCategoryPreset(cat.id);
+                return (
+                  <button
+                    key={cat.id}
+                    type="button"
+                    onClick={() => startQuickMatch(preset)}
+                    className="flex items-center gap-1.5 rounded-full border border-gold/30 bg-black/40 px-3 py-1 text-xs font-semibold text-gray-200 backdrop-blur transition hover:border-gold hover:bg-gold/15 hover:text-gold"
+                  >
+                    <span>{cat.icon}</span>
+                    <span>{cat.name} ({preset.name})</span>
+                  </button>
+                );
+              })}
             </div>
           </div>
           <div className="absolute bottom-4 left-1/2 flex -translate-x-1/2 gap-2" aria-hidden="true"><span className="h-2 w-7 rounded-full bg-gold" /><span className="h-2 w-2 rounded-full bg-white/40" /><span className="h-2 w-2 rounded-full bg-white/40" /></div>

@@ -71,7 +71,7 @@ function SkinDetail({ skin, fill, dark }) {
   return null;
 }
 
-export default function ChessPiece2D({ type, color, skin = 'holy', customization }) {
+export default function ChessPiece2D({ type, color, skin = 'classic', customization }) {
   const skinSet = resolveChessSkin(skin, customization);
   const rawPalette = color === 'w' ? skinSet.white : skinSet.black;
   const palette = Object.fromEntries(Object.entries(rawPalette).map(([key, value]) => [key, toHex(value)]));
