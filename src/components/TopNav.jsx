@@ -1,22 +1,62 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import toast from 'react-hot-toast';
 import Avatar from './Avatar';
+import NotificationCenter from './NotificationCenter';
+import { getNotifications, onNotificationsChange } from '../lib/notifications';
 
 const ITEMS = [
   { key: 'lobby', label: 'Home' },
+  { key: 'leaderboard', label: 'Leaderboard' },
+  { key: 'history', label: 'Match History' },
   { key: 'learning', label: 'Chess Academy' },
   { key: 'tournaments', label: 'Tournaments' },
   { key: 'social', label: 'Friends & Chat' },
   { key: 'shop', label: 'Shop', soon: true },
 ];
 
-export default function TopNav({ active, onNavigate, profile, onEditProfile, onLogout, isAdmin }) {
+export default function TopNav({
+  active,
+  onNavigate,
+  profile,
+  onEditProfile,
+  onLogout,
+  isAdmin,
+  user,
+  onAcceptChallenge,
+  onOpenLeaderboard,
+  onOpenHistory,
+}) {
   const [menuOpen, setMenuOpen] = useState(false);
+  const [notificationsOpen, setNotificationsOpen] = useState(false);
+  const userId = user?.id || profile?.id || 'guest';
+  const [unreadCount, setUnreadCount] = useState(() =>
+    getNotifications(userId).filter((n) => !n.read).length
+  );
+
+  useEffect(() => {
+    const updateCount = (list) => {
+      const items = list || getNotifications(userId);
+      setUnreadCount(items.filter((n) => !n.read).length);
+    };
+    updateCount();
+    const unsub = onNotificationsChange(updateCount);
+    return unsub;
+  }, [userId]);
+
   const items = isAdmin ? [...ITEMS, { key: 'admin', label: 'Admin' }] : ITEMS;
 
   function go(item) {
-    if (item.soon) toast(`${item.label} coming soon`);
-    else onNavigate(item.key);
+    if (item.soon) {
+      toast(`${item.label} coming soon`);
+    } else if (item.key === 'leaderboard') {
+      if (onOpenLeaderboard) onOpenLeaderboard();
+      else onNavigate('leaderboard');
+    } else if (item.key === 'history') {
+      if (onOpenHistory) onOpenHistory();
+      else onNavigate('history');
+    } else {
+      onNavigate(item.key);
+    }
     setMenuOpen(false);
   }
 
@@ -39,7 +79,7 @@ export default function TopNav({ active, onNavigate, profile, onEditProfile, onL
                 key={item.key}
                 onClick={() => go(item)}
                 aria-current={active === item.key ? 'page' : undefined}
-                className={`rounded-full px-4 py-2 text-xs font-semibold transition ${
+                className={`rounded-full px-3.5 py-1.5 text-xs font-semibold transition ${
                   active === item.key
                     ? 'bg-gold text-obsidian shadow-lg shadow-gold/20'
                     : 'text-gray-400 hover:bg-white/10 hover:text-white'
@@ -51,14 +91,21 @@ export default function TopNav({ active, onNavigate, profile, onEditProfile, onL
           </div>
 
           <div className="flex items-center gap-2">
+            {/* Notification Bell */}
             <button
               type="button"
-              onClick={() => toast('No new notifications')}
-              className="relative grid h-10 w-10 place-items-center rounded-full border border-white/15 bg-white/[.04] text-xl text-gray-200 transition hover:border-gold/50 hover:text-gold"
-              aria-label="Notifications"
+              onClick={() => setNotificationsOpen(true)}
+              className="relative grid h-10 w-10 place-items-center rounded-full border border-white/15 bg-white/[.04] text-lg text-gray-200 transition hover:border-gold/50 hover:text-gold"
+              aria-label="Open notifications"
             >
-              ♟<span className="absolute right-1 top-0 h-2 w-2 rounded-full bg-rose-400" />
+              🔔
+              {unreadCount > 0 && (
+                <span className="absolute -top-1 -right-1 flex h-5 w-5 items-center justify-center rounded-full bg-rose-500 text-[10px] font-bold text-white shadow-md animate-pulse">
+                  {unreadCount > 9 ? '9+' : unreadCount}
+                </span>
+              )}
             </button>
+
             <button
               type="button"
               onClick={onEditProfile}
@@ -100,7 +147,7 @@ export default function TopNav({ active, onNavigate, profile, onEditProfile, onL
               </button>
             ))}
             <button type="button" onClick={onEditProfile} className="rounded-xl px-4 py-3 text-left text-sm font-semibold text-gray-300 hover:bg-white/10">
-              Profile & Settings
+              Profile &amp; Settings
             </button>
             <button type="button" onClick={onLogout} className="rounded-xl px-4 py-3 text-left text-sm font-semibold text-rose-300 hover:bg-rose-500/10">
               Logout
@@ -108,6 +155,13 @@ export default function TopNav({ active, onNavigate, profile, onEditProfile, onL
           </div>
         )}
       </header>
+
+      <NotificationCenter
+        user={user || { id: userId }}
+        isOpen={notificationsOpen}
+        onClose={() => setNotificationsOpen(false)}
+        onAcceptChallenge={onAcceptChallenge}
+      />
     </div>
   );
 }

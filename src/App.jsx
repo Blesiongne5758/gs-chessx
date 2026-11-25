@@ -11,6 +11,9 @@ import AdminTournaments from './components/AdminTournaments';
 import Social from './components/Social';
 import QuickMatch from './components/QuickMatch';
 import LearningHub from './components/LearningHub';
+import LeaderboardModal from './components/LeaderboardModal';
+import MatchHistoryModal from './components/MatchHistoryModal';
+import PgnReplayModal from './components/PgnReplayModal';
 
 const GUEST = { id: 'guest', email: 'guest@local', isGuest: true };
 
@@ -20,6 +23,10 @@ function App() {
   const [authMode, setAuthMode] = useState(null); // 'login' | 'signup' | null
   const [timeControl, setTimeControl] = useState({ label: 'Rapid (10+0)', base: 600, inc: 0 });
   const [match, setMatch] = useState(null);
+  const [leaderboardOpen, setLeaderboardOpen] = useState(false);
+  const [historyOpen, setHistoryOpen] = useState(false);
+  const [replayMatch, setReplayMatch] = useState(null);
+
   const confirmationPending = useRef(new URLSearchParams(window.location.search).get('email-confirmed') === '1');
   const confirmationDone = useRef(false);
 
@@ -127,6 +134,8 @@ function App() {
           onLogout={handleLogout}
           onEditProfile={() => setPage('profile')}
           onNavigate={setPage}
+          onOpenLeaderboard={() => setLeaderboardOpen(true)}
+          onOpenHistory={() => setHistoryOpen(true)}
         />
       )}
 
@@ -139,6 +148,8 @@ function App() {
           onLogout={handleLogout}
           onBack={() => setPage('lobby')}
           onMatched={(nextMatch) => { setMatch(nextMatch); setTimeControl(nextMatch.timeControl || timeControl); setPage('game'); }}
+          onOpenLeaderboard={() => setLeaderboardOpen(true)}
+          onOpenHistory={() => setHistoryOpen(true)}
         />
       )}
 
@@ -148,6 +159,8 @@ function App() {
           onNavigate={setPage}
           onEditProfile={() => setPage('profile')}
           onLogout={handleLogout}
+          onOpenLeaderboard={() => setLeaderboardOpen(true)}
+          onOpenHistory={() => setHistoryOpen(true)}
         />
       )}
 
@@ -157,26 +170,87 @@ function App() {
           onNavigate={setPage}
           onEditProfile={() => setPage('profile')}
           onLogout={handleLogout}
+          onOpenLeaderboard={() => setLeaderboardOpen(true)}
+          onOpenHistory={() => setHistoryOpen(true)}
         />
       )}
 
-      {page === 'profile' && user && <EditProfile user={user} onBack={() => setPage('lobby')} onNavigate={setPage} onEditProfile={() => setPage('profile')} onLogout={handleLogout} />}
+      {page === 'profile' && user && (
+        <EditProfile
+          user={user}
+          onBack={() => setPage('lobby')}
+          onNavigate={setPage}
+          onEditProfile={() => setPage('profile')}
+          onLogout={handleLogout}
+          onOpenLeaderboard={() => setLeaderboardOpen(true)}
+          onOpenHistory={() => setHistoryOpen(true)}
+        />
+      )}
 
       {page === 'social' && user && (
-        <Social user={user} onNavigate={setPage} onEditProfile={() => setPage('profile')} onLogout={handleLogout} />
+        <Social
+          user={user}
+          onNavigate={setPage}
+          onEditProfile={() => setPage('profile')}
+          onLogout={handleLogout}
+          onOpenLeaderboard={() => setLeaderboardOpen(true)}
+          onOpenHistory={() => setHistoryOpen(true)}
+        />
       )}
 
       {page === 'learning' && user && (
-        <LearningHub user={user} onNavigate={setPage} onEditProfile={() => setPage('profile')} onLogout={handleLogout} />
+        <LearningHub
+          user={user}
+          onNavigate={setPage}
+          onEditProfile={() => setPage('profile')}
+          onLogout={handleLogout}
+          onOpenLeaderboard={() => setLeaderboardOpen(true)}
+          onOpenHistory={() => setHistoryOpen(true)}
+        />
       )}
 
       {page === 'game' && user && (
-        <GameRoom user={user} timeControl={timeControl} match={match} onBack={() => { setMatch(null); setPage('lobby'); }} onSocial={() => setPage('social')} onNavigate={setPage} onEditProfile={() => setPage('profile')} onLogout={handleLogout} />
+        <GameRoom
+          user={user}
+          timeControl={timeControl}
+          match={match}
+          onBack={() => { setMatch(null); setPage('lobby'); }}
+          onSocial={() => setPage('social')}
+          onNavigate={setPage}
+          onEditProfile={() => setPage('profile')}
+          onLogout={handleLogout}
+          onOpenLeaderboard={() => setLeaderboardOpen(true)}
+          onOpenHistory={() => setHistoryOpen(true)}
+        />
       )}
 
       {authMode && (
         <AuthModal initialMode={authMode} onClose={() => setAuthMode(null)} />
       )}
+
+      {/* Global Modals */}
+      <LeaderboardModal
+        isOpen={leaderboardOpen}
+        onClose={() => setLeaderboardOpen(false)}
+        user={user}
+        onChallengePlayer={(player) => {
+          setLeaderboardOpen(false);
+          setPage('quick-match');
+        }}
+      />
+
+      <MatchHistoryModal
+        isOpen={historyOpen}
+        onClose={() => setHistoryOpen(false)}
+        user={user}
+        onReplayMatch={(m) => setReplayMatch(m)}
+      />
+
+      <PgnReplayModal
+        isOpen={Boolean(replayMatch)}
+        onClose={() => setReplayMatch(null)}
+        match={replayMatch}
+      />
     </div>
   );
 }

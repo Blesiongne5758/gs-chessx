@@ -15,14 +15,22 @@ const TIME_CONTROLS = [
 
 const FEATURE_TILES = [
   { key: 'quick', icon: 'ϟ', title: 'Quick Match', desc: 'Find an opponent instantly', tone: 'gold' },
+  { key: 'leaderboard', icon: '🏆', title: 'Leaderboard', desc: 'Competitive Glicko-2 ranks', tone: 'gold' },
+  { key: 'history', icon: '📜', title: 'Match History', desc: 'Past games & PGN replay', tone: 'slate' },
   { key: 'learning', icon: '♞', title: 'Chess Academy', desc: 'Learn & improve', tone: 'blue' },
   { key: 'tournaments', icon: '♜', title: 'Tournaments', desc: 'Join the competition', tone: 'violet' },
-  { key: 'shop', icon: '◆', title: 'Shop', desc: 'Get exclusive items', tone: 'green' },
   { key: 'social', icon: '♟', title: 'Friends & Chat', desc: 'Connect with friends', tone: 'cyan' },
-  { key: 'profile', icon: '⚙', title: 'Settings', desc: 'Manage your account', tone: 'slate' },
 ];
 
-export default function Lobby({ user, onPlay, onLogout, onEditProfile, onNavigate }) {
+export default function Lobby({
+  user,
+  onPlay,
+  onLogout,
+  onEditProfile,
+  onNavigate,
+  onOpenLeaderboard,
+  onOpenHistory,
+}) {
   const [profile, setProfile] = useState(null);
   const [friends, setFriends] = useState([]);
   const [leaders, setLeaders] = useState([]);
@@ -109,6 +117,8 @@ export default function Lobby({ user, onPlay, onLogout, onEditProfile, onNavigat
 
   function activateFeature(key) {
     if (key === 'quick') startQuickMatch();
+    else if (key === 'leaderboard') onOpenLeaderboard?.();
+    else if (key === 'history') onOpenHistory?.();
     else if (key === 'profile') onEditProfile();
     else if (key === 'shop') toast('Shop coming soon — exclusive items in development.');
     else onNavigate(key);
@@ -123,6 +133,9 @@ export default function Lobby({ user, onPlay, onLogout, onEditProfile, onNavigat
         onEditProfile={onEditProfile}
         onLogout={onLogout}
         isAdmin={user.isGuest || !!profile?.is_admin}
+        user={user}
+        onOpenLeaderboard={onOpenLeaderboard}
+        onOpenHistory={onOpenHistory}
       />
 
       <main className="mx-auto max-w-7xl px-4 pb-24 sm:pb-20 sm:px-6 lg:px-8 flex-1 w-full">
@@ -198,13 +211,22 @@ export default function Lobby({ user, onPlay, onLogout, onEditProfile, onNavigat
                 {lastLeaderSync ? `Live · updated ${lastLeaderSync.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}` : 'Syncing players…'}
               </p>
             </div>
-            <button
-              type="button"
-              onClick={() => onNavigate('social')}
-              className="text-xs sm:text-sm font-semibold text-gold hover:text-champagne transition"
-            >
-              Friends ({friends.length}) →
-            </button>
+            <div className="flex items-center gap-2">
+              <button
+                type="button"
+                onClick={onOpenLeaderboard}
+                className="rounded-lg border border-gold/40 bg-gold/10 px-3 py-1.5 text-xs font-bold text-gold hover:bg-gold hover:text-obsidian transition shadow-sm"
+              >
+                🏆 Live Leaderboard
+              </button>
+              <button
+                type="button"
+                onClick={() => onNavigate('social')}
+                className="text-xs sm:text-sm font-semibold text-gray-400 hover:text-white transition"
+              >
+                Friends ({friends.length}) →
+              </button>
+            </div>
           </div>
 
           {leaderError ? (

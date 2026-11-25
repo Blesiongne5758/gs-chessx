@@ -132,6 +132,7 @@ export default function ChessBoard3D({ board, selectedSquare, validTargets = [],
   const [yaw, setYaw] = useState(playerSide === 'b' ? 180 : 0);
   const [pitch, setPitch] = useState(24);
   const [isFullscreen, setIsFullscreen] = useState(false);
+  const [gardenBackdrop, setGardenBackdrop] = useState(true);
 
   useEffect(() => {
     setYaw(playerSide === 'b' ? 180 : 0);
@@ -153,11 +154,11 @@ export default function ChessBoard3D({ board, selectedSquare, validTargets = [],
     const reducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
     const frameInterval = isMobile ? 1000 / 30 : 0;
     const scene = new THREE.Scene();
-    scene.background = new THREE.Color(0x171411);
+    scene.background = (isFullscreen && gardenBackdrop) ? null : new THREE.Color(0x171411);
     const camera = new THREE.PerspectiveCamera(36, 1, 0.1, 100);
     camera.position.set(0, 15, 0.01);
     camera.lookAt(0, 0, 0);
-    const renderer = new THREE.WebGLRenderer({ antialias: !isMobile, alpha: false, powerPreference: 'high-performance' });
+    const renderer = new THREE.WebGLRenderer({ antialias: !isMobile, alpha: true, powerPreference: 'high-performance' });
     renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, isMobile ? 1.25 : 1.75));
     renderer.shadowMap.enabled = !isMobile;
     renderer.shadowMap.type = THREE.PCFSoftShadowMap;
@@ -395,6 +396,16 @@ export default function ChessBoard3D({ board, selectedSquare, validTargets = [],
     return () => document.removeEventListener('fullscreenchange', syncFullscreen);
   }, []);
 
+  useEffect(() => {
+    if (!sceneRef.current) return;
+    if (isFullscreen && gardenBackdrop) {
+      sceneRef.current.background = null;
+    } else {
+      sceneRef.current.background = new THREE.Color(0x171411);
+    }
+    rendererRef.current?.render(sceneRef.current, cameraRef.current);
+  }, [isFullscreen, gardenBackdrop]);
+
   async function toggleFullscreen() {
     try {
       if (document.fullscreenElement === boardRef.current) await document.exitFullscreen();
@@ -480,12 +491,47 @@ export default function ChessBoard3D({ board, selectedSquare, validTargets = [],
 
   return (
     <>
-      <div ref={boardRef} className={`relative isolate aspect-square w-full overflow-hidden rounded-xl border-4 border-[#6b4423] bg-[#171411] shadow-2xl ${isFullscreen ? 'h-screen max-h-screen rounded-none border-0' : ''}`} aria-label="Three-dimensional chessboard">
+      <div
+        ref={boardRef}
+        className={`relative isolate aspect-square w-full overflow-hidden rounded-xl border-4 border-[#6b4423] shadow-2xl transition-all duration-300 ${
+          isFullscreen ? 'h-screen max-h-screen rounded-none border-0' : 'bg-[#171411]'
+        }`}
+        style={
+          isFullscreen && gardenBackdrop
+            ? {
+                backgroundImage: 'linear-gradient(to bottom, rgba(0,0,0,0.15), rgba(0,0,0,0.45)), url(/garden-background.jpg)',
+                backgroundSize: 'cover',
+                backgroundPosition: 'center',
+                backgroundRepeat: 'no-repeat',
+              }
+            : undefined
+        }
+        aria-label="Three-dimensional chessboard"
+      >
         <div ref={hostRef} className="absolute inset-0" />
         <div className="pointer-events-none absolute inset-x-2 top-2 z-20 flex justify-between gap-2 text-[10px] sm:text-xs">
           <div className="max-w-[48%] rounded-lg border border-white/15 bg-black/65 px-2 py-1 text-white backdrop-blur"><span className="font-semibold text-gold">♚ {blackName}</span><div className="truncate text-gray-300">Captured: {capturedByBlack.join('') || '—'}</div></div>
           <div className="max-w-[48%] rounded-lg border border-white/15 bg-black/65 px-2 py-1 text-right text-white backdrop-blur"><span className="font-semibold text-gold">♔ {whiteName}</span><div className="truncate text-gray-300">Captured: {capturedByWhite.join('') || '—'}</div></div>
         </div>
+        {isFullscreen && (
+          <div className="absolute top-2 left-1/2 -translate-x-1/2 z-20 flex items-center gap-2 rounded-full border border-gold/40 bg-black/75 px-3 py-1 text-xs backdrop-blur">
+            <span className="text-gold font-bold">🌿 Royal Garden View</span>
+            <button
+              type="button"
+              onClick={() => setGardenBackdrop((prev) => !prev)}
+              className="text-[11px] underline text-gray-300 hover:text-white"
+            >
+              {gardenBackdrop ? 'Hide Garden' : 'Show Garden'}
+            </button>
+            <button
+              type="button"
+              onClick={toggleFullscreen}
+              className="text-[11px] bg-white/15 px-2 py-0.5 rounded text-gray-200 hover:bg-white/25"
+            >
+              Exit Fullscreen
+            </button>
+          </div>
+        )}
         <div className="pointer-events-none absolute bottom-2 left-2 z-20 rounded-md border border-white/10 bg-black/55 px-2 py-1 text-[10px] text-gray-300 backdrop-blur">Drag to rotate · Pinch to zoom</div>
         <div className="sr-only" role="grid" aria-label="Chess board keyboard access">
           {Array.from({ length: 64 }, (_, index) => {
@@ -523,6 +569,7 @@ export default function ChessBoard3D({ board, selectedSquare, validTargets = [],
           <input type="range" min="0.4" max="1.2" step="0.01" value={zoom} onChange={(event) => setZoom(Number(event.target.value))} className="min-w-[10rem] flex-1 accent-gold" aria-label="Board zoom from 40 to 120 percent" />
           <button type="button" onClick={() => adjustZoom(0.1)} className="rounded-lg border border-white/10 bg-obsidian px-3 py-2 text-sm text-gray-200 hover:border-gold/60 hover:text-gold" aria-label="Zoom in">+</button>
           <button type="button" onClick={resetCamera} className="rounded-lg border border-gold/30 px-3 py-2 text-xs font-semibold text-gold hover:bg-gold/10">Reset</button>
+          <button type="button" onClick={() => setGardenBackdrop((prev) => !prev)} className={`rounded-lg border px-3 py-2 text-xs font-semibold transition ${gardenBackdrop ? 'border-emerald-500/50 bg-emerald-500/10 text-emerald-300' : 'border-white/10 bg-obsidian text-gray-400'}`} title="Toggle Royal Garden backdrop in fullscreen 3D">🌿 Garden</button>
           <button type="button" onClick={toggleFullscreen} className="rounded-lg border border-white/10 bg-obsidian px-3 py-2 text-sm text-gray-200 hover:border-gold/60 hover:text-gold" aria-label={isFullscreen ? 'Exit fullscreen' : 'Fullscreen'}>{isFullscreen ? '×' : '⛶'}</button>
         </div>
         <div className="mt-2 flex justify-between text-[10px] text-gray-500"><span>40%</span><span>Board zoom</span><span>120%</span></div>

@@ -8,6 +8,9 @@ import ChessPiece2D from './ChessPiece2D';
 import HistoricalSplash from './HistoricalSplash';
 import TopNav, { FooterNav } from './TopNav';
 import { CHESS_SKIN_LIST, resolveChessSkin } from '../lib/chessSkins';
+import { calculateGlicko2 } from '../lib/glicko2';
+import { recordMatchHistory, downloadPgn } from '../lib/matchHistory';
+import { addNotification } from '../lib/notifications';
 
 const PIECES = {
   w: { k: '♔', q: '♕', r: '♖', b: '♗', n: '♘', p: '♙' },
@@ -50,7 +53,18 @@ function chooseComputerMove(position, level = 10) {
   return { from: best.from, to: best.to, promotion: best.promotion || 'q' };
 }
 
-export default function GameRoom({ user, timeControl, match, onBack, onSocial, onNavigate, onEditProfile, onLogout }) {
+export default function GameRoom({
+  user,
+  timeControl,
+  match,
+  onBack,
+  onSocial,
+  onNavigate,
+  onEditProfile,
+  onLogout,
+  onOpenLeaderboard,
+  onOpenHistory,
+}) {
   const base = timeControl?.base ?? 600;
   const inc = timeControl?.inc ?? 0;
 
@@ -58,7 +72,8 @@ export default function GameRoom({ user, timeControl, match, onBack, onSocial, o
   const [selectedSquare, setSelectedSquare] = useState(null);
   const [whiteTime, setWhiteTime] = useState(base);
   const [blackTime, setBlackTime] = useState(base);
-  const [result, setResult] = useState(null); // string when the game is finished
+  const [result, setResult] = useState(null);
+  const [ratingChange, setRatingChange] = useState(null);
   const [incomingDraw, setIncomingDraw] = useState(false);
   const [drawPending, setDrawPending] = useState(false);
   const [gameChannelReady, setGameChannelReady] = useState(false);
@@ -67,10 +82,14 @@ export default function GameRoom({ user, timeControl, match, onBack, onSocial, o
   const [skinId, setSkinId] = useState('holy');
   const [customization, setCustomization] = useState(DEFAULT_CUSTOMIZATION);
   const [showHistoricalSplash, setShowHistoricalSplash] = useState(true);
+  const [replayStep, setReplayStep] = useState(null); // null when live, number when in replay mode
+  const [autoReplaying, setAutoReplaying] = useState(false);
+
   const gameChannelRef = useRef(null);
   const [playerSide, setPlayerSide] = useState(() => (match?.color === 'black' ? 'b' : 'w'));
   const isMultiplayer = Boolean(match?.roomId);
   const isAiMatch = match?.mode === 'ai';
+  const isSpectator = Boolean(match?.isSpectator);
 
   useEffect(() => {
     if (match?.color) {
@@ -82,9 +101,6 @@ export default function GameRoom({ user, timeControl, match, onBack, onSocial, o
     if (side === playerSide) return;
     setPlayerSide(side);
     setSelectedSquare(null);
-    if (isAiMatch && history.length === 0) {
-      setGame(new Chess());
-    }
     toast.success(
       side === 'b'
         ? 'Atheist (Black) pieces active — your pieces are now at the bottom.'
@@ -93,17 +109,100 @@ export default function GameRoom({ user, timeControl, match, onBack, onSocial, o
   }
 
   const turn = game.turn();
-  const history = game.history({ verbose: true });
-  const lastMove = history[history.length - 1];
+  const fullHistory = useMemo(() => game.history({ verbose: true }), [game]);
+  const lastMove = fullHistory[fullHistory.length - 1];
+
+  // Board state builder for step replay
+  const replayPositions = useMemo(() => {
+    const walker = new Chess();
+    const states = [walker.board()];
+    for (const m of fullHistory) {
+      walker.move(m);
+      states.push(walker.board());
+    }
+    return states;
+  }, [fullHistory]);
+
+  // Current display board
+  const displayBoard = useMemo(() => {
+    if (replayStep !== null && replayPositions[replayStep]) {
+      return replayPositions[replayStep];
+    }
+    return game.board();
+  }, [game, replayStep, replayPositions]);
+
+  // Handle Game Finish & Glicko-2 calculation
   const finishGame = useCallback((message) => {
     setResult(message);
-    if (isMultiplayer) gameChannelRef.current?.send({ type: 'broadcast', event: 'result', payload: { result: message } });
-  }, [isMultiplayer]);
+
+    if (isMultiplayer && !isSpectator) {
+      gameChannelRef.current?.send({ type: 'broadcast', event: 'result', payload: { result: message } });
+
+      // Save match & compute Glicko-2 rating
+      let outcome = 'draw';
+      let score = 0.5;
+      const isPlayerWhite = playerSide === 'w';
+      if (message.includes('White wins')) {
+        outcome = isPlayerWhite ? 'win' : 'loss';
+        score = isPlayerWhite ? 1.0 : 0.0;
+      } else if (message.includes('Black wins')) {
+        outcome = isPlayerWhite ? 'loss' : 'win';
+        score = isPlayerWhite ? 0.0 : 1.0;
+      }
+
+      const playerStats = { rating: user?.user_metadata?.rating || 1200 };
+      const oppStats = { rating: match?.opponent?.rating || 1200 };
+      const glicko = calculateGlicko2(playerStats, oppStats, score);
+      setRatingChange(glicko.delta);
+
+      recordMatchHistory({
+        id: match.roomId,
+        user,
+        opponent: match.opponent,
+        playerColor: playerSide,
+        result: message,
+        outcome,
+        pgn: game.pgn(),
+        fen: game.fen(),
+        timeControl,
+        movesCount: fullHistory.length,
+        ratingBefore: playerStats.rating,
+        ratingAfter: glicko.newRating,
+        ratingDelta: glicko.delta,
+        isAi: false,
+      });
+
+      addNotification(user?.id, {
+        title: outcome === 'win' ? '🏆 Victory!' : outcome === 'loss' ? '🏳️ Defeat' : '🤝 Draw',
+        message: `${message} (${glicko.delta >= 0 ? '+' + glicko.delta : glicko.delta} Glicko-2 ELO)`,
+        type: 'game_result',
+      });
+    } else if (isAiMatch) {
+      let outcome = 'draw';
+      if (message.includes('White wins')) outcome = playerSide === 'w' ? 'win' : 'loss';
+      else if (message.includes('Black wins')) outcome = playerSide === 'b' ? 'win' : 'loss';
+
+      recordMatchHistory({
+        user,
+        opponent: { username: `Computer Level ${match?.aiLevel || 10}` },
+        playerColor: playerSide,
+        result: message,
+        outcome,
+        pgn: game.pgn(),
+        fen: game.fen(),
+        timeControl,
+        movesCount: fullHistory.length,
+        ratingDelta: outcome === 'win' ? 10 : outcome === 'loss' ? -8 : 0,
+        isAi: true,
+      });
+    }
+  }, [isMultiplayer, isSpectator, playerSide, match, user, timeControl, game, fullHistory.length, isAiMatch]);
 
   useEffect(() => {
     if (!isMultiplayer) return undefined;
     const channel = supabase.channel(`chess-game:${match.roomId}`, { config: { private: true, broadcast: { self: false } } });
     gameChannelRef.current = channel;
+
     channel.on('broadcast', { event: 'move' }, ({ payload }) => {
       if (payload.playerId === user.id) return;
       try {
@@ -112,27 +211,69 @@ export default function GameRoom({ user, timeControl, match, onBack, onSocial, o
         setGame(next);
         setWhiteTime(payload.whiteTime);
         setBlackTime(payload.blackTime);
+        setReplayStep(null); // return to live on new move
         if (payload.result) setResult(payload.result);
-      } catch { toast.error('Could not process opponent move.'); }
+      } catch {
+        toast.error('Could not process opponent move.');
+      }
     });
+
     channel.on('broadcast', { event: 'result' }, ({ payload }) => setResult(payload.result));
-    channel.on('broadcast', { event: 'draw-offer' }, ({ payload }) => {
-      if (payload.playerId !== user.id) setIncomingDraw(true);
+
+    channel.on('broadcast', { event: 'request-state' }, () => {
+      if (!isSpectator) {
+        channel.send({
+          type: 'broadcast',
+          event: 'sync-state',
+          payload: { pgn: game.pgn(), whiteTime, blackTime, result },
+        });
+      }
     });
+
+    channel.on('broadcast', { event: 'sync-state' }, ({ payload }) => {
+      if (isSpectator && payload?.pgn) {
+        try {
+          const synced = new Chess();
+          synced.loadPgn(payload.pgn);
+          setGame(synced);
+          if (payload.whiteTime) setWhiteTime(payload.whiteTime);
+          if (payload.blackTime) setBlackTime(payload.blackTime);
+          if (payload.result) setResult(payload.result);
+        } catch {
+          // ignore sync failure
+        }
+      }
+    });
+
+    channel.on('broadcast', { event: 'draw-offer' }, ({ payload }) => {
+      if (payload.playerId !== user.id && !isSpectator) setIncomingDraw(true);
+    });
+
     channel.on('broadcast', { event: 'draw-response' }, ({ payload }) => {
       if (payload.to !== user.id) return;
       setDrawPending(false);
-      if (payload.accepted) setResult('Draw — agreed');
+      if (payload.accepted) finishGame('Draw — agreed');
       else toast('Draw offer declined.');
     });
-    channel.subscribe((status) => {
-      if (status === 'SUBSCRIBED') setGameChannelReady(true);
-      else if (['CLOSED', 'CHANNEL_ERROR', 'TIMED_OUT'].includes(status)) setGameChannelReady(false);
-    });
-    return () => { gameChannelRef.current = null; supabase.removeChannel(channel); };
-  }, [isMultiplayer, match?.roomId, user.id]);
 
-  // VS AI is entirely local: it never joins Presence or a Realtime channel.
+    channel.subscribe((status) => {
+      if (status === 'SUBSCRIBED') {
+        setGameChannelReady(true);
+        if (isSpectator) {
+          channel.send({ type: 'broadcast', event: 'request-state', payload: {} });
+        }
+      } else if (['CLOSED', 'CHANNEL_ERROR', 'TIMED_OUT'].includes(status)) {
+        setGameChannelReady(false);
+      }
+    });
+
+    return () => {
+      gameChannelRef.current = null;
+      supabase.removeChannel(channel);
+    };
+  }, [isMultiplayer, match?.roomId, user.id, isSpectator, game, whiteTime, blackTime, result, finishGame]);
+
+  // VS AI logic
   useEffect(() => {
     const aiColor = playerSide === 'w' ? 'b' : 'w';
     if (!isAiMatch || result || turn !== aiColor) return undefined;
@@ -148,23 +289,39 @@ export default function GameRoom({ user, timeControl, match, onBack, onSocial, o
         }
         next.move(move);
         const over = checkGameOverPosition(next);
-        if (over) setResult(over);
+        if (over) finishGame(over);
         setAiThinking(false);
         return next;
       });
     }, 550);
     return () => window.clearTimeout(timer);
-  }, [isAiMatch, match?.aiLevel, result, turn, playerSide]);
+  }, [isAiMatch, match?.aiLevel, result, turn, playerSide, finishGame]);
 
-  // Clock: only the side to move ticks, and only while the game is running and at least one move was made.
+  // Clock
   useEffect(() => {
-    if (result || history.length === 0) return undefined;
+    if (result || fullHistory.length === 0) return undefined;
     const timer = setInterval(() => {
       if (turn === 'w') setWhiteTime((t) => Math.max(0, t - 1));
       else setBlackTime((t) => Math.max(0, t - 1));
     }, 1000);
     return () => clearInterval(timer);
-  }, [turn, result, history.length]);
+  }, [turn, result, fullHistory.length]);
+
+  // Auto Replay timer
+  useEffect(() => {
+    if (!autoReplaying) return undefined;
+    const interval = setInterval(() => {
+      setReplayStep((step) => {
+        const current = step ?? fullHistory.length;
+        if (current >= fullHistory.length) {
+          setAutoReplaying(false);
+          return null;
+        }
+        return current + 1;
+      });
+    }, 1200);
+    return () => clearInterval(interval);
+  }, [autoReplaying, fullHistory.length]);
 
   // Flag fall
   useEffect(() => {
@@ -178,40 +335,34 @@ export default function GameRoom({ user, timeControl, match, onBack, onSocial, o
   }, [result]);
 
   const validTargets = useMemo(() => {
-    if (!selectedSquare) return [];
+    if (!selectedSquare || replayStep !== null || isSpectator) return [];
     return game.moves({ square: selectedSquare, verbose: true }).map((m) => m.to);
-  }, [game, selectedSquare]);
+  }, [game, selectedSquare, replayStep, isSpectator]);
 
   const captured = useMemo(() => {
     const byWhite = [];
     const byBlack = [];
-    for (const m of history) {
+    for (const m of fullHistory) {
       if (m.captured) (m.color === 'w' ? byWhite : byBlack).push(PIECES[m.color === 'w' ? 'b' : 'w'][m.captured]);
     }
     return { byWhite, byBlack };
-  }, [history]);
-
-  function checkGameOver(g) {
-    if (g.isCheckmate()) return `Checkmate — ${g.turn() === 'w' ? 'Black' : 'White'} wins`;
-    if (g.isStalemate()) return 'Draw — stalemate';
-    if (g.isThreefoldRepetition()) return 'Draw — threefold repetition';
-    if (g.isInsufficientMaterial()) return 'Draw — insufficient material';
-    if (g.isDraw()) return 'Draw — 50-move rule';
-    return null;
-  }
+  }, [fullHistory]);
 
   function handleSquareClick(square) {
+    if (isSpectator) return;
+    if (replayStep !== null) {
+      setReplayStep(null); // return to live position
+    }
     if (isMultiplayer && !gameChannelReady) return;
     if (result) return;
     if (isMultiplayer && turn !== playerSide) return;
     if (isAiMatch && turn !== playerSide) return;
+
     const piece = game.get(square);
 
     if (selectedSquare && validTargets.includes(square)) {
-      // Rebuild from PGN so move history (and threefold-repetition detection) is preserved
       const next = new Chess();
       next.loadPgn(game.pgn());
-      // chess.js v1 throws on illegal moves, so validate via validTargets first and guard anyway.
       try {
         next.move({ from: selectedSquare, to: square, promotion: 'q' });
       } catch {
@@ -224,9 +375,21 @@ export default function GameRoom({ user, timeControl, match, onBack, onSocial, o
       }
       setGame(next);
       setSelectedSquare(null);
-      const over = checkGameOver(next);
-      if (isMultiplayer) gameChannelRef.current?.send({ type: 'broadcast', event: 'move', payload: { playerId: user.id, pgn: next.pgn(), whiteTime: turn === 'w' ? whiteTime + inc : whiteTime, blackTime: turn === 'b' ? blackTime + inc : blackTime, result: over } });
-      if (over) setResult(over);
+      const over = checkGameOverPosition(next);
+      if (isMultiplayer) {
+        gameChannelRef.current?.send({
+          type: 'broadcast',
+          event: 'move',
+          payload: {
+            playerId: user.id,
+            pgn: next.pgn(),
+            whiteTime: turn === 'w' ? whiteTime + inc : whiteTime,
+            blackTime: turn === 'b' ? blackTime + inc : blackTime,
+            result: over,
+          },
+        });
+      }
+      if (over) finishGame(over);
       else if (next.inCheck()) toast('Check!', { icon: '⚠️' });
       return;
     }
@@ -239,23 +402,35 @@ export default function GameRoom({ user, timeControl, match, onBack, onSocial, o
   }
 
   function resetGame() {
-    if (isMultiplayer) { onBack(); return; }
+    if (isMultiplayer || isSpectator) {
+      onBack();
+      return;
+    }
     setGame(new Chess());
     setSelectedSquare(null);
     setWhiteTime(base);
     setBlackTime(base);
     setResult(null);
+    setRatingChange(null);
+    setReplayStep(null);
   }
 
   function resign() {
-    if (result) return;
+    if (result || isSpectator) return;
     const resigningColor = (isMultiplayer || isAiMatch) ? playerSide : turn;
     finishGame(`${resigningColor === 'w' ? 'Religion (White)' : 'Atheist (Black)'} resigned — ${resigningColor === 'w' ? 'Atheist (Black)' : 'Religion (White)'} wins`);
   }
 
   function offerDraw(accept = false) {
-    if (isMultiplayer && !gameChannelReady) { toast.error('Connecting to opponent. Please try again shortly.'); return; }
-    if (!isMultiplayer) { setResult('Draw — agreed'); return; }
+    if (isSpectator) return;
+    if (isMultiplayer && !gameChannelReady) {
+      toast.error('Connecting to opponent. Please try again shortly.');
+      return;
+    }
+    if (!isMultiplayer) {
+      finishGame('Draw — agreed');
+      return;
+    }
     if (incomingDraw) {
       setIncomingDraw(false);
       if (accept) finishGame('Draw — agreed');
@@ -267,17 +442,28 @@ export default function GameRoom({ user, timeControl, match, onBack, onSocial, o
     gameChannelRef.current?.send({ type: 'broadcast', event: 'draw-offer', payload: { playerId: user.id } });
   }
 
+  // PGN Replay Navigators
+  function goToReplayStep(step) {
+    const clamped = Math.max(0, Math.min(fullHistory.length, step));
+    setReplayStep(clamped);
+  }
+
+  function handleCopyPgn() {
+    navigator.clipboard.writeText(game.pgn());
+    toast.success('PGN copied to clipboard!');
+  }
+
   function renderBoard() {
-    const board = game.board();
     const skinSet = resolveChessSkin(skinId, customization);
     const kingInCheck = game.inCheck()
-      ? board.flat().find((p) => p && p.type === 'k' && p.color === turn)?.square
+      ? displayBoard.flat().find((p) => p && p.type === 'k' && p.color === turn)?.square
       : null;
+
     if (skinMode === '3d') {
       return (
         <Suspense fallback={<div className="grid h-full place-items-center rounded-xl border border-gold/30 bg-graphite text-sm text-gold">Loading 3D board…</div>}>
           <ChessBoard3D
-            board={board}
+            board={displayBoard}
             selectedSquare={selectedSquare}
             validTargets={validTargets}
             lastMove={lastMove}
@@ -294,6 +480,7 @@ export default function GameRoom({ user, timeControl, match, onBack, onSocial, o
         </Suspense>
       );
     }
+
     const squares = [];
     const isFlipped = playerSide === 'b';
 
@@ -302,7 +489,7 @@ export default function GameRoom({ user, timeControl, match, onBack, onSocial, o
         const row = isFlipped ? 7 - r : r;
         const col = isFlipped ? 7 - c : c;
         const square = String.fromCharCode(97 + col) + (8 - row);
-        const piece = board[row][col];
+        const piece = displayBoard[row][col];
         const isLight = (row + col) % 2 === 0;
         const isSelected = selectedSquare === square;
         const isValidMove = validTargets.includes(square);
@@ -317,9 +504,9 @@ export default function GameRoom({ user, timeControl, match, onBack, onSocial, o
           <div
             key={square}
             onClick={() => handleSquareClick(square)}
-            className={`relative flex items-center justify-center cursor-pointer select-none ${bg || 'bg-transparent'} ${
+            className={`relative flex items-center justify-center select-none ${bg || 'bg-transparent'} ${
               isSelected ? 'ring-4 ring-gold ring-inset' : ''
-            } hover:brightness-110 transition`}
+            } ${isSpectator ? '' : 'cursor-pointer hover:brightness-110'} transition`}
             style={bg ? undefined : { backgroundColor: tileColor }}
           >
             {piece && <ChessPiece2D type={piece.type} color={piece.color} skin={skinId} customization={customization} />}
@@ -334,20 +521,29 @@ export default function GameRoom({ user, timeControl, match, onBack, onSocial, o
             {r === 7 && (
               <span className="absolute bottom-0.5 right-1 text-[10px] font-bold text-black/50">{String.fromCharCode(97 + col)}</span>
             )}
-          </div>,
+          </div>
         );
       }
     }
     return squares;
   }
 
-  const sans = history.map((m) => m.san);
-  const youName = user?.isGuest ? 'You (Guest)' : user?.user_metadata?.username || user?.email?.split('@')[0] || 'You';
-  const opponentName = isAiMatch ? 'Computer' : match?.opponent?.username || 'Opponent';
+  const sans = fullHistory.map((m) => m.san);
+  const youName = isSpectator
+    ? (match?.whitePlayer || 'White')
+    : user?.isGuest
+    ? 'You (Guest)'
+    : user?.user_metadata?.username || user?.email?.split('@')[0] || 'You';
+
+  const opponentName = isSpectator
+    ? (match?.blackPlayer || 'Black')
+    : isAiMatch
+    ? 'Computer'
+    : match?.opponent?.username || 'Opponent';
 
   const isPlayerBlack = playerSide === 'b';
-  const youLabel = isPlayerBlack ? `${youName} (Atheist / Black)` : `${youName} (Religion / White)`;
-  const oppLabel = isPlayerBlack ? `${opponentName} (Religion / White)` : `${opponentName} (Atheist / Black)`;
+  const youLabel = isSpectator ? youName : isPlayerBlack ? `${youName} (Atheist / Black)` : `${youName} (Religion / White)`;
+  const oppLabel = isSpectator ? opponentName : isPlayerBlack ? `${opponentName} (Religion / White)` : `${opponentName} (Atheist / Black)`;
   const youTime = isPlayerBlack ? blackTime : whiteTime;
   const oppTime = isPlayerBlack ? whiteTime : blackTime;
   const youTurn = isPlayerBlack ? turn === 'b' : turn === 'w';
@@ -360,29 +556,56 @@ export default function GameRoom({ user, timeControl, match, onBack, onSocial, o
 
   return (
     <div className="min-h-screen bg-obsidian flex flex-col">
-      <TopNav active="game" onNavigate={onNavigate} profile={{ username: youName }} onEditProfile={onEditProfile} onLogout={onLogout} isAdmin={user?.isGuest} />
-      <div className="mx-auto flex w-full max-w-6xl items-center justify-between px-4 pt-4 text-sm"><button onClick={onBack} className="text-gray-300 hover:text-white">← Back to Lobby</button><span className="text-gray-500">{timeControl?.label}</span></div>
+      <TopNav
+        active="game"
+        onNavigate={onNavigate}
+        profile={{ username: youName }}
+        onEditProfile={onEditProfile}
+        onLogout={onLogout}
+        isAdmin={user?.isGuest}
+        user={user}
+        onOpenLeaderboard={onOpenLeaderboard}
+        onOpenHistory={onOpenHistory}
+      />
 
-      {/* Game Area */}
-      <div className="flex-1 flex items-center justify-center p-6">
+      {/* Top Status & Controls */}
+      <div className="mx-auto flex w-full max-w-6xl items-center justify-between px-4 pt-4 text-sm">
+        <button onClick={onBack} className="text-gray-300 hover:text-white transition flex items-center gap-1 font-semibold">
+          ← {isSpectator ? 'Leave Spectator' : 'Back to Lobby'}
+        </button>
+
+        <div className="flex items-center gap-3">
+          {isSpectator && (
+            <span className="flex items-center gap-1.5 rounded-full border border-rose-500/40 bg-rose-500/10 px-3 py-1 text-xs font-bold text-rose-300 animate-pulse">
+              <span>👁️</span> Spectator Mode (Live)
+            </span>
+          )}
+          <span className="rounded-lg bg-white/5 border border-white/10 px-3 py-1 text-xs text-gray-300">
+            {timeControl?.label || 'Rapid (10+0)'}
+          </span>
+        </div>
+      </div>
+
+      {/* Main Game Arena */}
+      <div className="flex-1 flex items-center justify-center p-4 sm:p-6">
         <div className="grid grid-cols-1 lg:grid-cols-[1fr_minmax(0,560px)_1fr] gap-6 max-w-6xl w-full">
-          {/* Left — Opponent */}
+          {/* Left Column — Opponent */}
           <div className="space-y-4">
             <PlayerCard
               icon={isPlayerBlack ? '♔' : '♚'}
               iconClass={isPlayerBlack ? 'bg-gold text-obsidian' : 'bg-black text-white'}
               name={oppLabel}
-              sub={isMultiplayer ? 'Quick Match' : isAiMatch ? `Computer · Level ${match?.aiLevel || 10}` : 'Local hot-seat'}
+              sub={isSpectator ? 'Black Player' : isMultiplayer ? 'Quick Match Opponent' : isAiMatch ? `Computer · Level ${match?.aiLevel || 10}` : 'Local hot-seat'}
               time={oppTime}
               active={oppTurn && !result}
             />
-            <div className="bg-graphite border border-gold/30 rounded-lg p-4">
-              <h3 className="text-gold font-bold mb-2">{isPlayerBlack ? '♔ Captured by White' : '♟ Captured by Black'}</h3>
+            <div className="bg-graphite border border-gold/30 rounded-xl p-4 shadow-md">
+              <h3 className="text-gold font-bold mb-2 text-xs uppercase tracking-wider">{isPlayerBlack ? '♔ Captured by White' : '♟ Captured by Black'}</h3>
               <div className="text-2xl min-h-8">{oppCaptured.join('') || '—'}</div>
             </div>
           </div>
 
-          {/* Center — Board */}
+          {/* Center Column — Board */}
           <div className="space-y-3">
             {/* Faction / Side Switcher */}
             <div className="flex flex-wrap items-center justify-between gap-2 rounded-xl border border-gold/30 bg-[#12141c] p-2.5 shadow-md">
@@ -420,44 +643,203 @@ export default function GameRoom({ user, timeControl, match, onBack, onSocial, o
               </div>
             </div>
 
-            <div className="space-y-2"><div className="flex items-center justify-between gap-3"><div><div className="text-xs uppercase tracking-widest text-gray-500">Piece skins</div><div className="mt-1 text-[11px] text-gray-500">{CHESS_SKIN_LIST.find((skin) => skin.id === skinId)?.description}</div></div><div className="flex shrink-0 rounded-lg border border-gold/25 bg-graphite p-1"><button onClick={() => setSkinMode('3d')} aria-pressed={skinMode === '3d'} className={`rounded-md px-3 py-1.5 text-xs font-semibold ${skinMode === '3d' ? 'bg-gold text-obsidian' : 'text-gray-300'}`}>3D</button><button onClick={() => setSkinMode('2d')} aria-pressed={skinMode === '2d'} className={`rounded-md px-3 py-1.5 text-xs font-semibold ${skinMode === '2d' ? 'bg-gold text-obsidian' : 'text-gray-300'}`}>2D</button></div></div><div className="grid grid-cols-2 gap-1.5 sm:grid-cols-3">{CHESS_SKIN_LIST.map((skin) => <button key={skin.id} onClick={() => setSkinId(skin.id)} aria-pressed={skinId === skin.id} className={`rounded-md border px-2 py-1.5 text-[11px] font-semibold transition ${skinId === skin.id ? 'border-gold bg-gold text-obsidian shadow-[0_0_14px_rgba(212,175,55,.24)]' : 'border-white/10 bg-graphite text-gray-300 hover:border-gold/50'}`}>{skin.shortLabel}</button>)}</div>{skinId === 'custom' && <CustomNeonControls value={customization} onChange={setCustomization} />}</div>
-            {isMultiplayer && !gameChannelReady && <p role="status" className="rounded border border-amber-400/40 bg-amber-400/10 p-2 text-center text-xs text-amber-200">Connecting to match. Moves will activate once connected.</p>}
-            {isAiMatch && aiThinking && <p role="status" className="rounded border border-gold/40 bg-gold/10 p-2 text-center text-xs text-gold">Computer is thinking…</p>}
-            <div className="aspect-square">
-              {skinMode === '3d' ? renderBoard() : <div className="w-full h-full grid grid-cols-8 grid-rows-8 rounded-lg overflow-hidden border-4 shadow-2xl" style={{ borderColor: toCssColor(activeSkin.board.frame) }}>{renderBoard()}</div>}
+            {/* Skins & 2D/3D selector */}
+            <div className="space-y-2">
+              <div className="flex items-center justify-between gap-3">
+                <div>
+                  <div className="text-xs uppercase tracking-widest text-gray-500 font-semibold">Piece Skins</div>
+                  <div className="mt-1 text-[11px] text-gray-400">{CHESS_SKIN_LIST.find((skin) => skin.id === skinId)?.description}</div>
+                </div>
+                <div className="flex shrink-0 rounded-lg border border-gold/25 bg-graphite p-1">
+                  <button onClick={() => setSkinMode('3d')} aria-pressed={skinMode === '3d'} className={`rounded-md px-3 py-1 text-xs font-semibold ${skinMode === '3d' ? 'bg-gold text-obsidian shadow-sm' : 'text-gray-300'}`}>3D</button>
+                  <button onClick={() => setSkinMode('2d')} aria-pressed={skinMode === '2d'} className={`rounded-md px-3 py-1 text-xs font-semibold ${skinMode === '2d' ? 'bg-gold text-obsidian shadow-sm' : 'text-gray-300'}`}>2D</button>
+                </div>
+              </div>
+              <div className="grid grid-cols-2 gap-1.5 sm:grid-cols-3">
+                {CHESS_SKIN_LIST.map((skin) => (
+                  <button key={skin.id} onClick={() => setSkinId(skin.id)} aria-pressed={skinId === skin.id} className={`rounded-md border px-2 py-1.5 text-[11px] font-semibold transition ${skinId === skin.id ? 'border-gold bg-gold text-obsidian shadow-[0_0_14px_rgba(212,175,55,.24)]' : 'border-white/10 bg-graphite text-gray-300 hover:border-gold/50'}`}>
+                    {skin.shortLabel}
+                  </button>
+                ))}
+              </div>
+              {skinId === 'custom' && <CustomNeonControls value={customization} onChange={setCustomization} />}
             </div>
+
+            {isMultiplayer && !gameChannelReady && (
+              <p role="status" className="rounded-xl border border-amber-400/40 bg-amber-400/10 p-2 text-center text-xs text-amber-200">
+                Connecting to match server…
+              </p>
+            )}
+            {isAiMatch && aiThinking && (
+              <p role="status" className="rounded-xl border border-gold/40 bg-gold/10 p-2 text-center text-xs text-gold">
+                Computer is calculating best move…
+              </p>
+            )}
+
+            {/* Board Container */}
+            <div className="aspect-square">
+              {skinMode === '3d' ? (
+                renderBoard()
+              ) : (
+                <div className="w-full h-full grid grid-cols-8 grid-rows-8 rounded-xl overflow-hidden border-4 shadow-2xl" style={{ borderColor: toCssColor(activeSkin.board.frame) }}>
+                  {renderBoard()}
+                </div>
+              )}
+            </div>
+
+            {/* In-Game PGN Replay Scrubber */}
+            {fullHistory.length > 0 && (
+              <div className="rounded-xl border border-gold/30 bg-[#12141c] p-3 space-y-2">
+                <div className="flex items-center justify-between text-xs text-gray-400">
+                  <span className="font-semibold text-gold">🎞️ PGN Replay</span>
+                  <span>
+                    {replayStep === null ? (
+                      <span className="text-emerald-400 font-bold">● Live Game</span>
+                    ) : (
+                      <span className="text-amber-300 font-bold">Step {replayStep} / {fullHistory.length}</span>
+                    )}
+                  </span>
+                </div>
+
+                <div className="flex items-center gap-1.5 justify-center">
+                  <button
+                    type="button"
+                    onClick={() => goToReplayStep(0)}
+                    disabled={replayStep === 0}
+                    className="rounded border border-white/10 bg-white/5 px-2.5 py-1 text-xs text-gray-300 hover:border-gold hover:text-gold disabled:opacity-30"
+                    title="First move"
+                  >
+                    |◀
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => goToReplayStep((replayStep ?? fullHistory.length) - 1)}
+                    disabled={replayStep === 0}
+                    className="rounded border border-white/10 bg-white/5 px-2.5 py-1 text-xs text-gray-300 hover:border-gold hover:text-gold disabled:opacity-30"
+                    title="Previous move"
+                  >
+                    ◀
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setAutoReplaying(!autoReplaying)}
+                    className="rounded bg-gold/20 border border-gold/40 px-3 py-1 text-xs font-bold text-gold hover:bg-gold hover:text-obsidian transition"
+                  >
+                    {autoReplaying ? '❚❚ Pause' : '▶ Play'}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => goToReplayStep((replayStep ?? fullHistory.length - 1) + 1)}
+                    disabled={replayStep === null || replayStep >= fullHistory.length}
+                    className="rounded border border-white/10 bg-white/5 px-2.5 py-1 text-xs text-gray-300 hover:border-gold hover:text-gold disabled:opacity-30"
+                    title="Next move"
+                  >
+                    ▶
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => { setReplayStep(null); setAutoReplaying(false); }}
+                    className={`rounded border px-2.5 py-1 text-xs font-bold transition ${
+                      replayStep === null
+                        ? 'border-emerald-500/60 bg-emerald-500/20 text-emerald-300'
+                        : 'border-gold/40 bg-white/5 text-gray-300 hover:border-gold hover:text-gold'
+                    }`}
+                    title="Return to live position"
+                  >
+                    Live ▶|
+                  </button>
+                  <button
+                    type="button"
+                    onClick={handleCopyPgn}
+                    className="ml-auto rounded border border-white/10 bg-white/5 px-2 py-1 text-xs text-gray-300 hover:text-white"
+                    title="Copy PGN"
+                  >
+                    📋
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => downloadPgn({ pgn: game.pgn(), white_name: whiteName, black_name: blackName })}
+                    className="rounded border border-white/10 bg-white/5 px-2 py-1 text-xs text-gray-300 hover:text-white"
+                    title="Export PGN file"
+                  >
+                    💾
+                  </button>
+                </div>
+              </div>
+            )}
+
+            {/* Game Result Banner */}
             {result && (
-              <div className="bg-gold/10 border border-gold rounded-lg p-4 text-center">
-                <div className="text-gold font-cinzel font-bold text-xl mb-2">{result}</div>
-                <button onClick={resetGame} className="px-6 py-2 bg-gold text-obsidian font-bold rounded hover:bg-champagne">
-                  {isMultiplayer ? 'Back to Lobby' : 'Play Again'}
-                </button>
+              <div className="bg-gold/10 border border-gold rounded-xl p-5 text-center shadow-lg animate-fade-in">
+                <div className="text-gold font-cinzel font-bold text-xl mb-1">{result}</div>
+                {ratingChange !== null && (
+                  <div className={`text-sm font-mono font-bold mb-3 ${ratingChange >= 0 ? 'text-emerald-400' : 'text-rose-400'}`}>
+                    Rating Update: {ratingChange >= 0 ? `+${ratingChange}` : ratingChange} Glicko-2 ELO
+                  </div>
+                )}
+                <div className="flex justify-center gap-3">
+                  <button onClick={resetGame} className="px-6 py-2 bg-gold text-obsidian font-bold rounded-lg hover:bg-champagne transition shadow-md shadow-gold/25">
+                    {isMultiplayer || isSpectator ? 'Back to Lobby' : 'Play Again'}
+                  </button>
+                  <button onClick={handleCopyPgn} className="px-4 py-2 bg-white/10 border border-white/20 text-white font-semibold rounded-lg hover:bg-white/20 transition">
+                    📋 Copy PGN
+                  </button>
+                </div>
               </div>
             )}
           </div>
 
-          {/* Right — You */}
+          {/* Right Column — You & Move History */}
           <div className="space-y-4">
             <PlayerCard
               icon={isPlayerBlack ? '♚' : '♔'}
               iconClass={isPlayerBlack ? 'bg-black text-white' : 'bg-gold text-obsidian'}
               name={youLabel}
-              sub="Your pieces (Bottom side of board)"
+              sub={isSpectator ? 'White Player' : 'Your pieces (Bottom side of board)'}
               time={youTime}
               active={youTurn && !result}
             />
-            <div className="bg-graphite border border-gold/30 rounded-lg p-4">
-              <h3 className="text-gold font-bold mb-2">{isPlayerBlack ? '♟ Captured by Black' : '♙ Captured by White'}</h3>
+
+            <div className="bg-graphite border border-gold/30 rounded-xl p-4 shadow-md">
+              <h3 className="text-gold font-bold mb-2 text-xs uppercase tracking-wider">{isPlayerBlack ? '♟ Captured by Black' : '♙ Captured by White'}</h3>
               <div className="text-2xl min-h-8">{youCaptured.join('') || '—'}</div>
             </div>
-            <div className="bg-graphite border border-gold/30 rounded-lg p-4">
-              <h3 className="text-gold font-bold mb-2">📜 Move History</h3>
-              <div className="h-48 overflow-y-auto font-mono text-sm grid grid-cols-[2.5rem_1fr_1fr] gap-y-1 content-start">
+
+            <div className="bg-graphite border border-gold/30 rounded-xl p-4 shadow-md">
+              <h3 className="text-gold font-bold mb-2 text-xs uppercase tracking-wider flex items-center justify-between">
+                <span>📜 Move History</span>
+                <span className="text-[10px] text-gray-400 font-normal">Click move to replay</span>
+              </h3>
+              <div className="h-44 overflow-y-auto font-mono text-xs grid grid-cols-[2rem_1fr_1fr] gap-y-1 content-start pr-1">
                 {Array.from({ length: Math.ceil(sans.length / 2) }).map((_, i) => (
                   <div key={i} className="contents">
-                    <span className="text-gray-500">{i + 1}.</span>
-                    <span className="text-white">{sans[i * 2]}</span>
-                    <span className="text-gray-400">{sans[i * 2 + 1] || ''}</span>
+                    <span className="text-gray-500 py-0.5">{i + 1}.</span>
+                    <button
+                      type="button"
+                      onClick={() => goToReplayStep(i * 2 + 1)}
+                      className={`text-left px-1 py-0.5 rounded transition ${
+                        replayStep === i * 2 + 1
+                          ? 'bg-gold text-obsidian font-bold'
+                          : 'text-white hover:bg-white/10 hover:text-gold'
+                      }`}
+                    >
+                      {sans[i * 2]}
+                    </button>
+                    {sans[i * 2 + 1] ? (
+                      <button
+                        type="button"
+                        onClick={() => goToReplayStep(i * 2 + 2)}
+                        className={`text-left px-1 py-0.5 rounded transition ${
+                          replayStep === i * 2 + 2
+                            ? 'bg-gold text-obsidian font-bold'
+                            : 'text-gray-400 hover:bg-white/10 hover:text-gold'
+                        }`}
+                      >
+                        {sans[i * 2 + 1]}
+                      </button>
+                    ) : (
+                      <span />
+                    )}
                   </div>
                 ))}
               </div>
@@ -468,27 +850,38 @@ export default function GameRoom({ user, timeControl, match, onBack, onSocial, o
 
       {/* Bottom Controls */}
       <div className="bg-graphite border-t border-gold/30 p-4 pb-24 sm:pb-20">
-        <div className="max-w-6xl mx-auto flex flex-wrap justify-center gap-4">
-          {isMultiplayer && <MultiplayerVoice roomId={match.roomId} userId={user.id} opponentName={opponentName} />}
-          <button onClick={onSocial} className="px-6 py-2 bg-slate text-gray-300 rounded hover:bg-gray-700">
+        <div className="max-w-6xl mx-auto flex flex-wrap justify-center gap-3">
+          {isMultiplayer && !isSpectator && <MultiplayerVoice roomId={match.roomId} userId={user.id} opponentName={opponentName} />}
+          <button onClick={onSocial} className="px-5 py-2 bg-slate text-gray-300 rounded-lg hover:bg-gray-700 transition">
             🎙️ Voice / Video
           </button>
-          <button onClick={onSocial} className="px-6 py-2 bg-slate text-gray-300 rounded hover:bg-gray-700">
+          <button onClick={onSocial} className="px-5 py-2 bg-slate text-gray-300 rounded-lg hover:bg-gray-700 transition">
             💬 Chat
           </button>
-          <button
-            onClick={() => !result && offerDraw()}
-            disabled={Boolean(result) || drawPending}
-            className="px-6 py-2 bg-slate text-gray-300 rounded hover:bg-gray-700 disabled:opacity-50"
-          >
-            {drawPending ? 'Waiting for draw response…' : '🤝 Offer Draw'}
-          </button>
-          {incomingDraw && <><span className="self-center text-sm text-amber-200">Opponent offered a draw</span><button onClick={() => offerDraw(true)} className="rounded bg-emerald px-4 py-2 font-semibold text-obsidian">Accept draw</button><button onClick={() => offerDraw(false)} className="rounded bg-slate px-4 py-2">Decline draw</button></>}
-          <button onClick={resign} className="px-6 py-2 bg-red-600 text-white rounded hover:bg-red-700">
-            🏳️ Resign
-          </button>
+          {!isSpectator && (
+            <button
+              onClick={() => !result && offerDraw()}
+              disabled={Boolean(result) || drawPending}
+              className="px-5 py-2 bg-slate text-gray-300 rounded-lg hover:bg-gray-700 disabled:opacity-50 transition"
+            >
+              {drawPending ? 'Waiting for draw response…' : '🤝 Offer Draw'}
+            </button>
+          )}
+          {incomingDraw && (
+            <div className="flex items-center gap-2 rounded-xl bg-amber-500/20 border border-amber-500/40 px-3 py-1.5">
+              <span className="text-xs text-amber-200">Opponent offered a draw:</span>
+              <button onClick={() => offerDraw(true)} className="rounded-lg bg-emerald-500 px-3 py-1 font-bold text-xs text-obsidian">Accept</button>
+              <button onClick={() => offerDraw(false)} className="rounded-lg bg-slate px-3 py-1 text-xs">Decline</button>
+            </div>
+          )}
+          {!isSpectator && (
+            <button onClick={resign} className="px-5 py-2 bg-red-600 text-white font-semibold rounded-lg hover:bg-red-700 transition">
+              🏳️ Resign
+            </button>
+          )}
         </div>
       </div>
+
       {showHistoricalSplash && <HistoricalSplash onContinue={() => setShowHistoricalSplash(false)} />}
       <FooterNav active="game" onNavigate={onNavigate} onEditProfile={onEditProfile} />
     </div>
@@ -511,6 +904,7 @@ function MultiplayerVoice({ roomId, userId, opponentName }) {
   useEffect(() => {
     const channel = supabase.channel(`chess-voice:${roomId}`, { config: { private: true, broadcast: { self: false } } });
     channelRef.current = channel;
+
     async function ensurePeer() {
       if (peerRef.current) return peerRef.current;
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true, video: false });
@@ -528,6 +922,7 @@ function MultiplayerVoice({ roomId, userId, opponentName }) {
       return peer;
     }
     createPeerRef.current = ensurePeer;
+
     channel.on('broadcast', { event: 'signal' }, async ({ payload }) => {
       if (payload.from === userId) return;
       if (payload.kind === 'candidate' && !peerRef.current) {
@@ -553,6 +948,7 @@ function MultiplayerVoice({ roomId, userId, opponentName }) {
         }
       } catch (error) { toast.error(error.message || 'Could not connect voice talk.'); }
     });
+
     channel.subscribe((status) => setChannelReady(status === 'SUBSCRIBED'));
     return () => {
       peerRef.current?.close();
@@ -573,11 +969,13 @@ function MultiplayerVoice({ roomId, userId, opponentName }) {
       await channelRef.current.send({ type: 'broadcast', event: 'signal', payload: { from: userId, kind: 'offer', description: peer.localDescription } });
     } catch (error) { toast.error(error.name === 'NotAllowedError' ? 'Please allow microphone access for voice talk.' : (error.message || 'Microphone unavailable.')); }
   }
+
   function toggleMute() {
     const next = !muted;
     streamRef.current?.getAudioTracks().forEach((track) => { track.enabled = !next; });
     setMuted(next);
   }
+
   function hangup() {
     channelRef.current?.send({ type: 'broadcast', event: 'signal', payload: { from: userId, kind: 'hangup' } });
     peerRef.current?.close(); peerRef.current = null;
@@ -585,6 +983,7 @@ function MultiplayerVoice({ roomId, userId, opponentName }) {
     pendingCandidates.current = [];
     setActive(false); setConnected(false); setMuted(false);
   }
+
   const status = active ? (connected ? `Connected · ${opponentName}` : 'Connecting voice…') : channelReady ? 'Ready for 2-way talk' : 'Connecting channel…';
   return (
     <div className="fixed bottom-4 right-4 z-40 w-[min(22rem,calc(100vw-2rem))] rounded-xl border border-gold/50 bg-graphite/95 p-3 shadow-2xl backdrop-blur">
@@ -594,19 +993,27 @@ function MultiplayerVoice({ roomId, userId, opponentName }) {
         <span className="min-w-0 flex-1 truncate text-sm font-semibold text-white">TalkVoice <span className="font-normal text-gray-400">{status}</span></span>
         <button onClick={() => setMinimized((value) => !value)} className="rounded px-2 py-1 text-gray-300 hover:bg-slate" aria-label={minimized ? 'Expand voice panel' : 'Minimize voice panel'}>{minimized ? '□' : '—'}</button>
       </div>
-      {!minimized && <div className="mt-3 flex flex-wrap gap-2">
-        {!active ? <button onClick={startVoice} disabled={!channelReady} className="rounded bg-gold px-3 py-2 text-sm font-bold text-obsidian disabled:opacity-50">🎙️ Start Talking</button> : <>
-          <button onClick={toggleMute} className="rounded bg-slate px-3 py-2 text-sm text-white">{muted ? 'Unmute' : 'Mute'}</button>
-          <button onClick={hangup} className="rounded bg-red-700 px-3 py-2 text-sm text-white">End Voice</button>
-        </>}
-      </div>}
+      {!minimized && (
+        <div className="mt-3 flex flex-wrap gap-2">
+          {!active ? (
+            <button onClick={startVoice} disabled={!channelReady} className="rounded-lg bg-gold px-3 py-2 text-sm font-bold text-obsidian disabled:opacity-50 shadow-md shadow-gold/20">
+              🎙️ Start Talking
+            </button>
+          ) : (
+            <>
+              <button onClick={toggleMute} className="rounded-lg bg-slate px-3 py-2 text-sm text-white hover:bg-slate/80">{muted ? 'Unmute' : 'Mute'}</button>
+              <button onClick={hangup} className="rounded-lg bg-red-700 px-3 py-2 text-sm text-white hover:bg-red-800">End Voice</button>
+            </>
+          )}
+        </div>
+      )}
     </div>
   );
 }
 
 function PlayerCard({ icon, iconClass, name, sub, time, active }) {
   return (
-    <div className={`bg-graphite border rounded-lg p-4 ${active ? 'border-gold' : 'border-gold/30'}`}>
+    <div className={`bg-graphite border rounded-xl p-4 shadow-md transition ${active ? 'border-gold shadow-gold/20' : 'border-gold/30'}`}>
       <div className="flex items-center gap-3 mb-2">
         <div className={`w-12 h-12 rounded-full flex items-center justify-center text-2xl ${iconClass}`}>{icon}</div>
         <div>
@@ -624,13 +1031,13 @@ function PlayerCard({ icon, iconClass, name, sub, time, active }) {
 function CustomNeonControls({ value, onChange }) {
   const update = (key, next) => onChange((current) => ({ ...current, [key]: next }));
   return (
-    <div className="grid grid-cols-2 gap-2 rounded-lg border border-cyan-300/20 bg-[#101525] p-3 text-[11px] text-gray-300 sm:grid-cols-4">
+    <div className="grid grid-cols-2 gap-2 rounded-xl border border-cyan-300/20 bg-[#101525] p-3 text-[11px] text-gray-300 sm:grid-cols-4">
       <label className="flex items-center gap-2"><input type="color" value={value.primary} onChange={(event) => update('primary', event.target.value)} className="h-7 w-8 cursor-pointer rounded border-0 bg-transparent p-0" /><span>Holy neon</span></label>
       <label className="flex items-center gap-2"><input type="color" value={value.secondary} onChange={(event) => update('secondary', event.target.value)} className="h-7 w-8 cursor-pointer rounded border-0 bg-transparent p-0" /><span>Anarchy neon</span></label>
-      <label className="col-span-2 flex flex-col gap-1">Partikel <input type="range" min="4" max="24" step="1" value={value.particleCount} onChange={(event) => update('particleCount', Number(event.target.value))} /><span className="text-gray-500">{value.particleCount} partikel</span></label>
-      <label className="col-span-2 flex flex-col gap-1">Kecepatan orbit <input type="range" min="0.25" max="2.5" step="0.05" value={value.particleSpeed} onChange={(event) => update('particleSpeed', Number(event.target.value))} /><span className="text-gray-500">{value.particleSpeed.toFixed(2)}×</span></label>
-      <label className="col-span-2 flex flex-col gap-1">Ukuran partikel <input type="range" min="0.02" max="0.07" step="0.005" value={value.particleSize} onChange={(event) => update('particleSize', Number(event.target.value))} /><span className="text-gray-500">{value.particleSize.toFixed(3)}</span></label>
-      <label className="col-span-2 flex items-center gap-2"><input type="checkbox" checked={value.aura} onChange={(event) => update('aura', event.target.checked)} className="accent-cyan-300" /> Aktifkan aura raja &amp; ratu</label>
+      <label className="col-span-2 flex flex-col gap-1">Particle count <input type="range" min="4" max="24" step="1" value={value.particleCount} onChange={(event) => update('particleCount', Number(event.target.value))} /><span className="text-gray-500">{value.particleCount} particles</span></label>
+      <label className="col-span-2 flex flex-col gap-1">Orbit speed <input type="range" min="0.25" max="2.5" step="0.05" value={value.particleSpeed} onChange={(event) => update('particleSpeed', Number(event.target.value))} /><span className="text-gray-500">{value.particleSpeed.toFixed(2)}×</span></label>
+      <label className="col-span-2 flex flex-col gap-1">Particle size <input type="range" min="0.02" max="0.07" step="0.005" value={value.particleSize} onChange={(event) => update('particleSize', Number(event.target.value))} /><span className="text-gray-500">{value.particleSize.toFixed(3)}</span></label>
+      <label className="col-span-2 flex items-center gap-2"><input type="checkbox" checked={value.aura} onChange={(event) => update('aura', event.target.checked)} className="accent-cyan-300" /> Enable King &amp; Queen aura</label>
     </div>
   );
 }
