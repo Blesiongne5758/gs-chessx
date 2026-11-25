@@ -9,10 +9,37 @@ function makePiece(type, color, skin = 'classic', customization, performance = {
   const white = color === 'w';
   const skinSet = resolveChessSkin(skin, customization);
   const palette = white ? skinSet.white : skinSet.black;
+
+  const isNeon = skin === 'neon' || skin === 'anime' || skin === 'custom';
+  const isFancy = skin === 'fancy' || skin === 'historical' || skin === 'holy';
+  const bodyRoughness   = isNeon ? 0.18 : isFancy ? 0.28 : 0.38;
+  const bodyMetalness   = isNeon ? 0.45 : isFancy ? 0.35 : 0.18;
+  const trimRoughness   = isNeon ? 0.12 : isFancy ? 0.20 : 0.25;
+  const trimMetalness   = isNeon ? 0.88 : isFancy ? 0.72 : 0.60;
+
   const materials = {
-    body: new THREE.MeshStandardMaterial({ color: palette.body, roughness: skin === 'neon' ? 0.22 : 0.42, metalness: skin === 'neon' ? 0.42 : 0.2 }),
-    trim: new THREE.MeshStandardMaterial({ color: palette.accent, roughness: skin === 'neon' ? 0.18 : 0.3, metalness: skin === 'neon' ? 0.82 : 0.58 }),
+    body: new THREE.MeshStandardMaterial({
+      color: palette.body,
+      roughness: bodyRoughness,
+      metalness: bodyMetalness,
+    }),
+    trim: new THREE.MeshStandardMaterial({
+      color: palette.accent,
+      roughness: trimRoughness,
+      metalness: trimMetalness,
+    }),
+    shade: new THREE.MeshStandardMaterial({
+      color: palette.shade,
+      roughness: bodyRoughness + 0.1,
+      metalness: bodyMetalness * 0.5,
+    }),
   };
+
+  // High-poly helper values — mobile uses half segments to save GPU
+  const isMobile = performance.reducedGeometry === true;
+  const SEG_ROUND  = isMobile ? 16 : 32;   // circles / cylinders
+  const SEG_SPHERE = isMobile ? 10 : 20;   // sphere lat/lon
+
   const add = (geometry, material, y, x = 0, z = 0) => {
     const mesh = new THREE.Mesh(geometry, material);
     mesh.position.set(x, y, z);
@@ -21,69 +48,166 @@ function makePiece(type, color, skin = 'classic', customization, performance = {
     group.add(mesh);
     return mesh;
   };
-  const cyl = (rTop, rBottom, height, y, material = materials.body, segments = 8) =>
+  /** Smooth cylinder */
+  const cyl = (rTop, rBottom, height, y, material = materials.body, segments = SEG_ROUND) =>
     add(new THREE.CylinderGeometry(rTop, rBottom, height, segments), material, y);
+  /** Rounded-edge box (via subdivided Box) */
   const box = (w, h, d, x, y, z, material = materials.body) =>
     add(new THREE.BoxGeometry(w, h, d), material, y, x, z);
+  /** Smooth sphere */
+  const sphere = (r, y, material = materials.body) =>
+    add(new THREE.SphereGeometry(r, SEG_SPHERE, SEG_SPHERE), material, y);
+  /** Smooth torus */
+  const torus = (R, r, y, material = materials.trim) =>
+    add(new THREE.TorusGeometry(R, r, isMobile ? 8 : 16, SEG_ROUND), material, y);
 
-  cyl(0.29, 0.34, 0.12, 0.09, materials.trim, 8);
-  cyl(0.24, 0.29, 0.16, 0.22, materials.body, 8);
-  // A faction mark makes the skin readable even at board scale: cross for Holy,
-  // diagonal X for Anarchy. It sits on the front face like the reference sprites.
-  const markY = 0.40;
+  /* ── Shared base (all pieces) ──────────────────────────────────────────── */
+  // Foot disc — wide flat ring at the very bottom
+  cyl(0.335, 0.385, 0.045, 0.023, materials.trim, SEG_ROUND);
+  // Foot body
+  cyl(0.300, 0.335, 0.090, 0.085, materials.shade, SEG_ROUND);
+  // Waist torus ring (decorative collar)
+  torus(0.270, 0.028, 0.14, materials.trim);
+  // Lower stem
+  cyl(0.195, 0.270, 0.100, 0.215, materials.body, SEG_ROUND);
+  // Mid-stem taper
+  cyl(0.150, 0.195, 0.120, 0.335, materials.body, SEG_ROUND);
+
+  /* ── Faction mark (subtle front-face embossed mark) ─────────────────────
+     Kept thin so it shows colour accent without bulk.                        */
+  const markY = 0.38;
+  const markDepth = 0.022;
   if (white) {
-    box(0.055, 0.20, 0.028, 0, markY, 0.20, materials.trim);
-    box(0.16, 0.055, 0.028, 0, markY, 0.20, materials.trim);
+    // Cross
+    box(0.048, 0.18, markDepth, 0, markY, 0.19, materials.trim);
+    box(0.14,  0.048, markDepth, 0, markY, 0.19, materials.trim);
   } else {
-    const markA = box(0.045, 0.25, 0.028, 0, markY, 0.20, materials.trim);
-    markA.rotation.z = Math.PI / 4;
-    const markB = box(0.045, 0.25, 0.028, 0, markY, 0.20, materials.trim);
-    markB.rotation.z = -Math.PI / 4;
+    // X
+    const mA = box(0.040, 0.22, markDepth, 0, markY, 0.19, materials.trim);
+    mA.rotation.z = Math.PI / 4;
+    const mB = box(0.040, 0.22, markDepth, 0, markY, 0.19, materials.trim);
+    mB.rotation.z = -Math.PI / 4;
   }
+
+  /* ── Type-specific upper body ───────────────────────────────────────────── */
   switch (type) {
-    case 'p':
-      cyl(0.15, 0.21, 0.22, 0.40);
-      add(new THREE.SphereGeometry(0.16, 8, 6), materials.body, 0.61);
+    case 'p': {
+      // Neck cone
+      cyl(0.145, 0.185, 0.14, 0.455, materials.body, SEG_ROUND);
+      // Neck ring
+      torus(0.145, 0.022, 0.52, materials.trim);
+      // Head
+      sphere(0.195, 0.655, materials.body);
+      // Tiny top knob
+      sphere(0.055, 0.855, materials.trim);
       break;
-    case 'r':
-      cyl(0.20, 0.24, 0.24, 0.42);
-      box(0.42, 0.10, 0.42, 0, 0.59, 0, materials.trim);
-      for (let i = -1; i <= 1; i++) if (i !== 0) {
-        box(0.10, 0.14, 0.10, i * 0.14, 0.70, i === 1 ? -0.14 : 0.14);
+    }
+    case 'r': {
+      // Tower shaft
+      cyl(0.210, 0.185, 0.28, 0.485, materials.body, SEG_ROUND);
+      // Battlement ring (wide flat disc)
+      cyl(0.300, 0.300, 0.040, 0.640, materials.trim, SEG_ROUND);
+      // Top platform
+      cyl(0.260, 0.260, 0.040, 0.660, materials.body, SEG_ROUND);
+      // Merlons — 4 battlements, evenly spaced
+      for (let i = 0; i < 4; i++) {
+        const ang = (i / 4) * Math.PI * 2;
+        const mx = Math.cos(ang) * 0.195;
+        const mz = Math.sin(ang) * 0.195;
+        const merlon = new THREE.Mesh(
+          new THREE.BoxGeometry(0.090, 0.130, 0.090),
+          materials.body,
+        );
+        merlon.position.set(mx, 0.745, mz);
+        merlon.rotation.y = ang;
+        merlon.castShadow = true;
+        group.add(merlon);
       }
-      box(0.10, 0.14, 0.10, 0.14, 0.70, 0.14);
-      box(0.10, 0.14, 0.10, -0.14, 0.70, -0.14);
       break;
-    case 'b':
-      cyl(0.14, 0.20, 0.24, 0.42);
-      add(new THREE.OctahedronGeometry(0.22, 0), materials.trim, 0.66);
-      box(0.09, 0.42, 0.09, 0, 0.67, 0, materials.body);
+    }
+    case 'b': {
+      // Long mitre shaft
+      cyl(0.095, 0.165, 0.28, 0.490, materials.body, SEG_ROUND);
+      // Collar ring at mitre base
+      torus(0.145, 0.022, 0.635, materials.trim);
+      // Mitre upper cone
+      cyl(0.045, 0.095, 0.26, 0.715, materials.body, SEG_ROUND);
+      // Orb at top
+      sphere(0.075, 0.855, materials.trim);
+      // Tiny ball on orb
+      sphere(0.030, 0.935, materials.body);
       break;
-    case 'n':
-      cyl(0.16, 0.22, 0.20, 0.42);
-      box(0.26, 0.24, 0.22, 0, 0.62, 0);
-      box(0.20, 0.25, 0.20, 0.04, 0.82, -0.04, materials.trim);
-      box(0.16, 0.14, 0.18, 0.08, 0.96, -0.08);
-      box(0.20, 0.07, 0.08, 0.10, 0.87, -0.18);
-      box(0.06, 0.06, 0.06, 0.14, 0.99, -0.16, materials.trim);
+    }
+    case 'n': {
+      // Horse-neck block — angled to suggest a horse head
+      cyl(0.165, 0.195, 0.16, 0.465, materials.body, SEG_ROUND);
+      // Neck / lower head block
+      const neck = new THREE.Mesh(new THREE.BoxGeometry(0.270, 0.230, 0.230), materials.body);
+      neck.position.set(0, 0.625, 0);
+      neck.castShadow = true;
+      group.add(neck);
+      // Upper head block (slightly forward)
+      const head = new THREE.Mesh(new THREE.BoxGeometry(0.220, 0.260, 0.215), materials.body);
+      head.position.set(0.030, 0.845, -0.040);
+      head.castShadow = true;
+      group.add(head);
+      // Snout
+      const snout = new THREE.Mesh(new THREE.BoxGeometry(0.155, 0.090, 0.095), materials.shade);
+      snout.position.set(0.085, 0.780, -0.095);
+      snout.castShadow = true;
+      group.add(snout);
+      // Eye
+      sphere(0.038, 0.890, materials.trim);
+      // Mane ridge (trim colour, runs top-back)
+      const mane = new THREE.Mesh(new THREE.CylinderGeometry(0.030, 0.030, 0.230, 8), materials.trim);
+      mane.position.set(-0.070, 0.845, 0.045);
+      mane.rotation.z = Math.PI / 2.4;
+      mane.castShadow = true;
+      group.add(mane);
+      // Ear
+      const ear = new THREE.Mesh(new THREE.CylinderGeometry(0.000, 0.040, 0.075, 6), materials.body);
+      ear.position.set(0.030, 0.985, 0.010);
+      ear.castShadow = true;
+      group.add(ear);
       break;
-    case 'q':
-      cyl(0.18, 0.23, 0.28, 0.44);
-      cyl(0.24, 0.16, 0.10, 0.63, materials.trim);
-      cyl(0.11, 0.17, 0.20, 0.77);
-      add(new THREE.SphereGeometry(0.11, 8, 6), materials.trim, 0.92);
+    }
+    case 'q': {
+      // Waist above base
+      cyl(0.165, 0.185, 0.22, 0.510, materials.body, SEG_ROUND);
+      // Upper waist ring
+      torus(0.155, 0.022, 0.630, materials.trim);
+      // Upper shaft
+      cyl(0.095, 0.145, 0.165, 0.735, materials.body, SEG_ROUND);
+      // Crown band
+      torus(0.145, 0.028, 0.825, materials.trim);
+      // 5 crown points (small spheres)
       for (let i = 0; i < 5; i++) {
-        const angle = (i * Math.PI * 2) / 5;
-        add(new THREE.SphereGeometry(0.045, 6, 4), materials.trim, 0.69, Math.cos(angle) * 0.21, Math.sin(angle) * 0.21);
+        const ang = (i / 5) * Math.PI * 2;
+        sphere(0.055, 0.870, materials.trim);
+        const sp = group.children[group.children.length - 1];
+        sp.position.set(Math.cos(ang) * 0.145, 0.870, Math.sin(ang) * 0.145);
       }
+      // Orb at top
+      sphere(0.110, 0.945, materials.trim);
+      sphere(0.040, 1.065, materials.body);
       break;
-    case 'k':
-      cyl(0.18, 0.24, 0.28, 0.44);
-      cyl(0.22, 0.16, 0.10, 0.63, materials.trim);
-      cyl(0.12, 0.16, 0.20, 0.77);
-      box(0.09, 0.31, 0.09, 0, 1.01, 0, materials.trim);
-      box(0.23, 0.08, 0.09, 0, 1.05, 0, materials.trim);
+    }
+    case 'k': {
+      // Waist above base
+      cyl(0.168, 0.188, 0.22, 0.510, materials.body, SEG_ROUND);
+      // Ring
+      torus(0.158, 0.022, 0.630, materials.trim);
+      // Upper shaft
+      cyl(0.098, 0.148, 0.165, 0.735, materials.body, SEG_ROUND);
+      // Crown band
+      torus(0.148, 0.025, 0.825, materials.trim);
+      // Cross (vertical + horizontal bars) — trim colour
+      box(0.072, 0.320, 0.072, 0, 1.000, 0, materials.trim);
+      box(0.230, 0.072, 0.072, 0, 1.025, 0, materials.trim);
+      // Small orb where bars meet
+      sphere(0.048, 1.000, materials.body);
       break;
+    }
     default:
       return null;
   }
@@ -158,13 +282,13 @@ export default function ChessBoard3D({ board, selectedSquare, validTargets = [],
     const camera = new THREE.PerspectiveCamera(36, 1, 0.1, 100);
     camera.position.set(0, 15, 0.01);
     camera.lookAt(0, 0, 0);
-    const renderer = new THREE.WebGLRenderer({ antialias: !isMobile, alpha: true, powerPreference: 'high-performance' });
-    renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, isMobile ? 1.25 : 1.75));
-    renderer.shadowMap.enabled = !isMobile;
+    const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true, powerPreference: 'high-performance' });
+    renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, isMobile ? 1.5 : 2.0));
+    renderer.shadowMap.enabled = true;
     renderer.shadowMap.type = THREE.PCFSoftShadowMap;
     renderer.outputColorSpace = THREE.SRGBColorSpace;
     renderer.toneMapping = THREE.ACESFilmicToneMapping;
-    renderer.toneMappingExposure = 1.15;
+    renderer.toneMappingExposure = 1.25;
     renderer.domElement.setAttribute('aria-hidden', 'true');
     renderer.domElement.style.display = 'block';
     renderer.domElement.style.width = '100%';
@@ -173,19 +297,30 @@ export default function ChessBoard3D({ board, selectedSquare, validTargets = [],
     renderer.domElement.style.cursor = 'grab';
     host.appendChild(renderer.domElement);
 
-    scene.add(new THREE.HemisphereLight(0xf5e9d2, 0x31221a, 2.0));
-    const keyLight = new THREE.DirectionalLight(0xffe2a8, 3.1);
+    scene.add(new THREE.HemisphereLight(0xf5e9d2, 0x31221a, 1.8));
+    const keyLight = new THREE.DirectionalLight(0xffe2a8, 3.4);
     keyLight.position.set(-5, 12, 7);
-    keyLight.castShadow = !isMobile;
-    keyLight.shadow.mapSize.set(isMobile ? 512 : 1024, isMobile ? 512 : 1024);
+    keyLight.castShadow = true;
+    keyLight.shadow.mapSize.set(isMobile ? 1024 : 2048, isMobile ? 1024 : 2048);
     keyLight.shadow.camera.left = -8;
     keyLight.shadow.camera.right = 8;
     keyLight.shadow.camera.top = 8;
     keyLight.shadow.camera.bottom = -8;
+    keyLight.shadow.bias = -0.0004;
+    keyLight.shadow.radius = 2.5;
     scene.add(keyLight);
-    const fillLight = new THREE.DirectionalLight(0xe0e9ff, 1.1);
+    // Fill light — cool blue from opposite side
+    const fillLight = new THREE.DirectionalLight(0xc8d8ff, 1.5);
     fillLight.position.set(8, 7, -6);
     scene.add(fillLight);
+    // Rim / back light for depth separation on pieces
+    const rimLight = new THREE.DirectionalLight(0xffeedd, 0.8);
+    rimLight.position.set(0, 4, -10);
+    scene.add(rimLight);
+    // Soft warm bounce light from board surface
+    const bounceLight = new THREE.PointLight(0xd4a96a, 0.5, 20, 2);
+    bounceLight.position.set(0, -1, 0);
+    scene.add(bounceLight);
 
     let animationFrame;
     let lastFrame = 0;
@@ -209,26 +344,30 @@ export default function ChessBoard3D({ board, selectedSquare, validTargets = [],
     };
     if (!reducedMotion) animationFrame = requestAnimationFrame(animate);
 
-    const wood = new THREE.MeshStandardMaterial({ color: skinSet.board.frame, roughness: 0.42, metalness: skin === 'fancy' ? 0.3 : 0.12 });
+    const wood = new THREE.MeshStandardMaterial({ color: skinSet.board.frame, roughness: 0.38, metalness: skin === 'fancy' ? 0.32 : 0.14 });
     const frame = new THREE.Mesh(new THREE.BoxGeometry(8.55, 0.38, 8.55), wood);
     frame.position.y = -0.22;
     frame.receiveShadow = true;
     frame.castShadow = true;
     scene.add(frame);
-    const darkWood = new THREE.MeshStandardMaterial({ color: skinSet.board.rim, roughness: 0.35, metalness: skin === 'fancy' ? 0.34 : 0.2 });
+    const darkWood = new THREE.MeshStandardMaterial({ color: skinSet.board.rim, roughness: 0.30, metalness: skin === 'fancy' ? 0.38 : 0.22 });
     const rim = new THREE.Mesh(new THREE.BoxGeometry(8.68, 0.12, 8.68), darkWood);
     rim.position.y = -0.45;
     scene.add(rim);
 
+    // Pre-build tile materials (one per light/dark, shared across 64 tiles)
+    const tileMats = {
+      light: new THREE.MeshStandardMaterial({ color: skinSet.board.light, roughness: 0.42, metalness: skin === 'neon' || skin === 'anime' ? 0.22 : 0.10 }),
+      dark:  new THREE.MeshStandardMaterial({ color: skinSet.board.dark,  roughness: 0.52, metalness: skin === 'neon' || skin === 'anime' ? 0.28 : 0.16 }),
+    };
     interactionMeshesRef.current = [];
     for (let row = 0; row < 8; row++) for (let col = 0; col < 8; col++) {
-      const light = (row + col) % 2 === 0;
-      const color = light ? skinSet.board.light : skinSet.board.dark;
-      const mat = new THREE.MeshStandardMaterial({ color, roughness: 0.52, metalness: light ? 0.08 : 0.12 });
+      const isLight = (row + col) % 2 === 0;
+      const mat = isLight ? tileMats.light : tileMats.dark;
       const tile = new THREE.Mesh(new THREE.BoxGeometry(0.995, 0.12, 0.995), mat);
       tile.position.set(col - 3.5, 0.015, row - 3.5);
       tile.receiveShadow = true;
-      tile.castShadow = true;
+      tile.castShadow = false;
       scene.add(tile);
 
       const interaction = new THREE.Mesh(
@@ -457,7 +596,7 @@ export default function ChessBoard3D({ board, selectedSquare, validTargets = [],
       }
       const piece = board?.[row]?.[col];
       if (piece) {
-        const model = makePiece(piece.type, piece.color, skin, customization, { maxParticles: isMobile ? 6 : undefined });
+        const model = makePiece(piece.type, piece.color, skin, customization, { maxParticles: isMobile ? 6 : undefined, reducedGeometry: isMobile });
         if (model) {
           model.position.set(col - 3.5, 0.085, row - 3.5);
           scene.add(model);
