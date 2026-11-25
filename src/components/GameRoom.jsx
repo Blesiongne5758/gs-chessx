@@ -87,9 +87,26 @@ export default function GameRoom({
 
   const gameChannelRef = useRef(null);
   const [playerSide, setPlayerSide] = useState(() => (match?.color === 'black' ? 'b' : 'w'));
+  const [callTrigger, setCallTrigger] = useState(null);
   const isMultiplayer = Boolean(match?.roomId);
   const isAiMatch = match?.mode === 'ai';
   const isSpectator = Boolean(match?.isSpectator);
+
+  function handleVoiceTalk() {
+    if (isMultiplayer && !isSpectator) {
+      setCallTrigger({ type: 'voice', timestamp: Date.now() });
+    } else {
+      onSocial?.();
+    }
+  }
+
+  function handleVideoTalk() {
+    if (isMultiplayer && !isSpectator) {
+      setCallTrigger({ type: 'video', timestamp: Date.now() });
+    } else {
+      onSocial?.();
+    }
+  }
 
   useEffect(() => {
     if (match?.color) {
@@ -839,14 +856,43 @@ export default function GameRoom({
       {/* Bottom Controls */}
       <div className="bg-graphite border-t border-gold/30 p-4 pb-24 sm:pb-20">
         <div className="max-w-6xl mx-auto flex flex-wrap justify-center gap-3">
-          {isMultiplayer && !isSpectator && <MultiplayerVoice roomId={match.roomId} userId={user.id} opponentName={opponentName} />}
+          {isMultiplayer && !isSpectator && (
+            <MultiplayerMediaCall
+              roomId={match.roomId}
+              userId={user.id}
+              opponentName={opponentName}
+              callTrigger={callTrigger}
+              onEndCall={() => setCallTrigger(null)}
+            />
+          )}
           {!isAiMatch && (
             <>
-              <button onClick={onSocial} className="px-5 py-2 bg-slate text-gray-300 rounded-lg hover:bg-gray-700 transition">
-                🎙️ Voice / Video
+              <button
+                type="button"
+                onClick={handleVoiceTalk}
+                className="flex items-center gap-2 rounded-lg bg-slate px-5 py-2 text-gray-300 transition hover:bg-gray-700 hover:text-white"
+                title="Start Voice Talk"
+              >
+                <span>🎙️</span>
+                <span>Voice Talk</span>
               </button>
-              <button onClick={onSocial} className="px-5 py-2 bg-slate text-gray-300 rounded-lg hover:bg-gray-700 transition">
-                💬 Chat
+              <button
+                type="button"
+                onClick={handleVideoTalk}
+                className="flex items-center gap-2 rounded-lg bg-slate px-5 py-2 text-gray-300 transition hover:bg-gray-700 hover:text-white"
+                title="Start Video Talk"
+              >
+                <span>📹</span>
+                <span>Video Talk</span>
+              </button>
+              <button
+                type="button"
+                onClick={onSocial}
+                className="flex items-center gap-2 rounded-lg bg-slate px-5 py-2 text-gray-300 transition hover:bg-gray-700 hover:text-white"
+                title="Open Chat"
+              >
+                <span>💬</span>
+                <span>Chat</span>
               </button>
             </>
           )}
@@ -880,16 +926,19 @@ export default function GameRoom({
   );
 }
 
-function MultiplayerVoice({ roomId, userId, opponentName }) {
+function MultiplayerMediaCall({ roomId, userId, opponentName, callTrigger, onEndCall }) {
   const [active, setActive] = useState(false);
+  const [callType, setCallType] = useState('voice'); // 'voice' | 'video'
   const [muted, setMuted] = useState(false);
+  const [cameraOff, setCameraOff] = useState(false);
   const [connected, setConnected] = useState(false);
   const [channelReady, setChannelReady] = useState(false);
   const [minimized, setMinimized] = useState(false);
   const peerRef = useRef(null);
   const streamRef = useRef(null);
   const channelRef = useRef(null);
-  const remoteAudioRef = useRef(null);
+  const remoteMediaRef = useRef(null);
+  const localVideoRef = useRef(null);
   const pendingCandidates = useRef([]);
   const createPeerRef = useRef(null);
 
@@ -897,19 +946,47 @@ function MultiplayerVoice({ roomId, userId, opponentName }) {
     const channel = supabase.channel(`chess-voice:${roomId}`, { config: { private: true, broadcast: { self: false } } });
     channelRef.current = channel;
 
-    async function ensurePeer() {
+    async function ensurePeer(type = 'voice') {
       if (peerRef.current) return peerRef.current;
-      const stream = await navigator.mediaDevices.getUserMedia({ audio: true, video: false });
+      setCallType(type);
+      const withVideo = type === 'video';
+      const stream = await navigator.mediaDevices.getUserMedia({
+        audio: true,
+        video: withVideo ? { width: { ideal: 640 }, height: { ideal: 480 } } : false,
+      });
       streamRef.current = stream;
+
+      if (withVideo && localVideoRef.current) {
+        localVideoRef.current.srcObject = stream;
+      }
+
       const peer = new RTCPeerConnection({ iceServers: await getIceServers() });
       peerRef.current = peer;
       stream.getTracks().forEach((track) => peer.addTrack(track, stream));
-      peer.ontrack = (event) => { if (remoteAudioRef.current) remoteAudioRef.current.srcObject = event.streams[0]; };
-      peer.onicecandidate = ({ candidate }) => {
-        if (candidate) channel.send({ type: 'broadcast', event: 'signal', payload: { from: userId, kind: 'candidate', candidate: candidate.toJSON() } });
+
+      peer.ontrack = (event) => {
+        if (remoteMediaRef.current) {
+          remoteMediaRef.current.srcObject = event.streams[0];
+        }
       };
+
+      peer.onicecandidate = ({ candidate }) => {
+        if (candidate) {
+          channel.send({
+            type: 'broadcast',
+            event: 'signal',
+            payload: { from: userId, kind: 'candidate', candidate: candidate.toJSON() },
+          });
+        }
+      };
+
       peer.onconnectionstatechange = () => setConnected(peer.connectionState === 'connected');
-      peer.oniceconnectionstatechange = () => { if (peer.iceConnectionState === 'failed') toast.error('Voice connection failed. Please check your network connection.'); };
+      peer.oniceconnectionstatechange = () => {
+        if (peer.iceConnectionState === 'failed') {
+          toast.error(`${type === 'video' ? 'Video' : 'Voice'} connection failed. Please check your network connection.`);
+        }
+      };
+
       setActive(true);
       return peer;
     }
@@ -922,13 +999,20 @@ function MultiplayerVoice({ roomId, userId, opponentName }) {
         return;
       }
       try {
-        const peer = payload.kind === 'offer' ? await ensurePeer() : peerRef.current;
+        const incomingType = payload.callType || 'voice';
+        const peer = payload.kind === 'offer' ? await ensurePeer(incomingType) : peerRef.current;
         if (!peer) return;
         if (payload.kind === 'offer') {
+          setCallType(incomingType);
+          setMinimized(false);
           await peer.setRemoteDescription(payload.description);
           for (const candidate of pendingCandidates.current.splice(0)) await peer.addIceCandidate(candidate);
           await peer.setLocalDescription(await peer.createAnswer());
-          await channel.send({ type: 'broadcast', event: 'signal', payload: { from: userId, kind: 'answer', description: peer.localDescription } });
+          await channel.send({
+            type: 'broadcast',
+            event: 'signal',
+            payload: { from: userId, kind: 'answer', callType: incomingType, description: peer.localDescription },
+          });
         } else if (payload.kind === 'answer' && peer.signalingState === 'have-local-offer') {
           await peer.setRemoteDescription(payload.description);
           for (const candidate of pendingCandidates.current.splice(0)) await peer.addIceCandidate(candidate);
@@ -936,9 +1020,18 @@ function MultiplayerVoice({ roomId, userId, opponentName }) {
           if (peer.remoteDescription) await peer.addIceCandidate(payload.candidate);
           else pendingCandidates.current.push(payload.candidate);
         } else if (payload.kind === 'hangup') {
-          peer.close(); peerRef.current = null; streamRef.current?.getTracks().forEach((track) => track.stop()); streamRef.current = null; setActive(false); setConnected(false);
+          peer.close();
+          peerRef.current = null;
+          streamRef.current?.getTracks().forEach((track) => track.stop());
+          streamRef.current = null;
+          setActive(false);
+          setConnected(false);
+          setCameraOff(false);
+          onEndCall?.();
         }
-      } catch (error) { toast.error(error.message || 'Could not connect voice talk.'); }
+      } catch (error) {
+        toast.error(error.message || 'Could not connect talk.');
+      }
     });
 
     channel.subscribe((status) => setChannelReady(status === 'SUBSCRIBED'));
@@ -951,16 +1044,42 @@ function MultiplayerVoice({ roomId, userId, opponentName }) {
     };
   }, [roomId, userId]);
 
-  async function startVoice() {
-    if (!channelReady) { toast.error('Connecting voice channel. Please try again shortly.'); return; }
+  async function startCall(type = 'voice') {
+    if (!channelReady) {
+      toast.error('Connecting channel. Please try again shortly.');
+      return;
+    }
+    setCallType(type);
     try {
-      const peer = await createPeerRef.current();
+      const peer = await createPeerRef.current(type);
       setActive(true);
       if (peer.signalingState !== 'stable') return;
-      await peer.setLocalDescription(await peer.createOffer());
-      await channelRef.current.send({ type: 'broadcast', event: 'signal', payload: { from: userId, kind: 'offer', description: peer.localDescription } });
-    } catch (error) { toast.error(error.name === 'NotAllowedError' ? 'Please allow microphone access for voice talk.' : (error.message || 'Microphone unavailable.')); }
+      await peer.setLocalDescription(
+        await peer.createOffer({
+          offerToReceiveAudio: true,
+          offerToReceiveVideo: type === 'video',
+        })
+      );
+      await channelRef.current.send({
+        type: 'broadcast',
+        event: 'signal',
+        payload: { from: userId, kind: 'offer', callType: type, description: peer.localDescription },
+      });
+    } catch (error) {
+      toast.error(
+        error.name === 'NotAllowedError'
+          ? `Please allow permission for ${type === 'video' ? 'camera and microphone' : 'microphone'}.`
+          : error.message || 'Media unavailable.'
+      );
+    }
   }
+
+  // Handle external trigger from bottom buttons
+  useEffect(() => {
+    if (!callTrigger) return;
+    setMinimized(false);
+    startCall(callTrigger.type);
+  }, [callTrigger]);
 
   function toggleMute() {
     const next = !muted;
@@ -968,33 +1087,124 @@ function MultiplayerVoice({ roomId, userId, opponentName }) {
     setMuted(next);
   }
 
-  function hangup() {
-    channelRef.current?.send({ type: 'broadcast', event: 'signal', payload: { from: userId, kind: 'hangup' } });
-    peerRef.current?.close(); peerRef.current = null;
-    streamRef.current?.getTracks().forEach((track) => track.stop()); streamRef.current = null;
-    pendingCandidates.current = [];
-    setActive(false); setConnected(false); setMuted(false);
+  function toggleCamera() {
+    const next = !cameraOff;
+    streamRef.current?.getVideoTracks().forEach((track) => { track.enabled = !next; });
+    setCameraOff(next);
   }
 
-  const status = active ? (connected ? `Connected · ${opponentName}` : 'Connecting voice…') : channelReady ? 'Ready for 2-way talk' : 'Connecting channel…';
+  function hangup() {
+    channelRef.current?.send({ type: 'broadcast', event: 'signal', payload: { from: userId, kind: 'hangup' } });
+    peerRef.current?.close();
+    peerRef.current = null;
+    streamRef.current?.getTracks().forEach((track) => track.stop());
+    streamRef.current = null;
+    pendingCandidates.current = [];
+    setActive(false);
+    setConnected(false);
+    setMuted(false);
+    setCameraOff(false);
+    onEndCall?.();
+  }
+
+  const isVideo = callType === 'video';
+  const status = active
+    ? connected
+      ? `Connected · ${opponentName}`
+      : `Connecting ${isVideo ? 'video' : 'voice'}…`
+    : channelReady
+    ? `Ready for 2-way ${isVideo ? 'video' : 'voice'} talk`
+    : 'Connecting channel…';
+
   return (
-    <div className="fixed bottom-4 right-4 z-40 w-[min(22rem,calc(100vw-2rem))] rounded-xl border border-gold/50 bg-graphite/95 p-3 shadow-2xl backdrop-blur">
-      <audio ref={remoteAudioRef} autoPlay />
+    <div
+      className={`fixed bottom-4 right-4 z-40 rounded-xl border border-gold/50 bg-graphite/95 p-3 shadow-2xl backdrop-blur transition-all ${
+        isVideo && active && !minimized ? 'w-[min(24rem,calc(100vw-2rem))]' : 'w-[min(22rem,calc(100vw-2rem))]'
+      }`}
+    >
+      {/* Remote Media (video or audio) */}
+      {isVideo ? (
+        <video
+          ref={remoteMediaRef}
+          autoPlay
+          playsInline
+          className={`w-full rounded-lg bg-black object-cover ${minimized || !active ? 'hidden' : 'aspect-video mb-2'}`}
+        />
+      ) : (
+        <audio ref={remoteMediaRef} autoPlay />
+      )}
+
+      {/* Local Video Preview PiP */}
+      {isVideo && active && !minimized && (
+        <div className="relative">
+          <video
+            ref={localVideoRef}
+            autoPlay
+            playsInline
+            muted
+            className={`absolute bottom-3 right-2 w-20 aspect-video rounded border border-gold/50 bg-black/90 object-cover ${cameraOff ? 'hidden' : ''}`}
+          />
+        </div>
+      )}
+
       <div className="flex items-center gap-2">
         <span className={`h-2.5 w-2.5 rounded-full ${connected ? 'bg-emerald' : active ? 'bg-amber-400' : 'bg-gray-500'}`} />
-        <span className="min-w-0 flex-1 truncate text-sm font-semibold text-white">TalkVoice <span className="font-normal text-gray-400">{status}</span></span>
-        <button onClick={() => setMinimized((value) => !value)} className="rounded px-2 py-1 text-gray-300 hover:bg-slate" aria-label={minimized ? 'Expand voice panel' : 'Minimize voice panel'}>{minimized ? '□' : '—'}</button>
+        <span className="min-w-0 flex-1 truncate text-sm font-semibold text-white">
+          {isVideo ? '📹 Video Talk' : '🎙️ Voice Talk'}{' '}
+          <span className="font-normal text-gray-400">{status}</span>
+        </span>
+        <button
+          onClick={() => setMinimized((value) => !value)}
+          className="rounded px-2 py-1 text-gray-300 hover:bg-slate"
+          aria-label={minimized ? 'Expand call panel' : 'Minimize call panel'}
+        >
+          {minimized ? '□' : '—'}
+        </button>
       </div>
+
       {!minimized && (
         <div className="mt-3 flex flex-wrap gap-2">
           {!active ? (
-            <button onClick={startVoice} disabled={!channelReady} className="rounded-lg bg-gold px-3 py-2 text-sm font-bold text-obsidian disabled:opacity-50 shadow-md shadow-gold/20">
-              🎙️ Start Talking
-            </button>
+            <>
+              <button
+                onClick={() => startCall('voice')}
+                disabled={!channelReady}
+                className="flex items-center gap-1.5 rounded-lg bg-gold px-3 py-2 text-xs font-bold text-obsidian shadow-md shadow-gold/20 disabled:opacity-50 hover:bg-champagne transition"
+              >
+                <span>🎙️</span>
+                <span>Start Voice Talk</span>
+              </button>
+              <button
+                onClick={() => startCall('video')}
+                disabled={!channelReady}
+                className="flex items-center gap-1.5 rounded-lg border border-gold/40 bg-white/10 px-3 py-2 text-xs font-bold text-white shadow-md hover:bg-white/20 transition disabled:opacity-50"
+              >
+                <span>📹</span>
+                <span>Start Video Talk</span>
+              </button>
+            </>
           ) : (
             <>
-              <button onClick={toggleMute} className="rounded-lg bg-slate px-3 py-2 text-sm text-white hover:bg-slate/80">{muted ? 'Unmute' : 'Mute'}</button>
-              <button onClick={hangup} className="rounded-lg bg-red-700 px-3 py-2 text-sm text-white hover:bg-red-800">End Voice</button>
+              <button
+                onClick={toggleMute}
+                className="rounded-lg bg-slate px-3 py-1.5 text-xs font-semibold text-white hover:bg-slate/80 transition"
+              >
+                {muted ? 'Unmute' : 'Mute'}
+              </button>
+              {isVideo && (
+                <button
+                  onClick={toggleCamera}
+                  className="rounded-lg bg-slate px-3 py-1.5 text-xs font-semibold text-white hover:bg-slate/80 transition"
+                >
+                  {cameraOff ? 'Turn Camera On' : 'Turn Camera Off'}
+                </button>
+              )}
+              <button
+                onClick={hangup}
+                className="rounded-lg bg-red-700 px-3 py-1.5 text-xs font-semibold text-white hover:bg-red-800 transition"
+              >
+                End Call
+              </button>
             </>
           )}
         </div>
