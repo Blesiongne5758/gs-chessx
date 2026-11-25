@@ -11,6 +11,7 @@ import { CHESS_SKIN_LIST, resolveChessSkin } from '../lib/chessSkins';
 import { calculateGlicko2 } from '../lib/glicko2';
 import { recordMatchHistory, downloadPgn } from '../lib/matchHistory';
 import { addNotification } from '../lib/notifications';
+import { stockfishEngine, AI_LEVEL_PROFILES, chooseFallbackMove } from '../lib/stockfishEngine';
 
 const PIECES = {
   w: { k: '♔', q: '♕', r: '♖', b: '♗', n: '♘', p: '♙' },
@@ -40,17 +41,7 @@ function checkGameOverPosition(g) {
 }
 
 function chooseComputerMove(position, level = 10) {
-  const moves = position.moves({ verbose: true });
-  if (!moves.length) return null;
-  let best = moves[0];
-  let bestScore = -Infinity;
-  for (const move of moves) {
-    const score = (AI_VALUES[move.captured] || 0)
-      + (move.san?.includes('+') ? 60 : 0)
-      + Math.random() * Math.max(0, 11 - level) * 20;
-    if (score > bestScore) { best = move; bestScore = score; }
-  }
-  return { from: best.from, to: best.to, promotion: best.promotion || 'q' };
+  return chooseFallbackMove(position, level);
 }
 
 export default function GameRoom({
@@ -78,6 +69,7 @@ export default function GameRoom({
   const [drawPending, setDrawPending] = useState(false);
   const [gameChannelReady, setGameChannelReady] = useState(false);
   const [aiThinking, setAiThinking] = useState(false);
+  const [stockfishEval, setStockfishEval] = useState('');
   const [skinMode, setSkinMode] = useState('2d');
   const [skinId, setSkinId] = useState('classic');
   const [customization, setCustomization] = useState(DEFAULT_CUSTOMIZATION);
@@ -290,29 +282,71 @@ export default function GameRoom({
     };
   }, [isMultiplayer, match?.roomId, user.id, isSpectator, game, whiteTime, blackTime, result, finishGame]);
 
-  // VS AI logic
+  // Stockfish Lifecycle
+  useEffect(() => {
+    if (isAiMatch) {
+      stockfishEngine.init();
+      stockfishEngine.onEvalUpdate = (evalInfo) => {
+        if (evalInfo?.label) {
+          setStockfishEval(evalInfo.label);
+        }
+      };
+    }
+    return () => {
+      if (isAiMatch) {
+        stockfishEngine.onEvalUpdate = null;
+      }
+    };
+  }, [isAiMatch]);
+
+  // VS AI logic powered by Stockfish.js
   useEffect(() => {
     const aiColor = playerSide === 'w' ? 'b' : 'w';
     if (!isAiMatch || result || turn !== aiColor) return undefined;
     setAiThinking(true);
-    const timer = window.setTimeout(() => {
-      setGame((current) => {
-        const next = new Chess();
-        next.loadPgn(current.pgn());
-        const move = chooseComputerMove(next, match?.aiLevel || 10);
+    let isMounted = true;
+
+    async function executeStockfishTurn() {
+      try {
+        const fen = game.fen();
+        const level = match?.aiLevel || 10;
+        const move = await stockfishEngine.requestMove(fen, level, game);
+
+        if (!isMounted) return;
+
         if (!move) {
           setAiThinking(false);
-          return current;
+          return;
         }
-        next.move(move);
-        const over = checkGameOverPosition(next);
-        if (over) finishGame(over);
-        setAiThinking(false);
-        return next;
-      });
-    }, 550);
-    return () => window.clearTimeout(timer);
-  }, [isAiMatch, match?.aiLevel, result, turn, playerSide, finishGame]);
+
+        setGame((current) => {
+          const next = new Chess();
+          next.loadPgn(current.pgn());
+          try {
+            next.move(move);
+          } catch (e) {
+            console.warn('[Stockfish] Move error, using fallback:', e);
+            const fallback = chooseFallbackMove(next, level);
+            if (fallback) next.move(fallback);
+          }
+          const over = checkGameOverPosition(next);
+          if (over) finishGame(over);
+          setAiThinking(false);
+          return next;
+        });
+      } catch (err) {
+        console.error('[Stockfish] Turn execution error:', err);
+        if (isMounted) setAiThinking(false);
+      }
+    }
+
+    const timer = window.setTimeout(executeStockfishTurn, 200);
+
+    return () => {
+      isMounted = false;
+      window.clearTimeout(timer);
+    };
+  }, [isAiMatch, match?.aiLevel, result, turn, playerSide, game, finishGame]);
 
   // Clock
   useEffect(() => {
@@ -552,10 +586,11 @@ export default function GameRoom({
     ? 'You (Guest)'
     : user?.user_metadata?.username || user?.email?.split('@')[0] || 'You';
 
+  const aiProfile = AI_LEVEL_PROFILES[match?.aiLevel || 10] || AI_LEVEL_PROFILES[10];
   const opponentName = isSpectator
     ? (match?.blackPlayer || 'Black')
     : isAiMatch
-    ? 'Computer'
+    ? `Stockfish AI (${aiProfile.title})`
     : match?.opponent?.username || 'Opponent';
 
   const isPlayerBlack = playerSide === 'b';
@@ -612,7 +647,7 @@ export default function GameRoom({
               icon={isPlayerBlack ? '♔' : '♚'}
               iconClass={isPlayerBlack ? 'bg-gold text-obsidian' : 'bg-black text-white'}
               name={oppLabel}
-              sub={isSpectator ? 'Black Player' : isMultiplayer ? 'Quick Match Opponent' : isAiMatch ? `Computer · Level ${match?.aiLevel || 10}` : 'Local hot-seat'}
+              sub={isSpectator ? 'Black Player' : isMultiplayer ? 'Quick Match Opponent' : isAiMatch ? `Stockfish.js · Level ${aiProfile.level} (~${aiProfile.elo} Elo)` : 'Local hot-seat'}
               time={oppTime}
               active={oppTurn && !result}
             />
@@ -676,8 +711,14 @@ export default function GameRoom({
               </p>
             )}
             {isAiMatch && aiThinking && (
-              <p role="status" className="rounded-xl border border-gold/40 bg-gold/10 p-2 text-center text-xs text-gold">
-                Computer is calculating best move…
+              <p role="status" className="flex items-center justify-center gap-2 rounded-xl border border-gold/40 bg-gold/10 p-2 text-center text-xs text-gold">
+                <span className="inline-block h-2 w-2 rounded-full bg-gold animate-ping" />
+                <span>Stockfish AI (Level {aiProfile.level} · ~{aiProfile.elo} Elo) is thinking…</span>
+                {stockfishEval && (
+                  <span className="rounded bg-gold/20 px-1.5 py-0.5 text-[10px] font-mono font-bold text-gold border border-gold/30">
+                    Eval: {stockfishEval}
+                  </span>
+                )}
               </p>
             )}
 

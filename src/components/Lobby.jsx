@@ -5,13 +5,14 @@ import Avatar from './Avatar';
 import TopNav, { FooterNav } from './TopNav';
 import { loadGuestProfile } from '../lib/profile';
 import { TIME_CONTROL_CATEGORIES, getDefaultCategoryPreset } from '../lib/timeControls';
+import { AI_LEVEL_PROFILES } from '../lib/stockfishEngine';
 
 const TIME_CONTROLS = [
   { label: '⚡ Bullet (1+0)', desc: 'Fast & furious', base: 60, inc: 0 },
   { label: '⚡ Blitz (3+2)', desc: 'Most popular', base: 180, inc: 2 },
   { label: '⚡ Rapid (10+0)', desc: 'Strategic play', base: 600, inc: 0 },
   { label: '🎯 Classic (30+0)', desc: 'Deep thinking', base: 1800, inc: 0 },
-  { label: '🤖 VS AI (10 levels)', desc: 'Play against the computer engine offline', base: 600, inc: 0, mode: 'ai', aiLevel: 10 },
+  { label: '🤖 VS Stockfish AI', desc: 'Play against Stockfish engine offline (10 levels)', base: 600, inc: 0, mode: 'ai', aiLevel: 10 },
 ];
 
 const FEATURE_TILES = [
@@ -282,7 +283,10 @@ export default function Lobby({
             <div className="flex items-center justify-between border-b border-white/10 pb-4">
               <div className="flex items-center gap-2">
                 <span className="text-2xl">🤖</span>
-                <h2 className="font-cinzel text-xl font-bold text-white">Play Against Computer</h2>
+                <div>
+                  <h2 className="font-cinzel text-xl font-bold text-white">Stockfish AI Opponent</h2>
+                  <p className="text-[11px] text-gray-400">Powered by official Stockfish.js engine</p>
+                </div>
               </div>
               <button
                 type="button"
@@ -354,11 +358,16 @@ export default function Lobby({
               {/* Difficulty Level */}
               <div>
                 <div className="flex items-center justify-between mb-2">
-                  <label className="text-xs font-semibold uppercase tracking-wider text-gold">
-                    AI Difficulty Level
-                  </label>
+                  <div className="flex items-center gap-1.5">
+                    <label className="text-xs font-semibold uppercase tracking-wider text-gold">
+                      AI Difficulty Level
+                    </label>
+                    <span className="rounded bg-gold/10 px-1.5 py-0.5 text-[9px] font-bold text-gold border border-gold/30">
+                      Stockfish.js
+                    </span>
+                  </div>
                   <span className="rounded-full bg-gold/15 px-2.5 py-0.5 text-xs font-bold text-gold">
-                    Level {aiLevel} {aiLevel === 10 ? '(Master)' : aiLevel >= 7 ? '(Expert)' : aiLevel >= 4 ? '(Intermediate)' : '(Beginner)'}
+                    Level {aiLevel} · {AI_LEVEL_PROFILES[aiLevel]?.title || 'Stockfish'} (~{AI_LEVEL_PROFILES[aiLevel]?.elo || 1500} Elo)
                   </span>
                 </div>
                 <input
@@ -369,10 +378,10 @@ export default function Lobby({
                   onChange={(e) => setAiLevel(Number(e.target.value))}
                   className="w-full accent-gold cursor-pointer"
                 />
-                <div className="flex justify-between text-[10px] text-gray-500 mt-1">
-                  <span>1 (Casual)</span>
-                  <span>5 (Club)</span>
-                  <span>10 (Grandmaster)</span>
+                <div className="flex justify-between text-[10px] text-gray-400 mt-1">
+                  <span>Lv 1 (800 Elo)</span>
+                  <span>Lv 5 (1600 Elo)</span>
+                  <span>Lv 10 (2600+ GM)</span>
                 </div>
               </div>
             </div>

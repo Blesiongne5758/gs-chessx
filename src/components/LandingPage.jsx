@@ -6,7 +6,7 @@ const LANDING_FEATURES = [
   { key: 'tournaments', icon: '♜', title: 'Swiss Tournaments', desc: 'Scheduled competitions with official Swiss pairings & brackets', tone: 'violet' },
   { key: 'voice', icon: '🎙️', title: 'Voice & Video Talk', desc: 'Realtime 2-way audio and video talk while playing or chatting', tone: 'green' },
   { key: 'social', icon: '☁', title: 'Friends & Chat', desc: 'Add friends, challenge quick duels, and send instant messages', tone: 'cyan' },
-  { key: 'ai', icon: '🤖', title: 'VS AI 10 Levels', desc: 'Sharpen your skills against bot engines from beginner to Grandmaster', tone: 'slate' },
+  { key: 'ai', icon: '🤖', title: 'Stockfish AI (10 Levels)', desc: 'Sharpen your skills against Stockfish.js engine from beginner (800 Elo) to Grandmaster (2600+ Elo)', tone: 'slate' },
 ];
 
 export default function LandingPage({ onPlay, onLogin, onSignup, user }) {
