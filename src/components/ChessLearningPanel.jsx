@@ -51,6 +51,11 @@ export default function ChessLearningPanel({ mode = 'all' }) {
     setPuzzleAnswer(null);
   }
 
+  function prevPuzzle() {
+    setPuzzleIndex((index) => (index - 1 + PUZZLES.length) % PUZZLES.length);
+    setPuzzleAnswer(null);
+  }
+
   function selectQuiz(answer) {
     if (quizAnswer !== null) return;
     setQuizAnswer(answer);
@@ -128,7 +133,22 @@ export default function ChessLearningPanel({ mode = 'all' }) {
               <strong>{puzzleAnswer === puzzle.answer ? 'Correct.' : 'Not quite.'}</strong> {puzzle.explanation}
             </div>
           )}
-          <button type="button" onClick={nextPuzzle} disabled={puzzleAnswer === null} className="mt-4 w-full rounded-md border border-gold/40 px-3 py-2 text-xs font-semibold text-gold hover:bg-gold/10 disabled:cursor-not-allowed disabled:opacity-40">Next Puzzle</button>
+          <div className="mt-4 flex items-center justify-between gap-2">
+            <button
+              type="button"
+              onClick={prevPuzzle}
+              className="rounded-md border border-white/10 px-3 py-2 text-xs text-gray-300 hover:border-gold/50 hover:text-white"
+            >
+              ← Previous
+            </button>
+            <button
+              type="button"
+              onClick={nextPuzzle}
+              className="rounded-md bg-gold px-4 py-2 text-xs font-bold text-obsidian hover:bg-champagne transition"
+            >
+              Next Puzzle →
+            </button>
+          </div>
         </div>
       )}
 
@@ -136,7 +156,7 @@ export default function ChessLearningPanel({ mode = 'all' }) {
         <div className="mt-4" role="tabpanel">
           <div className="flex items-center justify-between text-[10px] uppercase tracking-[0.18em] text-gray-500">
             <span>Quiz {quizIndex + 1} / {QUIZ.length}</span>
-            <span className="font-mono text-gold">Score {quizScore}</span>
+            <span className="font-mono text-gold font-bold">Score {quizScore} / {QUIZ.length}</span>
           </div>
           <h4 className="mt-2 text-sm font-bold leading-5 text-white">{quiz.question}</h4>
           <div className="mt-3 space-y-2">
@@ -151,7 +171,19 @@ export default function ChessLearningPanel({ mode = 'all' }) {
               <strong>{quizAnswer === quiz.answer ? 'Correct.' : 'Review and try again.'}</strong> {quiz.explanation}
             </div>
           )}
-          <button type="button" onClick={nextQuiz} disabled={quizAnswer === null} className="mt-4 w-full rounded-md border border-gold/40 px-3 py-2 text-xs font-semibold text-gold hover:bg-gold/10 disabled:cursor-not-allowed disabled:opacity-40">{quizIndex === QUIZ.length - 1 ? 'Restart Quiz' : 'Next Question'}</button>
+          <div className="mt-4 flex items-center justify-between gap-2">
+            <span className="text-xs text-gray-400">
+              Question {quizIndex + 1} of {QUIZ.length}
+            </span>
+            <button
+              type="button"
+              onClick={nextQuiz}
+              disabled={quizAnswer === null}
+              className="rounded-md bg-gold px-4 py-2 text-xs font-bold text-obsidian hover:bg-champagne disabled:cursor-not-allowed disabled:opacity-40 transition"
+            >
+              {quizIndex === QUIZ.length - 1 ? 'Finish & Restart' : 'Next Question →'}
+            </button>
+          </div>
         </div>
       )}
     </section>
