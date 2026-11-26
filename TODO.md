@@ -25,12 +25,14 @@
 - [x] Perubahan dikomit dan didorong ke `main` repository `Blesiongne5758/gs-chessx`.
 
 ## Crypto wallet non-custodial — placeholder architecture
-- [ ] Wallet hanya menyimpan alamat publik, chain metadata, status koneksi, dan waktu koneksi; private key, seed phrase, dan secret token tidak pernah masuk ke aplikasi atau Supabase.
-- [ ] Pengguna dapat membuka halaman Crypto Wallet, mendeteksi provider EVM/Solana, menghubungkan wallet, menandatangani pesan kepemilikan, menyalin alamat, dan melepas wallet.
-- [ ] Panel token menampilkan contract placeholder dan tombol claim yang tetap nonaktif sampai jaringan, contract address, eligibility server-side, dan mekanisme anti-replay siap.
-- [ ] Migration Supabase membatasi kolom wallet pada metadata publik; saldo, eligibility, dan distribusi token belum dianggap aktif.
+- [x] Wallet hanya menyimpan alamat publik, chain metadata, status koneksi, dan waktu koneksi; private key, seed phrase, dan secret token tidak pernah masuk ke aplikasi atau Supabase.
+- [x] Pengguna dapat membuka halaman Crypto Wallet, mendeteksi provider EVM/Solana, menghubungkan wallet, menandatangani pesan kepemilikan, menyalin alamat, dan melepas wallet.
+- [x] Panel token menampilkan contract placeholder, eligibility read-only, validasi Merkle lokal, dan read-only root/claimed check tanpa mengirim transaksi.
+- [x] Migration Supabase membatasi kolom wallet dan claim-check metadata publik; saldo dan distribusi token belum dianggap aktif.
 
 ## Smart contract meme coin dan claim
 - [ ] Contract `GSXTokenMerkle.sol` diaudit dan dideploy ke testnet/mainnet yang dipilih; owner, Merkle root, claim window, dan recovery policy diverifikasi secara independen.
-- [ ] Proof service server-side menghasilkan `index`, `account`, `amount`, dan proof dari dataset terkontrol serta memvalidasi root yang sama dengan contract.
+- [x] Toolchain Hardhat menyediakan compile, unit test, deployment script yang menolak zero root dan melakukan post-deploy read checks, serta script Etherscan verify; tidak ada deployment yang dijalankan oleh aplikasi.
+- [x] Generator Merkle membaca CSV terkontrol, menghasilkan tree/proofs/root JSON, memvalidasi index/address/amount, dan menjaga kompatibilitas leaf OpenZeppelin.
+- [x] Proof service Express menyediakan `/health` dan `/eligibility`, validasi proof/root, CORS allowlist, rate limit, dan template Nginx HTTPS reverse proxy.
 - [x] Frontend memiliki ABI minimal dan reader eligibility Merkle yang fail-closed; build ini tidak mengirim, menandatangani, atau menyetujui transaksi claim.

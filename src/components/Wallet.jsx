@@ -12,7 +12,7 @@ import {
   saveWalletConnection,
   shortenAddress,
 } from '../lib/wallet';
-import { fetchClaimEligibility, getClaimConfig } from '../lib/claim';
+import { fetchClaimEligibility, getClaimConfig, readOnChainClaimState } from '../lib/claim';
 
 function StatusPill({ status }) {
   const isPending = status === WALLET_STATUS.pending;
@@ -103,7 +103,12 @@ export default function Wallet({ user, onNavigate, onEditProfile, onLogout }) {
     setClaimCheck(null);
     try {
       const result = await fetchClaimEligibility(profile?.wallet_address);
-      setClaimCheck(result);
+      if (result.eligible) {
+        const onChain = await readOnChainClaimState(result.allocation.index);
+        setClaimCheck({ ...result, onChain });
+      } else {
+        setClaimCheck(result);
+      }
     } catch (exception) {
       setClaimCheck({ configured: true, eligible: false, reason: exception.message || 'Eligibility check failed.' });
     } finally {
@@ -178,7 +183,9 @@ export default function Wallet({ user, onNavigate, onEditProfile, onLogout }) {
             {claimCheck && (
               <div className={`mt-3 rounded-xl border p-3 text-xs leading-relaxed ${claimCheck.eligible ? 'border-emerald-400/30 bg-emerald-400/10 text-emerald-100' : 'border-amber-400/30 bg-amber-400/10 text-amber-100'}`}>
                 {claimCheck.eligible ? `Eligible allocation found: ${claimCheck.allocation.amount} base units at index ${claimCheck.allocation.index}.` : claimCheck.reason}
-                {claimCheck.eligible && <span className="mt-1 block text-emerald-200/70">The contract ABI is ready for independent review. No claim transaction was sent by GS-ChessX.</span>}
+                {claimCheck.eligible && claimCheck.onChain?.alreadyClaimed && <span className="mt-1 block text-amber-200/80">This allocation is already marked as claimed on-chain.</span>}
+                {claimCheck.eligible && claimCheck.onChain?.available && !claimCheck.onChain.alreadyClaimed && <span className="mt-1 block text-emerald-200/70">Local proof and on-chain root checks passed. No claim transaction was sent by GS-ChessX.</span>}
+                {claimCheck.eligible && claimCheck.onChain && !claimCheck.onChain.available && <span className="mt-1 block text-amber-200/80">Local proof passed; connect the configured EVM network to read on-chain claim status.</span>}
               </div>
             )}
             <ul className="mt-5 space-y-2 text-xs leading-relaxed text-gray-400">

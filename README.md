@@ -38,6 +38,8 @@ GS-ChessX adalah platform catur online modern dengan tema epik "Holy Kingdom vs 
 - **Backend**: Supabase (Auth, Database, Realtime)
 - **Hosting**: InfinityFree melalui GitHub Actions FTP
 - **Assets**: Cloudflare R2
+- **Blockchain tooling**: Solidity 0.8.24, OpenZeppelin Contracts v5, Hardhat, Ethers.js, OpenZeppelin Merkle Tree
+- **Proof service**: Express.js, CORS allowlist, rate limiting, Nginx reverse proxy template
 
 ## 🚀 Quick Start
 
@@ -50,6 +52,21 @@ npm run dev
 ```
 
 Tanpa `.env`, aplikasi tetap jalan dalam **mode tamu** — klik Play Now untuk langsung bermain.
+
+### GSX blockchain workflow
+
+Implementasi blockchain lengkap berada di [`blockchain/README.md`](blockchain/README.md). Tooling lokal mencakup generator Merkle CSV, Hardhat compile/test/deploy/verify, proof service Express, konfigurasi Nginx production, serta frontend read-only root/claimed checks. Contract GSX belum dideploy dan aplikasi tidak menyimpan private key, seed phrase, atau secret token.
+
+Perintah validasi lokal:
+
+```bash
+npm run merkle:generate       # setelah merkle/allocations.csv dibuat
+npm run hardhat:compile
+npm run hardhat:test
+npm run proof-service:dev     # setelah merkle/proofs.json tersedia
+```
+
+Deployment dan verifikasi hanya dapat dijalankan secara eksplisit oleh operator setelah network, root, owner, dan constructor arguments direview. Frontend saat ini hanya memeriksa eligibility dan status on-chain secara read-only; tidak ada claim transaction.
 
 ### Setup Supabase
 

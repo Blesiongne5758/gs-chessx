@@ -29,3 +29,15 @@ dist-ssr
 .env.*.local
 hanyadisinisaja.txt
 
+# Blockchain tooling artifacts and secrets
+artifacts/
+cache/
+coverage/
+.hardhat/
+deployments/*.json
+merkle/allocations.csv
+merkle/tree.json
+merkle/proofs.json
+merkle/root.txt
+services/gsx-proof-service/data/proofs.json
+services/gsx-proof-service/.env
