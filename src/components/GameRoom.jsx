@@ -55,6 +55,7 @@ export default function GameRoom({
   onLogout,
   onOpenLeaderboard,
   onOpenHistory,
+  onGameEnd,
 }) {
   const base = timeControl?.base ?? 600;
   const inc = timeControl?.inc ?? 0;
@@ -68,6 +69,7 @@ export default function GameRoom({
   const [incomingDraw, setIncomingDraw] = useState(false);
   const [drawPending, setDrawPending] = useState(false);
   const [gameChannelReady, setGameChannelReady] = useState(false);
+  const [opponentInArena, setOpponentInArena] = useState(true);
   const [aiThinking, setAiThinking] = useState(false);
   const [stockfishEval, setStockfishEval] = useState('');
   const [skinMode, setSkinMode] = useState('2d');
@@ -78,11 +80,23 @@ export default function GameRoom({
   const [autoReplaying, setAutoReplaying] = useState(false);
 
   const gameChannelRef = useRef(null);
+  // Stable refs so the channel event handlers always read current values
+  // without forcing the channel useEffect to re-subscribe on every tick/move.
+  const gameRef = useRef(null);
+  const whiteTimeRef = useRef(null);
+  const blackTimeRef = useRef(null);
+  const resultRef = useRef(null);
+  const finishGameRef = useRef(null);
   const [playerSide, setPlayerSide] = useState(() => (match?.color === 'black' ? 'b' : 'w'));
   const [callTrigger, setCallTrigger] = useState(null);
   const isMultiplayer = Boolean(match?.roomId);
   const isAiMatch = match?.mode === 'ai';
   const isSpectator = Boolean(match?.isSpectator);
+  const opponentDisplayName = isSpectator
+    ? (match?.blackPlayer || 'Black')
+    : isAiMatch
+    ? 'Stockfish AI'
+    : match?.opponent?.username || 'Opponent';
 
   function handleVoiceTalk() {
     if (isMultiplayer && !isSpectator) {
@@ -143,6 +157,7 @@ export default function GameRoom({
   // Handle Game Finish & Glicko-2 calculation
   const finishGame = useCallback((message) => {
     setResult(message);
+    onGameEnd?.({ roomId: match?.roomId, result: message });
 
     if (isMultiplayer && !isSpectator) {
       gameChannelRef.current?.send({ type: 'broadcast', event: 'result', payload: { result: message } });
@@ -207,10 +222,67 @@ export default function GameRoom({
     }
   }, [isMultiplayer, isSpectator, playerSide, match, user, timeControl, game, fullHistory.length, isAiMatch]);
 
+  // Keep refs in sync — assigned during render so they're never stale.
+  gameRef.current = game;
+  whiteTimeRef.current = whiteTime;
+  blackTimeRef.current = blackTime;
+  resultRef.current = result;
+  finishGameRef.current = finishGame;
+
   useEffect(() => {
     if (!isMultiplayer) return undefined;
-    const channel = supabase.channel(`chess-game:${match.roomId}`, { config: { private: true, broadcast: { self: false } } });
+    const channel = supabase.channel(`chess-game:${match.roomId}`, {
+      config: {
+        private: true,
+        presence: { key: user.id },
+        broadcast: { self: false },
+      },
+    });
     gameChannelRef.current = channel;
+
+    // Track presence to detect when opponent leaves or rejoins the arena
+    channel.on('presence', { event: 'sync' }, () => {
+      const state = channel.presenceState();
+      const presences = Object.values(state).flat();
+      const hasOpponent = presences.some((p) => p.userId && p.userId !== user.id);
+      if (presences.length > 0) {
+        setOpponentInArena(hasOpponent);
+      }
+    });
+
+    channel.on('presence', { event: 'join' }, ({ newPresences }) => {
+      const joinedOther = (newPresences || []).some((p) => p.userId && p.userId !== user.id);
+      if (joinedOther) {
+        setOpponentInArena(true);
+        toast.success(`${opponentDisplayName} re-entered the arena!`, { icon: '🟢' });
+        // Automatically sync latest board & clock to the reconnected player
+        channel.send({
+          type: 'broadcast',
+          event: 'sync-state',
+          payload: {
+            pgn: gameRef.current.pgn(),
+            whiteTime: whiteTimeRef.current,
+            blackTime: blackTimeRef.current,
+            result: resultRef.current,
+          },
+        });
+      }
+    });
+
+    channel.on('presence', { event: 'leave' }, ({ leftPresences }) => {
+      const leftOther = (leftPresences || []).some((p) => p.userId && p.userId !== user.id);
+      if (leftOther) {
+        setOpponentInArena(false);
+        toast(`${opponentDisplayName} left the match arena.`, { icon: '⚠️' });
+      }
+    });
+
+    channel.on('broadcast', { event: 'player-abandoned' }, ({ payload }) => {
+      if (payload?.abandonedBy !== user.id) {
+        finishGameRef.current('Opponent abandoned the game — You win!');
+        toast.success(`${opponentDisplayName} conceded and abandoned the match. Victory!`, { icon: '🏆' });
+      }
+    });
 
     channel.on('broadcast', { event: 'move' }, ({ payload }) => {
       if (payload.playerId === user.id) return;
@@ -234,20 +306,21 @@ export default function GameRoom({
         channel.send({
           type: 'broadcast',
           event: 'sync-state',
-          payload: { pgn: game.pgn(), whiteTime, blackTime, result },
+          payload: { pgn: gameRef.current.pgn(), whiteTime: whiteTimeRef.current, blackTime: blackTimeRef.current, result: resultRef.current },
         });
       }
     });
 
     channel.on('broadcast', { event: 'sync-state' }, ({ payload }) => {
-      if (isSpectator && payload?.pgn) {
+      if (payload?.pgn) {
         try {
           const synced = new Chess();
           synced.loadPgn(payload.pgn);
           setGame(synced);
-          if (payload.whiteTime) setWhiteTime(payload.whiteTime);
-          if (payload.blackTime) setBlackTime(payload.blackTime);
+          if (typeof payload.whiteTime === 'number') setWhiteTime(payload.whiteTime);
+          if (typeof payload.blackTime === 'number') setBlackTime(payload.blackTime);
           if (payload.result) setResult(payload.result);
+          setReplayStep(null);
         } catch {
           // ignore sync failure
         }
@@ -261,16 +334,19 @@ export default function GameRoom({
     channel.on('broadcast', { event: 'draw-response' }, ({ payload }) => {
       if (payload.to !== user.id) return;
       setDrawPending(false);
-      if (payload.accepted) finishGame('Draw — agreed');
+      if (payload.accepted) finishGameRef.current('Draw — agreed');
       else toast('Draw offer declined.');
     });
 
-    channel.subscribe((status) => {
+    channel.subscribe(async (status) => {
       if (status === 'SUBSCRIBED') {
         setGameChannelReady(true);
-        if (isSpectator) {
-          channel.send({ type: 'broadcast', event: 'request-state', payload: {} });
-        }
+        await channel.track({
+          userId: user.id,
+          onlineAt: Date.now(),
+        });
+        // Always request latest state from existing player in case we are rejoining or spectating
+        channel.send({ type: 'broadcast', event: 'request-state', payload: { from: user.id } });
       } else if (['CLOSED', 'CHANNEL_ERROR', 'TIMED_OUT'].includes(status)) {
         setGameChannelReady(false);
       }
@@ -280,7 +356,7 @@ export default function GameRoom({
       gameChannelRef.current = null;
       supabase.removeChannel(channel);
     };
-  }, [isMultiplayer, match?.roomId, user.id, isSpectator, game, whiteTime, blackTime, result, finishGame]);
+  }, [isMultiplayer, match?.roomId, user.id, isSpectator, opponentDisplayName]);
 
   // Stockfish Lifecycle
   useEffect(() => {
@@ -622,8 +698,19 @@ export default function GameRoom({
 
       {/* Top Status & Controls */}
       <div className="mx-auto flex w-full max-w-6xl items-center justify-between px-4 pt-4 text-sm">
-        <button onClick={onBack} className="text-gray-300 hover:text-white transition flex items-center gap-1 font-semibold">
-          ← {isSpectator ? 'Leave Spectator' : 'Back to Lobby'}
+        <button
+          onClick={onBack}
+          className="text-gray-300 hover:text-white transition flex items-center gap-1.5 font-semibold text-xs sm:text-sm"
+          title={isMultiplayer && !result ? 'Leave arena — match remains active and can be resumed from floating bar' : undefined}
+        >
+          <span>←</span>
+          <span>
+            {isSpectator
+              ? 'Leave Spectator'
+              : isMultiplayer && !result
+              ? 'Lobby (Match Active in Background)'
+              : 'Back to Lobby'}
+          </span>
         </button>
 
         <div className="flex items-center gap-3">
@@ -720,6 +807,26 @@ export default function GameRoom({
                   </span>
                 )}
               </p>
+            )}
+
+            {isMultiplayer && !isSpectator && !result && !opponentInArena && (
+              <div
+                role="status"
+                className="flex items-center justify-between gap-3 rounded-xl border border-amber-500/50 bg-amber-500/15 p-3 text-xs text-amber-200 shadow-lg animate-pulse"
+              >
+                <div className="flex items-center gap-2">
+                  <span className="text-lg">⚠️</span>
+                  <div>
+                    <p className="font-bold text-amber-300">Opponent is currently away from arena</p>
+                    <p className="text-[11px] text-amber-200/80">
+                      Opponent left or minimized the match. Waiting for them to rejoin...
+                    </p>
+                  </div>
+                </div>
+                <span className="shrink-0 rounded-full border border-amber-400/40 bg-amber-400/20 px-2.5 py-0.5 text-[10px] font-mono font-bold text-amber-300">
+                  Away
+                </span>
+              </div>
             )}
 
             {/* Board Container */}
@@ -980,6 +1087,7 @@ function MultiplayerMediaCall({ roomId, userId, opponentName, callTrigger, onEnd
   const channelRef = useRef(null);
   const remoteMediaRef = useRef(null);
   const localVideoRef = useRef(null);
+  const remoteStreamRef = useRef(null);
   const pendingCandidates = useRef([]);
   const createPeerRef = useRef(null);
 
@@ -1019,6 +1127,7 @@ function MultiplayerMediaCall({ roomId, userId, opponentName, callTrigger, onEnd
       stream.getTracks().forEach((track) => peer.addTrack(track, stream));
 
       peer.ontrack = (event) => {
+        remoteStreamRef.current = event.streams[0];
         if (remoteMediaRef.current) {
           remoteMediaRef.current.srcObject = event.streams[0];
         }
@@ -1078,6 +1187,7 @@ function MultiplayerMediaCall({ roomId, userId, opponentName, callTrigger, onEnd
           peerRef.current = null;
           streamRef.current?.getTracks().forEach((track) => track.stop());
           streamRef.current = null;
+          remoteStreamRef.current = null;
           setActive(false);
           setConnected(false);
           setCameraOff(false);
@@ -1136,6 +1246,24 @@ function MultiplayerMediaCall({ roomId, userId, opponentName, callTrigger, onEnd
     startCall(callTrigger.type);
   }, [callTrigger]);
 
+  // Sync local video stream to <video> element after React renders it.
+  // localVideoRef.current is null until active && isVideo && !minimized,
+  // so we must re-attach srcObject whenever those conditions become true.
+  useEffect(() => {
+    if (localVideoRef.current && streamRef.current && callType === 'video' && active && !minimized) {
+      localVideoRef.current.srcObject = streamRef.current;
+    }
+  }, [active, callType, cameraOff, minimized]);
+
+  // Sync remote stream to <video>/<audio> element after React renders it.
+  // The DOM element swaps between <audio> and <video> when callType changes,
+  // and ontrack may fire before the new element exists.
+  useEffect(() => {
+    if (remoteMediaRef.current && remoteStreamRef.current) {
+      remoteMediaRef.current.srcObject = remoteStreamRef.current;
+    }
+  }, [active, callType, minimized]);
+
   function toggleMute() {
     const next = !muted;
     streamRef.current?.getAudioTracks().forEach((track) => { track.enabled = !next; });
@@ -1154,6 +1282,7 @@ function MultiplayerMediaCall({ roomId, userId, opponentName, callTrigger, onEnd
     peerRef.current = null;
     streamRef.current?.getTracks().forEach((track) => track.stop());
     streamRef.current = null;
+    remoteStreamRef.current = null;
     pendingCandidates.current = [];
     setActive(false);
     setConnected(false);

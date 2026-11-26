@@ -16,6 +16,7 @@ import MatchHistoryModal from './components/MatchHistoryModal';
 import PgnReplayModal from './components/PgnReplayModal';
 import Wallet from './components/Wallet';
 import OnlineUserBanner from './components/OnlineUserBanner';
+import FloatingActiveMatch from './components/FloatingActiveMatch';
 import { DEFAULT_TIME_CONTROL, normalizeTimeControl } from './lib/timeControls';
 import { triggerUserOnlineAlert } from './lib/onlineAlerts';
 
@@ -27,6 +28,14 @@ function App() {
   const [authMode, setAuthMode] = useState(null); // 'login' | 'signup' | null
   const [timeControl, setTimeControl] = useState(DEFAULT_TIME_CONTROL);
   const [match, setMatch] = useState(null);
+  const [activeMatch, setActiveMatch] = useState(() => {
+    try {
+      const saved = localStorage.getItem('gs_chessx_active_match');
+      return saved ? JSON.parse(saved) : null;
+    } catch {
+      return null;
+    }
+  });
   const [leaderboardOpen, setLeaderboardOpen] = useState(false);
   const [historyOpen, setHistoryOpen] = useState(false);
   const [replayMatch, setReplayMatch] = useState(null);
@@ -89,6 +98,9 @@ function App() {
   async function handleLogout() {
     if (!user?.isGuest) await supabase.auth.signOut();
     setUser(null);
+    setMatch(null);
+    setActiveMatch(null);
+    try { localStorage.removeItem('gs_chessx_active_match'); } catch {}
     setPage('landing');
   }
 
@@ -241,7 +253,18 @@ function App() {
           onEditProfile={() => setPage('profile')}
           onLogout={handleLogout}
           onBack={() => setPage('lobby')}
-          onMatched={(nextMatch) => { setMatch(nextMatch); setTimeControl(nextMatch.timeControl || timeControl); setPage('game'); }}
+          onMatched={(nextMatch) => {
+            const fullMatch = { ...nextMatch, userId: user.id };
+            setMatch(fullMatch);
+            if (!fullMatch.isSpectator && fullMatch.mode !== 'ai') {
+              setActiveMatch(fullMatch);
+              try {
+                localStorage.setItem('gs_chessx_active_match', JSON.stringify(fullMatch));
+              } catch {}
+            }
+            setTimeControl(nextMatch.timeControl || timeControl);
+            setPage('game');
+          }}
           onOpenLeaderboard={() => setLeaderboardOpen(true)}
           onOpenHistory={() => setHistoryOpen(true)}
         />
@@ -317,7 +340,19 @@ function App() {
           user={user}
           timeControl={timeControl}
           match={match}
-          onBack={() => { setMatch(null); setPage('lobby'); }}
+          onBack={() => {
+            if (match && !match.isSpectator && match.mode !== 'ai' && !match.completed) {
+              toast('Match is still active in the background. Use the floating bar to rejoin.', { icon: '♟️' });
+            } else {
+              setActiveMatch(null);
+              try { localStorage.removeItem('gs_chessx_active_match'); } catch {}
+            }
+            setPage('lobby');
+          }}
+          onGameEnd={() => {
+            setActiveMatch(null);
+            try { localStorage.removeItem('gs_chessx_active_match'); } catch {}
+          }}
           onSocial={() => setPage('social')}
           onNavigate={setPage}
           onEditProfile={() => setPage('profile')}
@@ -329,6 +364,23 @@ function App() {
 
       {authMode && (
         <AuthModal initialMode={authMode} onClose={() => setAuthMode(null)} />
+      )}
+
+      {/* Floating Resume/Abandon Widget when user leaves the active arena */}
+      {page !== 'game' && activeMatch && (
+        <FloatingActiveMatch
+          activeMatch={activeMatch}
+          onRejoin={(m) => {
+            setMatch(m);
+            if (m.timeControl) setTimeControl(m.timeControl);
+            setPage('game');
+          }}
+          onAbandon={() => {
+            setActiveMatch(null);
+            setMatch(null);
+            try { localStorage.removeItem('gs_chessx_active_match'); } catch {}
+          }}
+        />
       )}
 
       {/* Global Modals */}
