@@ -12,6 +12,7 @@ import {
   saveWalletConnection,
   shortenAddress,
 } from '../lib/wallet';
+import { fetchClaimEligibility, getClaimConfig } from '../lib/claim';
 
 function StatusPill({ status }) {
   const isPending = status === WALLET_STATUS.pending;
@@ -37,6 +38,9 @@ export default function Wallet({ user, onNavigate, onEditProfile, onLogout }) {
   const [error, setError] = useState(null);
   const [capabilities, setCapabilities] = useState(() => getWalletCapabilities());
   const token = useMemo(() => getTokenConfig(), []);
+  const claimConfig = useMemo(() => getClaimConfig(), []);
+  const [claimCheck, setClaimCheck] = useState(null);
+  const [claimChecking, setClaimChecking] = useState(false);
 
   useEffect(() => {
     fetchProfile(user)
@@ -92,6 +96,19 @@ export default function Wallet({ user, onNavigate, onEditProfile, onLogout }) {
     if (!profile?.wallet_address) return;
     await navigator.clipboard.writeText(profile.wallet_address);
     toast.success('Public wallet address copied.');
+  }
+
+  async function checkEligibility() {
+    setClaimChecking(true);
+    setClaimCheck(null);
+    try {
+      const result = await fetchClaimEligibility(profile?.wallet_address);
+      setClaimCheck(result);
+    } catch (exception) {
+      setClaimCheck({ configured: true, eligible: false, reason: exception.message || 'Eligibility check failed.' });
+    } finally {
+      setClaimChecking(false);
+    }
   }
 
   return (
@@ -157,11 +174,17 @@ export default function Wallet({ user, onNavigate, onEditProfile, onLogout }) {
               <div className="flex items-center justify-between text-sm"><span className="text-gray-400">Available balance</span><strong className="text-cyan-100">— {token.tokenSymbol}</strong></div>
               <div className="mt-3 flex items-center justify-between text-sm"><span className="text-gray-400">Contract</span><strong className="font-mono text-xs text-gray-500">{token.tokenContract ? shortenAddress(token.tokenContract) : 'Not configured'}</strong></div>
             </div>
-            <button type="button" disabled className="mt-5 w-full rounded-xl bg-cyan-300/20 py-3 text-sm font-bold text-cyan-100 opacity-60">Claim rewards — coming after contract setup</button>
+            <button type="button" onClick={checkEligibility} disabled={claimChecking || !connected || !claimConfig.configured} className="mt-5 w-full rounded-xl bg-cyan-300/20 py-3 text-sm font-bold text-cyan-100 hover:bg-cyan-300/30 disabled:cursor-not-allowed disabled:opacity-60">{claimChecking ? 'Checking eligibility…' : claimConfig.configured ? 'Check Merkle eligibility' : 'Claim setup pending configuration'}</button>
+            {claimCheck && (
+              <div className={`mt-3 rounded-xl border p-3 text-xs leading-relaxed ${claimCheck.eligible ? 'border-emerald-400/30 bg-emerald-400/10 text-emerald-100' : 'border-amber-400/30 bg-amber-400/10 text-amber-100'}`}>
+                {claimCheck.eligible ? `Eligible allocation found: ${claimCheck.allocation.amount} base units at index ${claimCheck.allocation.index}.` : claimCheck.reason}
+                {claimCheck.eligible && <span className="mt-1 block text-emerald-200/70">The contract ABI is ready for independent review. No claim transaction was sent by GS-ChessX.</span>}
+              </div>
+            )}
             <ul className="mt-5 space-y-2 text-xs leading-relaxed text-gray-400">
               <li>• Reward eligibility will be calculated server-side.</li>
               <li>• Claims will require an explicit wallet transaction approval.</li>
-              <li>• No token transfer is active in this placeholder phase.</li>
+              <li>• This build checks Merkle data only; it does not submit claim transactions.</li>
             </ul>
           </section>
         </div>

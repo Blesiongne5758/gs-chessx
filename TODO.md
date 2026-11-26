@@ -29,3 +29,8 @@
 - [ ] Pengguna dapat membuka halaman Crypto Wallet, mendeteksi provider EVM/Solana, menghubungkan wallet, menandatangani pesan kepemilikan, menyalin alamat, dan melepas wallet.
 - [ ] Panel token menampilkan contract placeholder dan tombol claim yang tetap nonaktif sampai jaringan, contract address, eligibility server-side, dan mekanisme anti-replay siap.
 - [ ] Migration Supabase membatasi kolom wallet pada metadata publik; saldo, eligibility, dan distribusi token belum dianggap aktif.
+
+## Smart contract meme coin dan claim
+- [ ] Contract `GSXTokenMerkle.sol` diaudit dan dideploy ke testnet/mainnet yang dipilih; owner, Merkle root, claim window, dan recovery policy diverifikasi secara independen.
+- [ ] Proof service server-side menghasilkan `index`, `account`, `amount`, dan proof dari dataset terkontrol serta memvalidasi root yang sama dengan contract.
+- [x] Frontend memiliki ABI minimal dan reader eligibility Merkle yang fail-closed; build ini tidak mengirim, menandatangani, atau menyetujui transaksi claim.
