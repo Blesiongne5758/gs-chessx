@@ -14,6 +14,7 @@ import LearningHub from './components/LearningHub';
 import LeaderboardModal from './components/LeaderboardModal';
 import MatchHistoryModal from './components/MatchHistoryModal';
 import PgnReplayModal from './components/PgnReplayModal';
+import Wallet from './components/Wallet';
 import OnlineUserBanner from './components/OnlineUserBanner';
 import { DEFAULT_TIME_CONTROL, normalizeTimeControl } from './lib/timeControls';
 import { triggerUserOnlineAlert } from './lib/onlineAlerts';
@@ -277,6 +278,15 @@ function App() {
           onLogout={handleLogout}
           onOpenLeaderboard={() => setLeaderboardOpen(true)}
           onOpenHistory={() => setHistoryOpen(true)}
+        />
+      )}
+
+      {page === 'wallet' && user && (
+        <Wallet
+          user={user}
+          onNavigate={setPage}
+          onEditProfile={() => setPage('profile')}
+          onLogout={handleLogout}
         />
       )}
 

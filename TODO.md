@@ -23,3 +23,9 @@
 ## Validasi teknis
 - [x] Build Vite, lint, dan test yang sudah ada lulus setelah perubahan.
 - [x] Perubahan dikomit dan didorong ke `main` repository `Blesiongne5758/gs-chessx`.
+
+## Crypto wallet non-custodial — placeholder architecture
+- [ ] Wallet hanya menyimpan alamat publik, chain metadata, status koneksi, dan waktu koneksi; private key, seed phrase, dan secret token tidak pernah masuk ke aplikasi atau Supabase.
+- [ ] Pengguna dapat membuka halaman Crypto Wallet, mendeteksi provider EVM/Solana, menghubungkan wallet, menandatangani pesan kepemilikan, menyalin alamat, dan melepas wallet.
+- [ ] Panel token menampilkan contract placeholder dan tombol claim yang tetap nonaktif sampai jaringan, contract address, eligibility server-side, dan mekanisme anti-replay siap.
+- [ ] Migration Supabase membatasi kolom wallet pada metadata publik; saldo, eligibility, dan distribusi token belum dianggap aktif.

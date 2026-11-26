@@ -11,6 +11,7 @@ const ITEMS = [
   { key: 'learning', label: 'Chess Academy' },
   { key: 'tournaments', label: 'Tournaments' },
   { key: 'social', label: 'Friends & Chat' },
+  { key: 'wallet', label: 'Crypto Wallet' },
   { key: 'shop', label: 'Shop', soon: true },
 ];
 
