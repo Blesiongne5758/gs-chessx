@@ -265,6 +265,31 @@ function SkinDetail({ skin, fill, dark }) {
       </g>
     );
   }
+  if (skin === 'marble') {
+    return (
+      <g fill="none" stroke={lighten(fill, 0.28)} strokeLinecap="round" opacity="0.58">
+        <path d="M30 76 C39 70 43 82 51 75 S64 70 70 77" strokeWidth="1.8" />
+        <path d="M36 84 C43 80 48 88 56 82 S65 80 67 85" stroke={dark} strokeWidth="1" opacity="0.7" />
+      </g>
+    );
+  }
+  if (skin === 'wooden') {
+    return (
+      <g fill="none" stroke={dark} strokeLinecap="round" opacity="0.52">
+        <path d="M29 70 C39 66 44 74 51 70 S63 67 71 72" strokeWidth="1.6" />
+        <path d="M33 80 C43 76 51 84 61 78" strokeWidth="1.1" />
+        <path d="M38 88 C46 84 54 91 65 85" strokeWidth="0.9" />
+      </g>
+    );
+  }
+  if (skin === 'crystal') {
+    return (
+      <g fill="none" strokeLinecap="round">
+        <path d="M31 76 L42 68 L50 78 L60 67 L70 76" stroke={lighten(fill, 0.5)} strokeWidth="1.8" opacity="0.8" />
+        <path d="M39 86 L47 77 L56 87 L64 78" stroke={dark} strokeWidth="1.1" opacity="0.7" />
+      </g>
+    );
+  }
   return null;
 }
 

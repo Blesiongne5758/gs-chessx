@@ -4,34 +4,87 @@ import { resolveChessSkin } from '../lib/chessSkins';
 
 const FILES = 'abcdefgh';
 
+function makeSurfaceTexture(surface, lightColor, darkColor, size = 256) {
+  if (typeof document === 'undefined' || !surface) return null;
+  const canvas = document.createElement('canvas');
+  canvas.width = size;
+  canvas.height = size;
+  const ctx = canvas.getContext('2d');
+  if (!ctx) return null;
+  ctx.fillStyle = `#${lightColor.toString(16).padStart(6, '0')}`;
+  ctx.fillRect(0, 0, size, size);
+  ctx.globalAlpha = 0.2;
+  ctx.strokeStyle = `#${darkColor.toString(16).padStart(6, '0')}`;
+  ctx.lineWidth = surface === 'wood' ? 2 : 1;
+  if (surface === 'wood') {
+    for (let y = -size; y < size * 2; y += 16 + Math.random() * 12) {
+      ctx.beginPath();
+      ctx.moveTo(0, y);
+      ctx.bezierCurveTo(size * 0.25, y - 8, size * 0.7, y + 12, size, y - 4);
+      ctx.stroke();
+    }
+  } else if (surface === 'marble') {
+    for (let i = 0; i < 7; i += 1) {
+      ctx.beginPath();
+      ctx.moveTo(-20, i * size / 6);
+      ctx.bezierCurveTo(size * 0.25, i * size / 6 + 18, size * 0.45, i * size / 6 - 22, size + 20, i * size / 6 + 4);
+      ctx.stroke();
+    }
+  } else {
+    ctx.globalAlpha = 0.14;
+    for (let i = 0; i < 18; i += 1) {
+      const x = Math.random() * size;
+      const y = Math.random() * size;
+      ctx.beginPath();
+      ctx.moveTo(x, y);
+      ctx.lineTo(x + 22, y + 32);
+      ctx.stroke();
+    }
+  }
+  const texture = new THREE.CanvasTexture(canvas);
+  texture.colorSpace = THREE.SRGBColorSpace;
+  texture.wrapS = THREE.RepeatWrapping;
+  texture.wrapT = THREE.RepeatWrapping;
+  texture.repeat.set(2, 2);
+  return texture;
+}
+
 function makePiece(type, color, skin = 'classic', customization, performance = {}) {
   const group = new THREE.Group();
   const white = color === 'w';
   const skinSet = resolveChessSkin(skin, customization);
   const palette = white ? skinSet.white : skinSet.black;
+  const materialPreset = skinSet.material || {};
 
   const isNeon = skin === 'neon' || skin === 'anime' || skin === 'custom';
   const isFancy = skin === 'fancy' || skin === 'historical' || skin === 'holy';
-  const bodyRoughness   = isNeon ? 0.18 : isFancy ? 0.28 : 0.38;
-  const bodyMetalness   = isNeon ? 0.45 : isFancy ? 0.35 : 0.18;
-  const trimRoughness   = isNeon ? 0.12 : isFancy ? 0.20 : 0.25;
-  const trimMetalness   = isNeon ? 0.88 : isFancy ? 0.72 : 0.60;
+  const bodyRoughness   = materialPreset.roughness ?? (isNeon ? 0.18 : isFancy ? 0.28 : 0.38);
+  const bodyMetalness   = materialPreset.metalness ?? (isNeon ? 0.45 : isFancy ? 0.35 : 0.18);
+  const trimRoughness   = Math.max(0.08, bodyRoughness - 0.08);
+  const trimMetalness   = isNeon ? 0.88 : materialPreset.surface === 'crystal' ? 0.28 : isFancy ? 0.72 : 0.60;
+  const PhysicalMaterial = materialPreset.surface === 'crystal' ? THREE.MeshPhysicalMaterial : THREE.MeshStandardMaterial;
+  const physicalOptions = materialPreset.surface === 'crystal'
+    ? { clearcoat: materialPreset.clearcoat ?? 0.7, clearcoatRoughness: 0.12, transmission: materialPreset.transmission ?? 0.12, thickness: 0.35, transparent: true, opacity: 0.94 }
+    : {};
 
   const materials = {
-    body: new THREE.MeshStandardMaterial({
+    body: new PhysicalMaterial({
       color: palette.body,
       roughness: bodyRoughness,
       metalness: bodyMetalness,
+      ...physicalOptions,
     }),
-    trim: new THREE.MeshStandardMaterial({
+    trim: new PhysicalMaterial({
       color: palette.accent,
       roughness: trimRoughness,
       metalness: trimMetalness,
+      ...physicalOptions,
     }),
-    shade: new THREE.MeshStandardMaterial({
+    shade: new PhysicalMaterial({
       color: palette.shade,
-      roughness: bodyRoughness + 0.1,
+      roughness: Math.min(1, bodyRoughness + 0.1),
       metalness: bodyMetalness * 0.5,
+      ...physicalOptions,
     }),
   };
 
@@ -344,21 +397,45 @@ export default function ChessBoard3D({ board, selectedSquare, validTargets = [],
     };
     if (!reducedMotion) animationFrame = requestAnimationFrame(animate);
 
-    const wood = new THREE.MeshStandardMaterial({ color: skinSet.board.frame, roughness: 0.38, metalness: skin === 'fancy' ? 0.32 : 0.14 });
+    const materialPreset = skinSet.material || {};
+    const surface = materialPreset.surface;
+    const surfaceTextures = [];
+    const SurfaceMaterial = surface === 'crystal' ? THREE.MeshPhysicalMaterial : THREE.MeshStandardMaterial;
+    const physicalSurface = surface === 'crystal'
+      ? { clearcoat: materialPreset.clearcoat ?? 0.7, clearcoatRoughness: 0.14, transmission: 0.08, thickness: 0.25, transparent: true, opacity: 0.96 }
+      : {};
+    const frameTexture = makeSurfaceTexture(surface, skinSet.board.frame, skinSet.board.rim, isMobile ? 128 : 256);
+    if (frameTexture) surfaceTextures.push(frameTexture);
+    const wood = new SurfaceMaterial({
+      color: skinSet.board.frame,
+      roughness: materialPreset.roughness ?? 0.38,
+      metalness: materialPreset.metalness ?? (skin === 'fancy' ? 0.32 : 0.14),
+      map: frameTexture,
+      ...physicalSurface,
+    });
     const frame = new THREE.Mesh(new THREE.BoxGeometry(8.55, 0.38, 8.55), wood);
     frame.position.y = -0.22;
     frame.receiveShadow = true;
     frame.castShadow = true;
     scene.add(frame);
-    const darkWood = new THREE.MeshStandardMaterial({ color: skinSet.board.rim, roughness: 0.30, metalness: skin === 'fancy' ? 0.38 : 0.22 });
+    const darkWood = new SurfaceMaterial({
+      color: skinSet.board.rim,
+      roughness: materialPreset.darkRoughness ?? 0.30,
+      metalness: materialPreset.metalness ?? (skin === 'fancy' ? 0.38 : 0.22),
+      ...physicalSurface,
+    });
     const rim = new THREE.Mesh(new THREE.BoxGeometry(8.68, 0.12, 8.68), darkWood);
     rim.position.y = -0.45;
     scene.add(rim);
 
     // Pre-build tile materials (one per light/dark, shared across 64 tiles)
+    const lightTexture = makeSurfaceTexture(surface, skinSet.board.light, skinSet.board.dark, isMobile ? 128 : 256);
+    const darkTexture = makeSurfaceTexture(surface, skinSet.board.dark, skinSet.board.rim, isMobile ? 128 : 256);
+    if (lightTexture) surfaceTextures.push(lightTexture);
+    if (darkTexture) surfaceTextures.push(darkTexture);
     const tileMats = {
-      light: new THREE.MeshStandardMaterial({ color: skinSet.board.light, roughness: 0.42, metalness: skin === 'neon' || skin === 'anime' ? 0.22 : 0.10 }),
-      dark:  new THREE.MeshStandardMaterial({ color: skinSet.board.dark,  roughness: 0.52, metalness: skin === 'neon' || skin === 'anime' ? 0.28 : 0.16 }),
+      light: new SurfaceMaterial({ color: skinSet.board.light, roughness: materialPreset.roughness ?? 0.42, metalness: materialPreset.metalness ?? (skin === 'neon' || skin === 'anime' ? 0.22 : 0.10), map: lightTexture, ...physicalSurface }),
+      dark:  new SurfaceMaterial({ color: skinSet.board.dark, roughness: materialPreset.darkRoughness ?? 0.52, metalness: materialPreset.metalness ?? (skin === 'neon' || skin === 'anime' ? 0.28 : 0.16), map: darkTexture, ...physicalSurface }),
     };
     interactionMeshesRef.current = [];
     for (let row = 0; row < 8; row++) for (let col = 0; col < 8; col++) {
@@ -406,6 +483,7 @@ export default function ChessBoard3D({ board, selectedSquare, validTargets = [],
           for (const material of Array.isArray(object.material) ? object.material : [object.material]) material.dispose();
         }
       });
+      surfaceTextures.forEach((texture) => texture.dispose());
       renderer.dispose();
       renderer.domElement.remove();
       sceneRef.current = null;

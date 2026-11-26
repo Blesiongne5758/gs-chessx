@@ -1315,7 +1315,7 @@ function SkinDropdown({ skinId, onSkinChange, skinMode, onModeChange, customizat
 
       {/* Slide-Down Panel */}
       <div
-        className={`overflow-hidden transition-all duration-300 ease-in-out ${open ? 'max-h-[520px] opacity-100' : 'max-h-0 opacity-0'}`}
+        className={`overflow-hidden transition-all duration-300 ease-in-out ${open ? 'max-h-[720px] opacity-100' : 'max-h-0 opacity-0'}`}
         aria-hidden={!open}
       >
         <div className="mt-1 rounded-xl border border-gold/25 bg-[#0e1018] p-3 shadow-2xl shadow-black/60 space-y-3">
@@ -1361,7 +1361,22 @@ function SkinDropdown({ skinId, onSkinChange, skinMode, onModeChange, customizat
                         : 'border-white/8 bg-white/[.03] text-gray-300 hover:border-gold/40 hover:bg-white/[.06] hover:text-white'
                     }`}
                   >
-                    <span className="font-bold text-[11px] leading-tight">{skin.shortLabel}</span>
+                    <span className="flex w-full items-center gap-1.5 font-bold text-[11px] leading-tight">
+                      <span
+                        aria-hidden="true"
+                        className="h-3 w-3 shrink-0 rounded-full border border-white/20 shadow-inner"
+                        style={{
+                          background: skin.material?.surface === 'marble'
+                            ? 'linear-gradient(135deg,#f5f2e9 35%,#8e9299 36%,#d8d5cc 54%,#6f747c 55%,#ece9e0 72%)'
+                            : skin.material?.surface === 'wood'
+                            ? 'repeating-linear-gradient(12deg,#d6aa72 0 3px,#70482f 4px 6px)'
+                            : skin.material?.surface === 'crystal'
+                            ? 'linear-gradient(135deg,#e4ffff,#4eafbb 48%,#193e56)'
+                            : `linear-gradient(135deg, ${toCssColor(skin.board.light)}, ${toCssColor(skin.board.dark)})`,
+                        }}
+                      />
+                      <span>{skin.shortLabel}</span>
+                    </span>
                     <span className={`text-[10px] leading-tight mt-0.5 ${isActive ? 'text-gold/70' : 'text-gray-500'}`}>
                       {skin.description.length > 36 ? skin.description.slice(0, 36) + '…' : skin.description}
                     </span>
