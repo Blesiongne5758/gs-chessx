@@ -65,7 +65,7 @@ export default function TopNav({
       <header className="fixed inset-x-0 top-0 z-50 border-b border-white/10 bg-[#08090d]/95 px-4 py-3 shadow-xl shadow-black/20 backdrop-blur-xl sm:px-6 lg:px-8">
         <nav className="mx-auto flex max-w-7xl items-center justify-between gap-4" aria-label="Primary navigation">
           <button type="button" onClick={() => onNavigate('lobby')} className="flex items-center gap-2 text-left" aria-label="Go to home">
-            <span className="grid h-10 w-10 place-items-center rounded-xl border border-gold/50 bg-gradient-to-br from-gold/30 to-transparent text-3xl text-gold shadow-[0_0_18px_rgba(212,175,55,.2)]">♟</span>
+            <img src="/gs-chessx-logo.png" alt="GS-ChessX logo" className="h-10 w-10 rounded-xl border border-gold/50 object-cover shadow-[0_0_18px_rgba(212,175,55,.35)]" />
             <span className="block">
               <strong className="block font-cinzel text-base sm:text-xl leading-none text-gold">GS-ChessX</strong>
               <small className="text-[9px] sm:text-[10px] tracking-[.15em] sm:tracking-[.2em] text-gray-500">PLAY · LEARN · WIN</small>

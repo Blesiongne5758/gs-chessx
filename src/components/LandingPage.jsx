@@ -18,9 +18,7 @@ export default function LandingPage({ onPlay, onLogin, onSignup, user }) {
       <header className="sticky top-0 z-50 border-b border-white/10 bg-[#08090d]/95 px-4 py-3 shadow-xl shadow-black/30 backdrop-blur-xl sm:px-6 lg:px-8">
         <nav className="mx-auto flex max-w-7xl items-center justify-between gap-4" aria-label="Main Navigation">
           <div className="flex items-center gap-2">
-            <span className="grid h-10 w-10 place-items-center rounded-xl border border-gold/50 bg-gradient-to-br from-gold/30 to-transparent text-3xl text-gold shadow-[0_0_18px_rgba(212,175,55,.2)]">
-              ♟
-            </span>
+            <img src="/gs-chessx-logo.png" alt="GS-ChessX logo" className="h-10 w-10 rounded-xl border border-gold/50 object-cover shadow-[0_0_18px_rgba(212,175,55,.35)]" />
             <div>
               <strong className="block font-cinzel text-xl leading-none text-gold">GS-ChessX</strong>
               <small className="text-[10px] tracking-[.2em] text-gray-500">PLAY · LEARN · WIN</small>
@@ -317,7 +315,7 @@ export default function LandingPage({ onPlay, onLogin, onSignup, user }) {
       <footer className="mt-12 border-t border-white/10 bg-[#08090d] px-4 py-8 pb-24 sm:px-6 lg:px-8">
         <div className="mx-auto max-w-7xl flex flex-col sm:flex-row items-center justify-between gap-4">
           <div className="flex items-center gap-2">
-            <span className="grid h-8 w-8 place-items-center rounded-lg border border-gold/40 bg-gold/10 text-xl text-gold">♟</span>
+            <img src="/gs-chessx-logo.png" alt="GS-ChessX logo" className="h-8 w-8 rounded-lg border border-gold/40 object-cover" />
             <span className="font-cinzel text-lg font-bold text-gold">GS-ChessX</span>
             <span className="text-xs text-gray-500">· The Battle of Ideologies</span>
           </div>
