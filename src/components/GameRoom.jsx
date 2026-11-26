@@ -991,7 +991,20 @@ function MultiplayerMediaCall({ roomId, userId, opponentName, callTrigger, onEnd
       if (peerRef.current) return peerRef.current;
       setCallType(type);
       const withVideo = type === 'video';
-      const stream = await navigator.mediaDevices.getUserMedia({
+
+      // Guard: navigator.mediaDevices is undefined on insecure (non-HTTPS)
+      // origins and in some older/embedded browsers.
+      const mediaDevices = navigator.mediaDevices || (navigator.getUserMedia && {
+        getUserMedia: (constraints) =>
+          new Promise((resolve, reject) => {
+            (navigator.getUserMedia || navigator.webkitGetUserMedia || navigator.mozGetUserMedia).call(navigator, constraints, resolve, reject);
+          }),
+      });
+      if (!mediaDevices?.getUserMedia) {
+        toast.error('Media devices not available. Please use HTTPS or a supported browser.');
+        throw new Error('getUserMedia is not supported in this browser or context.');
+      }
+      const stream = await mediaDevices.getUserMedia({
         audio: true,
         video: withVideo ? { width: { ideal: 640 }, height: { ideal: 480 } } : false,
       });
@@ -1107,11 +1120,12 @@ function MultiplayerMediaCall({ roomId, userId, opponentName, callTrigger, onEnd
         payload: { from: userId, kind: 'offer', callType: type, description: peer.localDescription },
       });
     } catch (error) {
-      toast.error(
-        error.name === 'NotAllowedError'
-          ? `Please allow permission for ${type === 'video' ? 'camera and microphone' : 'microphone'}.`
-          : error.message || 'Media unavailable.'
-      );
+      const msg = error.name === 'NotAllowedError'
+        ? `Please allow permission for ${type === 'video' ? 'camera and microphone' : 'microphone'}.`
+        : error.name === 'NotFoundError'
+        ? `No ${type === 'video' ? 'camera' : 'microphone'} found on this device.`
+        : error.message || 'Media unavailable.';
+      toast.error(msg);
     }
   }
 
